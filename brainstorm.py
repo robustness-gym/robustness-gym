@@ -63,7 +63,15 @@ def visualize(slice_with_predictions):
 
 # Visualizations
 
+    # Select the type of Slice
+    # ['augmentation', 'adv_attack', 'eval_set', 'slicing functions', 'dataset']
+
     # Views
+
+    # Summary of Robustness Page (depends on Model)
+        # Summarize what this model does well on, what it fails on
+        # Radar plot
+        # Aggregate metrics
 
     # Only Slice (no Model)
 
