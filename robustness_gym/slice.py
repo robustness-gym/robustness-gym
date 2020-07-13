@@ -19,6 +19,16 @@ from robustness_gym.dataset import *
 
 class Slice(Dataset):
 
+    def __init__(self, *args, **kwargs):
+        super(Slice, self).__init__(*args, **kwargs)
+
+        # Always a single slice inside a slice
+        self.num_slices = 1
+
+    def __repr__(self):
+        schema_str = dict((a, str(b)) for a, b in zip(self._data.schema.names, self._data.schema.types))
+        return f"{self.__class__.__name__}(schema: {schema_str}, num_rows: {self.num_rows})"
+
     # def __init__(self):
     #     # A slice contains information about how it was derived
     #     self.info = {
@@ -32,8 +42,3 @@ class Slice(Dataset):
     #         'dependencies': {},  # dependence find a better word
     #
     #     }
-
-    def add_examples(self, examples: Sequence[Example]) -> None:
-        self.examples.append(examples)
-
-
