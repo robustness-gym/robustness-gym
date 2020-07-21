@@ -18,16 +18,25 @@ from quinine.common.utils import rmerge
 from robustness_gym.dataset import Dataset
 from robustness_gym.slice import Slice
 import robustness_gym
+import dill as pickle
 
 
-class Slicer(ABC):
+class Slicer:
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self,
+                 slice_batch_fn=None,
+                 *args,
+                 **kwargs):
+        super(Slicer, self).__init__(*args, **kwargs)
 
         self.type = None
         self.tasks = None
         self.metadata = {}
+        self.num_slices = None
+
+        if slice_batch_fn:
+            # Assign to the method
+            self.slice_batch = slice_batch_fn
 
     def __call__(self, *args, **kwargs):
 
@@ -55,7 +64,7 @@ class Slicer(ABC):
                 raise NotImplementedError
 
     def alias(self) -> str:
-        pass
+        return self.__class__.__name__
 
     def slice_dataset(self,
                       dataset: Dataset,
@@ -88,8 +97,8 @@ class Slicer(ABC):
 
         return dataset, slices, slice_labels
 
-    def slice_batch_with_slice_labels(self,
-                                      batch: Dict[str, List],
+    @staticmethod
+    def slice_batch_with_slice_labels(batch: Dict[str, List],
                                       slice_labels: np.ndarray) -> List[Dict[str, List]]:
         """
         Use a matrix of slice labels to select the subset of examples in each slice.
@@ -99,15 +108,51 @@ class Slicer(ABC):
         """
         return [tz.valmap(lambda v: list(compress(v, s)), batch) for s in slice_labels.T]
 
-    def slice_batch(self, batch: Dict[str, List], keys: List[str]) -> Tuple[
-        List[Dict[str, List]], Optional[np.ndarray]]:
+    def slice_batch(self,
+                    batch: Dict[str, List],
+                    keys: List[str]) -> Tuple[List[Dict[str, List]], Optional[np.ndarray]]:
         pass
+
+    @classmethod
+    def join(cls, *slicers: Slicer) -> Sequence[Slicer]:
+        """
+        Join many slicers. By default, just returns the slicers.
+        """
+        return slicers
+
+    def save(self, path: str) -> None:
+        """
+        Save a Slicer.
+        """
+        pickle.dump(self, open(path, 'wb'))
+
+    @classmethod
+    def load(cls, path: str) -> Slicer:
+        """
+        Load a Slicer from a path.
+        """
+        return pickle.load(open(path, 'rb'))
 
 
 class AugmentationMixin:
 
     def __init__(self):
         super(AugmentationMixin, self).__init__()
+
+        self.type = 'augmentation'
+
+    @staticmethod
+    def store_augmentations(batch: Dict[str, List],
+                            augmented_batches: List[Dict[str, List]],
+                            key: str):
+        """
+        Update a batch of examples with augmented examples.
+        """
+        batch['slices'] = [rmerge(example_dict,
+                                  {'augmented': {key: [tz.valmap(lambda v: v[i], aug_batch)
+                                                       for aug_batch in augmented_batches]}})
+                           for i, example_dict in enumerate(batch['slices'])]
+        return batch
 
 
 class AdversarialAttackMixin:
@@ -123,13 +168,78 @@ class FilterMixin:
 
         self.type = 'filter'
 
-    def store_slice_labels(self,
-                           batch: Dict[str, List],
+    @staticmethod
+    def store_slice_labels(batch: Dict[str, List],
                            slice_labels: Sequence[Sequence],
                            key: str):
         """
         Update a batch of examples with slice information.
         """
-        batch['slices'] = [rmerge(example_dict, {'filter': {key: slice_labels[i]}})
+        batch['slices'] = [rmerge(example_dict, {'filtered': {key: slice_labels[i]}})
                            for i, example_dict in enumerate(batch['slices'])]
         return batch
+
+    @classmethod
+    def union(cls, *slicers: Slicer):
+        """
+        Combine a list of slicers using a union.
+        """
+        # Group the slicers based on their class
+        grouped_slicers = tz.groupby(lambda s: s.__class__, slicers)
+
+        # Join the slicers corresponding to each class, and flatten
+        slicers = list(tz.concat(tz.itemmap(lambda item: (item[0], item[0].join(*item[1])),
+                                            grouped_slicers).values()))
+
+        def slice_batch_fn(batch, keys):
+            print(batch['slices'][0]['filtered'])
+            # Keep track of all the slice labels
+            all_slice_labels = []
+
+            # Run each slicer on the batch
+            for slicer in slicers:
+                # Use the batch updated by the previous slicer
+                batch, _, slice_labels = slicer.slice_batch(batch=batch, keys=keys)
+                all_slice_labels.append(slice_labels)
+
+            # Concatenate all the slice labels
+            slice_labels = np.concatenate(all_slice_labels, axis=1)
+
+            # Take the union over the slices (columns)
+            slice_labels = np.any(slice_labels, axis=1).astype(np.int32)[:, np.newaxis]
+
+            return batch, Slicer.slice_batch_with_slice_labels(batch, slice_labels), slice_labels
+
+        return Slicer(slice_batch_fn=slice_batch_fn)
+
+    @classmethod
+    def intersection(cls, *slicers: Slicer):
+        """
+        Combine a list of slicers using an intersection.
+        """
+        # Group the slicers based on their class
+        grouped_slicers = tz.groupby(lambda s: s.__class__, slicers)
+
+        # Join the slicers corresponding to each class, and flatten
+        slicers = list(tz.concat(tz.itemmap(lambda item: (item[0], item[0].join(*item[1])),
+                                            grouped_slicers).values()))
+
+        def slice_batch_fn(batch, keys):
+            # Keep track of all the slice labels
+            all_slice_labels = []
+
+            # Run each slicer on the batch
+            for slicer in slicers:
+                # Use the batch updated by the previous slicer
+                batch, _, slice_labels = slicer.slice_batch(batch=batch, keys=keys)
+                all_slice_labels.append(slice_labels)
+
+            # Concatenate all the slice labels
+            slice_labels = np.concatenate(all_slice_labels, axis=1)
+
+            # Take the intersection over the slices (columns)
+            slice_labels = np.all(slice_labels, axis=1).astype(np.int32)[:, np.newaxis]
+
+            return batch, Slicer.slice_batch_with_slice_labels(batch, slice_labels), slice_labels
+
+        return Slicer(slice_batch_fn=slice_batch_fn)

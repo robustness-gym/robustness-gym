@@ -25,6 +25,10 @@ class Slice(Dataset):
         # Always a single slice inside a slice
         self.num_slices = 1
 
+        # A slice has a lineage
+        self.lineage = None
+
+
     def __repr__(self):
         schema_str = dict((a, str(b)) for a, b in zip(self._data.schema.names, self._data.schema.types))
         return f"{self.__class__.__name__}(schema: {schema_str}, num_rows: {self.num_rows})"

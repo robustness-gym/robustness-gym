@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import os
 import pickle
+from copy import deepcopy
 from functools import partial
 from typing import *
 
+import cytoolz as tz
 import nlp
+import pyarrow as pa
 import spacy
 import torch
 from allennlp.predictors import Predictor
 from nlp.arrow_writer import ArrowWriter
-from tqdm import tqdm
-import pyarrow as pa
 from pyarrow import json, table
 from quinine.common.utils import rmerge
-import cytoolz as tz
-from copy import deepcopy
+from tqdm import tqdm
 
 
 class PreprocessingMixin:
@@ -42,7 +42,7 @@ class PreprocessingMixin:
         for key in keys:
             examples = self.strip_text(examples, key)
             examples = self.spacy_pipe(examples, key)
-            examples = self.constituency_parse(examples, key)
+            # examples = self.constituency_parse(examples, key)
 
         return examples
 
@@ -290,7 +290,7 @@ class Dataset(nlp.Dataset,
         # TODO(karan): v1 of robustness gym. Use it for image-based tasks, like clevr.
         pass
 
-    def initialize(self):
+    def initialize(self, keys):
 
         PreprocessingMixin.__init__(self)
 
@@ -307,7 +307,7 @@ class Dataset(nlp.Dataset,
         dataset = dataset.map(DatasetHelpersMixin.add_cache_key)
 
         # Apply an expensive preprocessing step using Spacy
-        dataset = dataset.map(partial(self.preprocess, keys=['question']), batched=True, batch_size=32)
+        dataset = dataset.map(partial(self.preprocess, keys=keys), batched=True, batch_size=32)
 
         self.__dict__.update(dataset.__dict__)
 

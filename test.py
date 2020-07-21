@@ -87,7 +87,6 @@ for header, slice in zip(has_phrase_slicer.headers, slices):
     st.write(header)
     st.write(slice)
 
-
 # Slice a dataset
 dataset, slices, slice_labels = has_phrase_slicer.slice_dataset(dataset, keys=['question'])
 st.write("Updated Dataset?")
@@ -101,7 +100,6 @@ st.write(dataset.split)
 st.write(old_dataset.split)
 for e in tz.take(20, old_dataset):
     st.write(e['slices'])
-
 
 for header, slice in zip(has_phrase_slicer.headers, slices):
     st.write(header)
@@ -118,19 +116,77 @@ batch, _, slice_labels = has_all_phrases_slicer.slice_batch(batch=dataset[:2], k
 st.write(pd.DataFrame(slice_labels, columns=has_all_phrases_slicer.headers))
 
 # Augmentation
+st.write("Easy Data Augmentation")
 eda = EasyDataAugmentation(num_aug=3)
 dataset, slices, slice_labels = eda(dataset, keys=['question'])
+st.write(dataset)
 st.write(slices)
 st.write(slices[0])
-for e in tz.take(2, slices[0]):
+for e in tz.take(1, slices[0]):
     st.write(e)
 
-for e in tz.take(6, tz.interleave(slices)):
+for e in tz.take(1, slices[1]):
     st.write(e)
 
-st.write(list(tz.interleave(slices)))
+for e in tz.take(2, dataset):
+    st.write(e)
 
+# Combine slices
 st.write(Slice.interleave(slices))
 st.write(Slice.chain(slices))
 
-# st.write(batch)
+st.write(slice_labels)
+
+# Simple way to create a generic slicer from a fn
+example = Slicer(slice_batch_fn=lambda b, k: st.write("My slicer just ran."))
+example.slice_batch(None, None)
+
+union_has_phrase = FilterMixin.union(*[
+    HasPhrase(['iran', 'samaritan']),
+    HasPhrase(['do']),
+])
+
+batch, _, slice_labels = union_has_phrase(dataset[:2], keys=['question'])
+
+st.write(slice_labels)
+st.write(batch)
+
+complicated_has_phrase = FilterMixin.union(
+    FilterMixin.intersection(
+        HasPhrase(['iran']),
+        HasPhrase(['afghanistan']),
+    ),
+    HasPhrase(['samaritan']),
+    # name='MySlicer',
+)
+
+batch, _, slice_labels = complicated_has_phrase(dataset[:2], keys=['question'])
+
+st.write(slice_labels)
+st.write(batch)
+
+# Slice a batch
+has_phrase_slicer_1 = HasPhrase(phrases=['iran', 'afghanistan'])
+batch, slices, slice_labels = has_phrase_slicer_1(batch=dataset[:2], keys=['question'])
+st.write(pd.DataFrame(slice_labels, columns=has_phrase_slicer.headers))
+# HasPhrase-1: [0, 1]
+# {'iran': 0, 'afghanistan': 1}
+
+# HasPhrase: [0, 1]
+
+# {'HasPhrase': {'iran': 0, 'afghanistan': 1}}
+
+has_phrase_slicer_2 = HasPhrase(phrases=['do good', 'samaritan'])
+batch, slices, slice_labels = has_phrase_slicer_2(batch=dataset[:2], keys=['question'])
+st.write(pd.DataFrame(slice_labels, columns=has_phrase_slicer.headers))
+# HasPhrase-1: [0, 1]
+# HasPhrase-2: [1, 0]
+# {'HasPhrase': {'iran': 0, 'afghanistan': 1, 'do': 2, 'samaritan': 3}} __ will have to be stored on disk
+# {'iran': 0, 'afghanistan': 1, 'do': 0, 'samaritan': 1}
+
+has_phrase_slicer_3 = HasPhrase(phrases=['iran', 'afghanistan', 'do', 'samaritan'])
+batch, slices, slice_labels = has_phrase_slicer_3(batch=dataset[:2], keys=['question'])
+st.write(pd.DataFrame(slice_labels, columns=has_phrase_slicer.headers))
+# HasPhrase-1: [0, 1]
+# HasPhrase-2: [1, 0]
+# {'iran': 0, 'afghanistan': 1}[1, 0, 0, 1]

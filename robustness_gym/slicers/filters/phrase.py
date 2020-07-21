@@ -13,7 +13,7 @@ class AhoCorasickMixin:
 
     def populate_automaton(self,
                            phrases: Dict[Any, str],
-                           reset_automaton: bool = False):
+                           reset_automaton: bool = False) -> None:
         if reset_automaton:
             # Create a new automaton
             self.automaton = Automaton()
@@ -71,11 +71,14 @@ class HasPhrase(Slicer,
         # Populate the Aho-Corasick automaton
         self.populate_automaton({i: phrase for i, phrase in enumerate(self.phrases)})
 
+        # One slice per phrase
+        self.num_slices = len(self.phrases)
+
         # Set the headers
         self.headers = [f"{self.__class__.__name__}('{phrase}')" for phrase in self.phrases]
 
     @classmethod
-    def from_file(cls, path: str):
+    def from_file(cls, path: str) -> Slicer:
         """
         Load phrases from a file, one per line.
         """
@@ -84,11 +87,18 @@ class HasPhrase(Slicer,
         return cls(phrases=phrases)
 
     @classmethod
-    def default(cls):
+    def default(cls) -> Slicer:
         """
         A default vocabulary of phrases to search.
         """
         return cls(phrases=[])
+
+    @classmethod
+    def join(cls, *slicers: HasPhrase) -> Sequence[HasPhrase]:
+        """
+        Join to combine multiple HasPhrase slicers.
+        """
+        return [HasPhrase(phrases=list(tz.concat([slicer.phrases for slicer in slicers])))]
 
     def alias(self) -> str:
         return self.__class__.__name__
@@ -117,6 +127,8 @@ class HasPhrase(Slicer,
 
         return batch, self.slice_batch_with_slice_labels(batch, slice_labels), slice_labels
 
+
+# HasAnyPhrase = FilterMixin.union()
 
 class HasAnyPhrase(HasPhrase):
 
@@ -174,60 +186,277 @@ class HasAllPhrases(HasPhrase):
         return batch, self.slice_batch_with_slice_labels(batch, slice_labels), slice_labels
 
 
+class HANSPhrases(HasPhrase):
+
+
+
 # Taken from https://github.com/tommccoy1/hans/blob/master/templates.py
-nouns_sg = ["professor", "student", "president", "judge", "senator", "secretary", "doctor", "lawyer", "scientist",
-            "banker", "tourist", "manager", "artist", "author", "actor", "athlete"]
-nouns_pl = ["professors", "students", "presidents", "judges", "senators", "secretaries", "doctors", "lawyers",
-            "scientists", "bankers", "tourists", "managers", "artists", "authors", "actors", "athletes"]
+class SingularNouns(HasPhrase):
 
-transitive_verbs = ["recommended", "called", "helped", "supported", "contacted", "believed", "avoided", "advised",
-                    "saw", "stopped", "introduced", "mentioned", "encouraged", "thanked", "recognized", "admired"]
-passive_verbs = ["recommended", "helped", "supported", "contacted", "believed", "avoided", "advised", "stopped",
-                 "introduced", "mentioned", "encouraged", "thanked", "recognized", "admired"]
-intransitive_verbs = ["slept", "danced", "ran", "shouted", "resigned", "waited", "arrived", "performed"]
-
-nps_verbs = ["believed", "knew", "heard", "forgot", "preferred", "claimed", "wanted", "needed",
-             "found", "suggested", "expected"]
-npz_verbs = ["hid", "moved", "presented", "paid", "studied", "stopped"]
-npz_verbs_plural = ["fought", "paid", "changed", "studied", "answered", "stopped", "grew", "moved", "returned",
-                    "left", "improved", "lost", "visited", "ate", "played"]
-understood_argument_verbs = ["paid", "explored", "won", "wrote", "left", "read", "ate"]
-nonentailing_quot_vebs = ["hoped", "claimed", "thought", "believed", "said", "assumed"]
-question_embedding_verbs = ["wondered", "understood", "knew", "asked", "explained", "realized"]
-
-preps = ["near", "behind", "by", "in front of", "next to"]
-conjs = ["while", "after", "before", "when", "although", "because", "since"]
-past_participles = ["studied", "paid", "helped", "investigated", "presented"]
-called_objects = ["coward", "liar", "hero", "fool"]
-told_objects = ["story", "lie", "truth", "secret"]
-food_words = ["fruit", "salad", "broccoli", "sandwich", "rice", "corn", "ice cream"]
-location_nouns = ["neighborhood", "region", "country", "town", "valley", "forest", "garden", "museum", "desert",
-                  "island", "town"]
-location_nouns_b = ["museum", "school", "library", "office", "laboratory"]
-won_objects = ["race", "contest", "war", "prize", "competition", "election", "battle", "award", "tournament"]
-read_wrote_objects = ["book", "column", "report", "poem", "letter", "novel", "story", "play", "speech"]
-adjs = ["important", "popular", "famous", "young", "happy", "helpful", "serious",
-        "angry"]
-adj_comp_nonent = ["afraid", "sure", "certain"]
-adj_comp_ent = ["sorry", "aware", "glad"]
-advs = ["quickly", "slowly", "happily", "easily", "quietly", "thoughtfully"]
-const_adv = ["after", "before", "because", "although", "though", "since", "while"]
-const_quot_entailed = ["forgot", "learned", "remembered", "knew"]
-advs_nonentailed = ["supposedly", "probably", "maybe", "hopefully"]
-advs_entailed = ["certainly", "definitely", "clearly", "obviously", "suddenly"]
-rels = ["who", "that"]
-quest = ["why", "how"]
-nonent_complement_nouns = ["feeling", "evidence", "idea", "belief"]
-ent_complement_nouns = ["fact", "reason", "news", "time"]
+    def __init__(self):
+        super(SingularNouns, self).__init__(phrases=[
+            "professor", "student", "president", "judge", "senator", "secretary", "doctor", "lawyer", "scientist",
+            "banker", "tourist", "manager", "artist", "author", "actor", "athlete",
+        ])
 
 
+class PluralNouns(HasPhrase):
 
-# if __name__ == '__main__':
-#
-#     # sf_slicers = [....]
-#     # augmentations = [....]
-#     # attacks = [....]
-#
-#     # apply_attacks(dataset, attacks)
+    def __init__(self):
+        super(PluralNouns, self).__init__(phrases=[
+            "professors", "students", "presidents", "judges", "senators", "secretaries", "doctors", "lawyers",
+            "scientists", "bankers", "tourists", "managers", "artists", "authors", "actors", "athletes",
+        ])
 
 
+class TransitiveVerbs(HasPhrase):
+
+    def __init__(self):
+        super(TransitiveVerbs, self).__init__(phrases=[
+            "recommended", "called", "helped", "supported", "contacted", "believed", "avoided", "advised",
+            "saw", "stopped", "introduced", "mentioned", "encouraged", "thanked", "recognized", "admired"
+        ])
+
+
+class PassiveVerbs(HasPhrase):
+
+    def __init__(self):
+        super(PassiveVerbs, self).__init__(phrases=[
+            "recommended", "helped", "supported", "contacted", "believed", "avoided", "advised", "stopped",
+            "introduced", "mentioned", "encouraged", "thanked", "recognized", "admired"
+        ])
+
+
+class IntransitiveVerbs(HasPhrase):
+
+    def __init__(self):
+        super(IntransitiveVerbs, self).__init__(phrases=[
+            "slept", "danced", "ran", "shouted", "resigned", "waited", "arrived", "performed"
+        ])
+
+
+class NPSVerbs(HasPhrase):
+
+    def __init__(self):
+        super(NPSVerbs, self).__init__(phrases=[
+            "believed", "knew", "heard", "forgot", "preferred", "claimed", "wanted", "needed",
+            "found", "suggested", "expected"
+        ])
+
+
+class NPZVerbs(HasPhrase):
+
+    def __init__(self):
+        super(NPZVerbs, self).__init__(phrases=[
+            "hid", "moved", "presented", "paid", "studied", "stopped"
+        ])
+
+
+class PluralNPZVerbs(HasPhrase):
+
+    def __init__(self):
+        super(PluralNPZVerbs, self).__init__(phrases=[
+            "fought", "paid", "changed", "studied", "answered", "stopped", "grew", "moved", "returned",
+            "left", "improved", "lost", "visited", "ate", "played"
+        ])
+
+
+class Prepositions(HasPhrase):
+
+    def __init__(self):
+        super(Prepositions, self).__init__(phrases=[
+            "near", "behind", "by", "in front of", "next to"
+        ])
+
+
+class Conjs(HasPhrase):
+
+    def __init__(self):
+        super(Conjs, self).__init__(phrases=[
+            "while", "after", "before", "when", "although", "because", "since"
+        ])
+
+
+class PastParticiples(HasPhrase):
+
+    def __init__(self):
+        super(PastParticiples, self).__init__(phrases=[
+            "studied", "paid", "helped", "investigated", "presented"
+        ])
+
+
+class UnderstoodArgumentVerbs(HasPhrase):
+
+    def __init__(self):
+        super(UnderstoodArgumentVerbs, self).__init__(phrases=[
+            "paid", "explored", "won", "wrote", "left", "read", "ate"
+        ])
+
+
+class NonEntQuotVerbs(HasPhrase):
+
+    def __init__(self):
+        super(NonEntQuotVerbs, self).__init__(phrases=[
+            "hoped", "claimed", "thought", "believed", "said", "assumed"
+        ])
+
+
+class QuestionEmbeddingVerbs(HasPhrase):
+
+    def __init__(self):
+        super(QuestionEmbeddingVerbs, self).__init__(phrases=[
+            "wondered", "understood", "knew", "asked", "explained", "realized"
+        ])
+
+
+class CalledObjects(HasPhrase):
+
+    def __init__(self):
+        super(CalledObjects, self).__init__(phrases=[
+            "coward", "liar", "hero", "fool"
+        ])
+
+
+class ToldObjects(HasPhrase):
+
+    def __init__(self):
+        super(ToldObjects, self).__init__(phrases=[
+            "story", "lie", "truth", "secret"
+        ])
+
+
+class FoodWords(HasPhrase):
+
+    def __init__(self):
+        super(FoodWords, self).__init__(phrases=[
+            "fruit", "salad", "broccoli", "sandwich", "rice", "corn", "ice cream"
+        ])
+
+
+class LocationNounsA(HasPhrase):
+
+    def __init__(self):
+        super(LocationNounsA, self).__init__(phrases=[
+            "neighborhood", "region", "country", "town", "valley", "forest", "garden", "museum", "desert",
+            "island", "town"
+        ])
+
+
+class LocationNounsB(HasPhrase):
+
+    def __init__(self):
+        super(LocationNounsB, self).__init__(phrases=[
+            "museum", "school", "library", "office", "laboratory"
+        ])
+
+
+class WonObjects(HasPhrase):
+
+    def __init__(self):
+        super(WonObjects, self).__init__(phrases=[
+            "race", "contest", "war", "prize", "competition", "election", "battle", "award", "tournament"
+        ])
+
+
+class ReadWroteObjects(HasPhrase):
+
+    def __init__(self):
+        super(ReadWroteObjects, self).__init__(phrases=[
+            "book", "column", "report", "poem", "letter", "novel", "story", "play", "speech"
+        ])
+
+
+class Adjectives(HasPhrase):
+
+    def __init__(self):
+        super(Adjectives, self).__init__(phrases=[
+            "important", "popular", "famous", "young", "happy", "helpful", "serious", "angry"
+        ])
+
+
+class AdjectivesCompNonEnt(HasPhrase):
+
+    def __init__(self):
+        super(AdjectivesCompNonEnt, self).__init__(phrases=[
+            "afraid", "sure", "certain"
+        ])
+
+
+class AdjectivesCompEnt(HasPhrase):
+
+    def __init__(self):
+        super(AdjectivesCompEnt, self).__init__(phrases=[
+            "sorry", "aware", "glad"
+        ])
+
+
+class Adverbs(HasPhrase):
+
+    def __init__(self):
+        super(Adverbs, self).__init__(phrases=[
+            "quickly", "slowly", "happily", "easily", "quietly", "thoughtfully"
+        ])
+
+
+class ConstAdv(HasPhrase):
+
+    def __init__(self):
+        super(ConstAdv, self).__init__(phrases=[
+            "after", "before", "because", "although", "though", "since", "while"
+        ])
+
+
+class ConstQuotEntailed(HasPhrase):
+
+    def __init__(self):
+        super(ConstQuotEntailed, self).__init__(phrases=[
+            "forgot", "learned", "remembered", "knew"
+        ])
+
+
+class Relations(HasPhrase):
+
+    def __init__(self):
+        super(Relations, self).__init__(phrases=[
+            "who", "that"
+        ])
+
+
+class Questions(HasPhrase):
+
+    def __init__(self):
+        super(Questions, self).__init__(phrases=[
+            "why", "how"
+        ])
+
+
+class NonEntComplementNouns(HasPhrase):
+
+    def __init__(self):
+        super(NonEntComplementNouns, self).__init__(phrases=[
+            "feeling", "evidence", "idea", "belief"
+        ])
+
+
+class EntComplementNouns(HasPhrase):
+
+    def __init__(self):
+        super(EntComplementNouns, self).__init__(phrases=[
+            "fact", "reason", "news", "time"
+        ])
+
+
+class AdvsNonEntailed(HasPhrase):
+
+    def __init__(self):
+        super(AdvsNonEntailed, self).__init__(phrases=[
+            "supposedly", "probably", "maybe", "hopefully"
+        ])
+
+
+class AdvsEntailed(HasPhrase):
+
+    def __init__(self):
+        super(AdvsEntailed, self).__init__(phrases=[
+            "certainly", "definitely", "clearly", "obviously", "suddenly"
+        ])

@@ -56,10 +56,11 @@ class EasyDataAugmentation(Slicer,
                     slice_labels[i, :] = 0
 
         # Remove augmented examples where slice_labels[i, :] = 0
-        augmented_batches = [self.slice_batch_with_slice_labels(aug_batch, slice_labels[:, j:j+1])[0]
+        augmented_batches = [self.slice_batch_with_slice_labels(aug_batch, slice_labels[:, j:j + 1])[0]
                              for j, aug_batch in enumerate(augmented_batches)]
+
+        # Update the batch to cache the augmented examples
+        batch = self.store_augmentations(batch, augmented_batches, self.alias())
 
         # EDA is assumed to be label-preserving, so we don't change anything else
         return batch, augmented_batches, slice_labels
-
-# [tz.merge_with(tz.compose(list, tz.interleave), *augmented_batches)]
