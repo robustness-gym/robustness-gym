@@ -191,7 +191,7 @@ def generate_report(model, task):
                         row_width=[4, 4, 4, 4, 1],
                         )
 
-    print(fig.layout)
+    # print(fig.layout)
 
     dist_legend_shown = False
     row = 1
