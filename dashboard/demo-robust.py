@@ -5,6 +5,7 @@ import plotly.express as px
 import streamlit as st
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
 # import SessionState
 
 st.title("Robustness gym")
@@ -39,12 +40,12 @@ def generate_slice_chart(acc_slices, task_slices):
 
 @st.cache(suppress_st_warning=True)
 def generate_report(model, task):
-    f'{task} / {model}'
-    classes = ['Entail', 'Neutral', 'Contradict']
+    classes = ['E', 'N', 'C']
 
     metrics = ['accuracy', 'f1']
+    metric_colors = ['#EC7734', '#477CC9']
 
-    data_original = {'group': 'Original',
+    data_original = {'group': 'Original data',
                      'slices': ['Test split   '],
                      'class_dist': [
                          [0.3, 0.4, 0.3],
@@ -58,158 +59,151 @@ def generate_report(model, task):
                      'cost': ['']}
 
     data_slice = {'group': 'Slices',
-                  'slices': ['Negation   ', 'Contains -ing   ', 'Temporal preposition   ', 'Ends with verb   '],
+                  'slices': ['Negation   ', 'Contains -ing   ', 'Temporal preposition   ', 'Ends with verb   '
+                      , 'slice 5   ', 'slice 6   ', 'slice 7   '],
                   'class_dist': [
                       [0.1, 0.3, 0.6],
                       [0.3, 0.5, 0.2],
-                      [0.8, 0.1, 0.1],
+                      [0.1, 0.6, 0.3],
+                      [0.1, 0.3, 0.6],
+                      [0.1, 0.3, 0.6],
+                      [0.1, 0.3, 0.6],
                       [0.1, 0.3, 0.6],
                   ],
                   'pred_dist': [
                       [0.1, 0.3, 0.6],
                       [0.3, 0.5, 0.2],
-                      [0.8, 0.1, 0.1],
+                      [0.2, 0.5, 0.3],
+                      [0.1, 0.3, 0.6],
+                      [0.1, 0.3, 0.6],
+                      [0.1, 0.3, 0.6],
                       [0.1, 0.3, 0.6],
                   ],
-                  'accuracy': [50, 40, 30, 20, 10],
-                  'f1': [20, 30, 10, 75, 80],
-                  'size': ['20%', '5%', '13%', '14%'],
-                  'cost': ['low', 'low', 'low', 'low']}
+                  'accuracy': [50, 40, 30, 20, 10, 20, 10],
+                  'f1': [20, 30, 10, 75, 80, 75, 80],
+                  'size': ['230', '521', '1K', '100', '2K', '3K', '210'],
+                  'cost': ['low', 'low', 'low', 'low', 'med', 'med', 'med']}
 
     data_augmentation = {'group': 'Augmentations',
                          'slices': ['Augmentation 1   ', 'Augmentation 2   ', 'Augmentation 3   ',
-                                    'Augmentation 4   '],
+                                    'Augmentation 4   ', 'Augmentation 5   ', 'Augmentation 6   ', 'Augmentation 7   '],
                          'class_dist': [
                              [0.1, 0.3, 0.6],
                              [0.3, 0.5, 0.2],
-                             [0.8, 0.1, 0.1],
+                             [0.2, 0.4, 0.4],
+                             [0.1, 0.3, 0.6],
+                             [0.1, 0.3, 0.6],
+                             [0.1, 0.3, 0.6],
                              [0.1, 0.3, 0.6],
                          ],
                          'pred_dist': [
                              [0.1, 0.3, 0.6],
                              [0.3, 0.5, 0.2],
-                             [0.8, 0.1, 0.1],
+                             [0.3, 0.4, 0.4],
+                             [0.1, 0.3, 0.6],
+                             [0.1, 0.3, 0.6],
+                             [0.1, 0.3, 0.6],
                              [0.1, 0.3, 0.6],
                          ],
-                         'accuracy': [50, 40, 30, 20, 10],
-                         'f1': [20, 30, 10, 75, 80],
-                         'size': ['1.4x', '2x', '4x', '3x'],
-                         'cost': ['low', 'low', 'low', 'low']}
+                         'accuracy': [50, 40, 30, 20, 10, 30, 20],
+                         'f1': [20, 30, 10, 75, 80, 75, 80],
+                         'size': ['15K', '18K', '12K', '30K', '24K', '40K', '15K'],
+                         'cost': ['low', 'low', 'low', 'low', 'low', 'low', 'low']}
 
     data_eval_set = {'group': 'Eval sets',
-                     'slices': ['Eval set 1   ', 'Eval set 2   ', 'Eval set 3   ', 'Eval set 4   '],
+                     'slices': ['Eval set 1   ', 'Eval set 2   ', 'Eval set 3   ', 'Eval set 4   ', 'Eval set 5   ',
+                                'Eval set 6   ', 'Eval set 7   '],
                      'class_dist': [
                          [0.1, 0.3, 0.6],
                          [0.3, 0.5, 0.2],
-                         [0.8, 0.1, 0.1],
+                         [0.2, 0.6, 0.2],
+                         [0.1, 0.3, 0.6],
+                         [0.1, 0.3, 0.6],
+                         [0.1, 0.3, 0.6],
                          [0.1, 0.3, 0.6],
                      ],
                      'pred_dist': [
                          [0.1, 0.3, 0.6],
                          [0.3, 0.5, 0.2],
-                         [0.8, 0.1, 0.1],
+                         [0.4, 0.4, 0.2],
+                         [0.1, 0.3, 0.6],
+                         [0.1, 0.3, 0.6],
+                         [0.1, 0.3, 0.6],
                          [0.1, 0.3, 0.6],
                      ],
-                     'accuracy': [50, 40, 30, 20, 10],
-                     'f1': [20, 30, 10, 75, 80],
-                     'size': ['3.1K', '15K', '412', '8.1K'],
-                     'cost': ['low', 'low', 'low', 'low']}
+                     'accuracy': [50, 40, 30, 20, 10, 20, 10],
+                     'f1': [20, 30, 10, 75, 80, 75, 80],
+                     'size': ['3.1K', '15K', '412', '8.1K', '15K', '412', '8.1K'],
+                     'cost': ['low', 'low', 'low', 'low', 'low', 'low', 'low']}
 
     data_adversarial = {'group': 'TextAttack',
-                        'slices': ['Textfooler   ', 'Hotflip   ', 'Morpheus   ', 'Seq2Sick   '],
+                        'slices': ['Textfooler   ', 'Hotflip   ', 'Morpheus   ', 'Seq2Sick   ', 'Hotflip 2  ',
+                                   'Morpheus 2   ', 'Seq2Sick 2  '],
                         'class_dist': [
                             [0.1, 0.3, 0.6],
                             [0.3, 0.5, 0.2],
                             [0.8, 0.1, 0.1],
                             [0.1, 0.3, 0.6],
+                            [0.1, 0.3, 0.6],
+                            [0.1, 0.3, 0.6],
+                            [0.1, 0.3, 0.6],
                         ],
                         'pred_dist': [
                             [0.1, 0.3, 0.6],
                             [0.3, 0.5, 0.2],
-                            [0.8, 0.1, 0.1],
+                            [0.3, 0.4, 0.2],
+                            [0.1, 0.3, 0.6],
+                            [0.1, 0.3, 0.6],
+                            [0.1, 0.1, 0.8],
                             [0.1, 0.3, 0.6],
                         ],
-                        'accuracy': [50, 40, 30, 20, 10],
-                        'f1': [20, 30, 10, 75, 80],
-                        'size': ['3.1K', '15K', '412', '8.1K'],
-                        'cost': ['high', 'medium', 'low', 'high']}
+                        'accuracy': [50, 40, 30, 20, 10, 20, 10],
+                        'f1': [20, 30, 10, 75, 80, 10, 75, 80],
+                        'size': ['3.1K', '15K', '412', '8.1K', '15K', '412', '8.1K'],
+                        'cost': ['high', 'medium', 'low', 'high', 'medium', 'low', 'high']}
 
-    data = [data_original, data_slice, data_augmentation, data_eval_set, data_adversarial]
+    data = [data_original, data_slice, data_augmentation, data_adversarial, data_eval_set]
     groups = [d['group'] for d in data]
 
-    min_acc = [.7, .6, .8, .9, .4]
-    min_f1 = [.6, .9, .4, .9, .5]
-
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatterpolar(
-        r=min_acc,
-        theta=groups,
-        fill='toself',
-        name='Accuracy'
-    ))
-    fig.add_trace(go.Scatterpolar(
-        r=min_f1,
-        theta=groups,
-        fill='toself',
-        name='F1'
-    ))
-
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 1]
-            )),
-        height=700,
-        showlegend=True,
-        title='Minimum performance by group'
-    )
-
-    st.write(fig)
-
-    dist_colors = ['#FDF0E7', '#F8C4A0', '#E8823B']
-
-    subplot_titles = sum([[metric.capitalize(), ''] for metric in metrics], []) + \
-                     ['Class Dist.', None,
-                      'Prediction Dist.', None,
-                      'Size',
-                      'Cost']
-
     n_metrics = len(metrics)
-    specs = len(groups) * [[{'colspan': 2}, {}] * n_metrics + [{'colspan': 2}, {}, {'colspan': 2}, {}, {}, {}, {'r': .07}]]
+    n_cols = n_metrics + 3
+    n_groups = len(groups)
 
-    fig = make_subplots(rows=len(groups),
-                        row_titles=groups,
-                        cols=2 * n_metrics + 7,
+    subplot_titles = ([metric.capitalize() for metric in metrics] + \
+                      ['Class %',
+                       'Pred. Class %',
+                       'Size'])
+    row_width = [7] * (n_groups - 1) + [1]
+    fig = make_subplots(rows=n_groups,
+                        row_titles=[''] + groups[1:],
+                        cols=n_cols,
                         shared_yaxes=True,
                         subplot_titles=subplot_titles,
-                        horizontal_spacing=.04,
-                        vertical_spacing=.04,
-                        specs=specs,
-                        row_width=[4, 4, 4, 4, 1],
+                        horizontal_spacing=.035,
+                        vertical_spacing=.03,
+                        row_width=row_width,
+                        column_width=[.6, .6, .35, .35, .25]
                         )
-
-    # print(fig.layout)
 
     dist_legend_shown = False
     row = 1
+    annots = []
+    hms = []
+    coords = []
     for d in data:
         col = 1
-        for metric in metrics:
-            # Add marker for metric
+        for metric, color in zip(metrics, metric_colors):
             fig.add_trace(
                 go.Bar(
                     x=d[metric],
                     y=d['slices'],
                     orientation='h',
-                    marker=dict(color='#477CC9',
-                                line=dict(width=1, color='#477CC9')),
+                    marker=dict(color=color),
                     showlegend=False,
                     text=d[metric],
-                    textposition='outside',
-                    width=.7
+                    textposition='inside',
+                    width=.9,
+                    textfont=dict(color='white')
                 ),
                 row=row, col=col
             )
@@ -219,40 +213,33 @@ def generate_report(model, task):
                     x=[100 - val for val in d[metric]],
                     y=d['slices'],
                     orientation='h',
-                    marker=dict(color='#F3F4F7',
-                                line=dict(width=1, color='#BEC4CE')),
+                    marker=dict(color='#F3F4F7'),
                     showlegend=False,
-                    width=.7
+                    width=.9
                 ),
                 row=row, col=col
             )
-            col += 2
+            col += 1
 
-        # Add class distributions
         for dist_type in ['class_dist', 'pred_dist']:
-            for i, class_ in enumerate(classes):
-                dist = [class_dist[i] for class_dist in d[dist_type]]
-                fig.add_trace(
-                    go.Bar(
-                        x=dist,
-                        y=d['slices'],
-                        orientation='h',
-                        marker=dict(color=dist_colors[i],
-                                    line=dict(width=1, color=dist_colors[-1])),
-                        showlegend=not dist_legend_shown,
-                        width=.7,
-                        # legendgroup=1,
-                        name=class_
-                    ),
-                    row=row, col=col
-                )
-            dist_legend_shown = True
-            col += 2
+            annotation_text = [[f"{int(round(x * 100)):d}" for x in rw] for rw in d[dist_type]]
+            hm = ff.create_annotated_heatmap(d[dist_type], x=classes, xgap=1, ygap=1,
+                                             annotation_text=annotation_text,
+                                             colorscale=[[0.0, '#FBF5F2'], [1.0, '#EC7734']],
+                                             zmin=0, zmax=1
+                                             )
+            hms.append(hm)
+            coords.append(n_cols * (row - 1) + col)
+            fig.add_trace(
+                hm.data[0],
+                row=row, col=col,
+            )
+            col += 1
 
-        # Add size. Repurpose bar chart as text field.
+        # Repurpose bar chart as text field.
         fig.add_trace(
             go.Bar(
-                x=[1] * 4,
+                x=[1] * len(d['size']),
                 y=d['slices'],
                 orientation='h',
                 marker=dict(color='#F3F4F7',
@@ -260,46 +247,67 @@ def generate_report(model, task):
                 showlegend=False,
                 text=d['size'],
                 textposition='inside',
+                insidetextanchor='middle',
+                width=.95
             ),
             row=row, col=col
         )
         col += 1
-
-        # Add cost. Repurpose bar chart as text field.
-        fig.add_trace(
-            go.Bar(
-                x=[1] * 4,
-                y=d['slices'],
-                orientation='h',
-                marker=dict(color='#F3F4F7',
-                            line=dict(width=0, color='#BEC4CE')),
-                showlegend=False,
-                text=d['cost'],
-                textposition='inside',
-                insidetextanchor='middle'
-            ),
-            row=row, col=col
-        )
         row += 1
 
-    for row in range(1, len(groups) + 1):
-        if row == len(groups):
+    for row in range(1, n_groups + 1):
+        if row == n_groups:
             show_x_axis = True
         else:
             show_x_axis = False
         fig.update_xaxes(range=[0, 100], row=row, col=1, tickvals=[0, 100], showticklabels=show_x_axis)
-        fig.update_xaxes(range=[0, 100], row=row, col=3, tickvals=[0, 100], showticklabels=show_x_axis)
-        fig.update_xaxes(range=[0, 1], row=row, col=5, tickvals=[0, 1], showticklabels=show_x_axis)
-        fig.update_xaxes(range=[0, 1], row=row, col=7, tickvals=[0, 1], showticklabels=show_x_axis)
-        fig.update_xaxes(range=[0, 1], row=row, col=9, showticklabels=False)
-        fig.update_xaxes(range=[0, 1], row=row, col=10, showticklabels=False)
-    fig.update_layout(title='Details',
-                      height=750,
-                      width=1000,
+        fig.update_xaxes(range=[0, 100], row=row, col=2, tickvals=[0, 100], showticklabels=show_x_axis)
+        fig.update_xaxes(row=row, col=3, showticklabels=show_x_axis)
+        fig.update_xaxes(row=row, col=4, showticklabels=show_x_axis)
+        fig.update_xaxes(range=[0, 1], row=row, col=5, showticklabels=False)
+        fig.update_xaxes(range=[0, 1], row=row, col=6, showticklabels=False)
+
+    fig.update_layout(title=f'{task} / {model}',
+                      height=900,
+                      width=960,
                       barmode='stack',
                       plot_bgcolor='rgba(0, 0, 0, 0)',
                       paper_bgcolor='rgba(0, 0, 0, 0)',
+                      font=dict(size=13),
                       )
+
+    # Use low-level plotly interface to update padding / font size
+    for a in fig['layout']['annotations']:
+        # If label for group
+        if a['text'] in groups:
+            a['x'] = .99  # Add padding
+        else:
+            a['font'] = dict(size=14)  # Adjust font size for non-group labels
+
+    # Due to a quirk of plotly, need to do some special low-level coding
+    # Code based on https://community.plotly.com/t/how-to-create-annotated-heatmaps-in-subplots/36686/25
+    newfont = [go.layout.Annotation(font_size=14)] * len(fig.layout.annotations)
+    fig_annots = [newfont] + [hm.layout.annotations for hm in hms]
+    for j in range(1, len(fig_annots)):
+        for k in range(len(fig_annots[j])):
+            coord = coords[j - 1]
+            fig_annots[j][k]['xref'] = f'x{coord}'
+            fig_annots[j][k]['yref'] = f'y{coord}'
+            fig_annots[j][k]['font_size'] = 11
+
+    def recursive_extend(mylist, nr):
+        # mylist is a list of lists
+        result = []
+        if nr == 1:
+            result.extend(mylist[nr - 1])
+        else:
+            result.extend(mylist[nr - 1])
+            result.extend(recursive_extend(mylist, nr - 1))
+        return result
+
+    new_annotations = recursive_extend(fig_annots[::-1], len(fig_annots))
+    fig.update_layout(annotations=new_annotations)
+
     st.write(fig)
 
 
