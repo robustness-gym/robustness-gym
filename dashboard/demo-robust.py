@@ -273,6 +273,7 @@ else:
 
         # Each item in test_data contains data for one group, e.g. the data for augmentations
         test_data = [
+            # First group
             {'group': '',  # Name of group
              'slices': ['Test split'],  # Tests/slices for group
              'data': {  # Data, indexed by column name
@@ -287,6 +288,7 @@ else:
                  'Size': '13K'
              }
              },
+            # Second group, etc.
             {'group': 'Slices',
              'slices': ['Negation', 'Contains -ing', 'Temporal preposition', 'Ends with verb', 'slice 5',
                         'slice 6', 'slice 7'],
