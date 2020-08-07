@@ -81,13 +81,9 @@ def generate_report(model, task, cols, data):
             col_name = col['name']
             col_type = col['type']
             slices = [s + ' ' * 3 for s in row['slices']]
-            print(row)
-            print(row['data'])
-            print(col_name)
-            print('slices')
-            print(slices)
             x = row['data'][col_name]
             if col_type == 'score':
+                max_score = col['max']
                 fig.add_trace(
                     go.Bar(
                         x=x,
@@ -105,7 +101,7 @@ def generate_report(model, task, cols, data):
                 # Add marker for complementary gray fill
                 fig.add_trace(
                     go.Bar(
-                        x=[100 - x_i for x_i in x],
+                        x=[max_score - x_i for x_i in x],
                         y=slices,
                         orientation='h',
                         marker=dict(color=score_color_complement),
