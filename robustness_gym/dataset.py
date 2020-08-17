@@ -11,16 +11,160 @@ import nlp
 import pyarrow as pa
 import spacy
 import torch
+import json
+import hashlib
 from allennlp.predictors import Predictor
 from nlp.arrow_writer import ArrowWriter
-from pyarrow import json, table
+from pyarrow import json as jsonarrow, table
 from quinine.common.utils import rmerge
 from tqdm import tqdm
 
 
-class PreprocessingMixin:
+def persistent_hash(s: str):
+    """
+    Compute a hash that persists across multiple Python sessions for a string.
+    """
+    return int(hashlib.sha224(s.encode()).hexdigest(), 16)
+
+
+class CachedOperation:
+    identifier: str
+
+    def __init__(self,
+                 identifier,
+                 apply_fn=None):
+        # Set the identifier for the preprocessor
+        self.identifier = identifier
+
+        if apply_fn:
+            self.apply = apply_fn
+
+    @staticmethod
+    def update_cache(batch: Dict[str], updates: List[Dict]) -> Dict[str]:
+        """
+        Updates the cache of preprocessed information stored with each example in a batch.
+
+        - batch must contain a key called 'cache' that maps to a dictionary.
+        - batch['cache'] is a list of dictionaries, one per example
+        - updates is a list of dictionaries, one per example
+        """
+        if 'cache' not in batch:
+            batch['cache'] = [{} for _ in range(len(batch['index']))]
+
+        assert 'cache' in batch, "Examples must have a key called 'cache'."
+        # assert len(batch['cache']) == len(updates), "Number of examples must equal the number of updates."
+
+        # For each example, recursively merge the example's original cache dictionary with the update dictionary
+        batch['cache'] = [rmerge(cache_dict, update_dict)
+                          for cache_dict, update_dict in zip(batch['cache'], updates)]
+
+        return batch
+
+    def __hash__(self):
+        """
+        Compute a hash value for the cached operation object.
+        """
+        return persistent_hash(self.identifier)
+
+    def get_cache_hash(self, keys: Optional[List[str]] = None):
+        """
+        Construct a hash that will be used to identify the application of a cached operation to the keys of a dataset.
+        """
+
+        val = hash(self)
+        if keys:
+            for key in keys:
+                val ^= persistent_hash(key)
+        return val
+
+    def get_cache_file_name(self, keys=None):
+        """
+        Construct a file name for caching.
+        """
+        return 'cache-' + str(abs(self.get_cache_hash(keys=keys))) + '.arrow'
+
+    def process_dataset(self,
+                        dataset: Dataset,
+                        keys: List[str],
+                        batch_size: int = 32):
+        """
+        Apply the cached operation to a dataset.
+        """
+
+        # Apply the cached operation
+        # Pass a file name for the cache: the automatically generated cache filename changes across sessions,
+        # since the hash value of a class method is not fixed.
+        return dataset.map(partial(self.process_batch, keys=keys), batched=True, batch_size=batch_size,
+                           cache_file_name=self.get_cache_file_name(keys=keys))
+
+    def process_batch(self,
+                      batch: Dict[str, List],
+                      keys: List[str]) -> Dict[str, List]:
+        """
+        Apply the cached operation to a batch.
+        """
+        assert len(set(keys) - set(batch.keys())
+                   ) == 0, "Any key in 'keys' must be present in 'batch'."
+
+        # Run the cached operation and get outputs
+        processed_outputs = self.apply(*[batch[key] for key in keys])
+
+        # Construct updates
+        updates = [{self.identifier: {json.dumps(keys) if len(keys) > 1 else keys[0]: val}}
+                   for val in processed_outputs]
+
+        # Update the cache and return the updated batch
+        return self.update_cache(batch=batch, updates=updates)
+
+    def apply(self, *args, **kwargs) -> List:
+        """
+        Implements the core functionality of the cached operation.
+        """
+        pass
+
+    def __call__(self, batch_or_dataset, keys):
+
+        if isinstance(batch_or_dataset, Dataset):
+            return self.process_dataset(dataset=batch_or_dataset,
+                                        keys=keys)
+        elif isinstance(batch_or_dataset, Dict):
+            return self.process_batch(batch=batch_or_dataset,
+                                      keys=keys)
+        else:
+            raise NotImplementedError
+
+
+class Spacy(CachedOperation):
+
+    def __init__(self,
+                 name: str = "en_core_web_sm"):
+        super(Spacy, self).__init__(identifier='Spacy')
+
+        # Load up the spacy module
+        spacy.prefer_gpu()
+        self.name = name
+        self.nlp = spacy.load(name)
+
+    def __hash__(self):
+        """
+        For Spacy, the hash value includes the name of the module being loaded.
+        """
+        val = super(Spacy, self).__hash__()
+        return val ^ persistent_hash(self.name)
+
+    def apply(self, text_batch) -> List:
+        # Apply spacy's pipe method to process the examples
+        docs = list(self.nlp.pipe(text_batch))
+
+        # Convert the docs to json
+        return [val.to_json() for val in docs]
+
+
+class AllenConstituencyParser(CachedOperation):
 
     def __init__(self):
+        super(AllenConstituencyParser, self).__init__(
+            identifier='AllenConstituencyParser')
 
         # Set up AllenNLP's constituency parser
         if torch.cuda.is_available():
@@ -33,67 +177,53 @@ class PreprocessingMixin:
                 "https://storage.googleapis.com/allennlp-public-models/elmo-constituency-parser-2020.02.10.tar.gz",
             )
 
-        # Load up the spacy module
-        spacy.prefer_gpu()
-        self.nlp = spacy.load("en_core_web_sm")
+    def apply(self, text_batch) -> List:
+        # Apply the constituency parser
+        parse_trees = self.constituency_parser.predict_batch_json([{'sentence': text}
+                                                                   for text in text_batch])
 
-    def preprocess(self, examples: Dict[List], keys: List[str]):
+        # Extract the tree from the output of the constituency parser
+        return [val['trees'] for val in parse_trees]
 
-        for key in keys:
-            examples = self.strip_text(examples, key)
-            examples = self.spacy_pipe(examples, key)
-            # examples = self.constituency_parse(examples, key)
 
-        return examples
+class StripText(CachedOperation):
 
-    def strip_text(self, examples: Dict[List], key):
-        """
-        A preprocessor that lower cases text and strips out punctuation.
-        """
+    def __init__(self):
+        super(StripText, self).__init__(identifier='StripText')
 
+    def apply(self, text_batch) -> List:
         # Clean up each text with a simple function
         stripped = list(
             map(
-                lambda text: text.lower().replace(".", "").replace("?", "").replace("!", "").replace(",", ""),
-                examples[key]
+                lambda text: text.lower().replace(".", "").replace(
+                    "?", "").replace("!", "").replace(",", ""),
+                text_batch
             )
         )
 
-        # Update the examples with the stripped texts
-        return self.update_cache(examples, [{'stripped': {key: val}} for val in stripped])
+        # Return the stripped sentences
+        return stripped
 
-    def spacy_pipe(self, examples: Dict[List], key):
 
-        # Apply spacy's pipe method to process the examples
-        docs = list(self.nlp.pipe(examples[key]))
+class TextBlob(CachedOperation):
 
-        # Convert the docs to json and update the examples
-        return self.update_cache(examples, [{'spacy': {key: val.to_json()}} for val in docs])
+    def __init__(self):
+        super(TextBlob, self).__init__(identifier='TextBlob')
 
-    def constituency_parse(self, examples: Dict[List], key):
+    def apply(self, text_batch) -> List:
+        pass
 
-        # Apply the constituency parser
-        parse_trees = self.constituency_parser.predict_batch_json([{'sentence': example} for example in examples[key]])
 
-        # Extract the tree from the output of the constituency parser and update the examples
-        return self.update_cache(examples, [{'constituency_parse': {key: val['trees']}} for val in parse_trees])
+# class PreprocessingMixin:
+#     preprocessors = ['spacy', 'textblob', 'striptext', 'constituency_parser']
 
-    def update_cache(self, examples: Dict[List], updates: List[Dict]) -> Dict[List]:
-        """
-        Updates the cache of preprocessed information stored with each example in a batch.
+#     def preprocess(self, examples: Dict[str], keys: List[str]):
+#         for key in keys:
+#             examples = self.strip_text(examples, key)
+#             examples = self.spacy_pipe(examples, key)
+#             # examples = self.constituency_parse(examples, key)
 
-        - examples must contain a key called 'cache' that maps to a dictionary.
-        - examples['cache'] is a list of dictionaries, one per example
-        - updates is a list of dictionaries, one per example
-        """
-        assert 'cache' in examples, "Examples must have a key called 'cache'."
-        assert len(examples['cache']) == len(updates), "Number of examples must equal the number of updates."
-
-        # For each example, recursively merge the example's original cache dictionary with the update dictionary
-        examples['cache'] = [rmerge(cache_dict, update_dict)
-                             for cache_dict, update_dict in zip(examples['cache'], updates)]
-
-        return examples
+#         return examples
 
 
 class DatasetHelpersMixin:
@@ -122,7 +252,8 @@ class DatasetHelpersMixin:
 
 class Dataset(nlp.Dataset,
               DatasetHelpersMixin,
-              PreprocessingMixin):
+              #   PreprocessingMixin
+              ):
 
     def __init__(self, *args, **kwargs):
 
@@ -132,11 +263,33 @@ class Dataset(nlp.Dataset,
         else:
             super(Dataset, self).__init__(*args, **kwargs)
 
+        # Keep track of the original dataset keys
         self.original_keys = self.schema.names
         self.num_slices = 0
 
+        # Keep track of slicers that were executed on the dataset
+        self.history = {
+            'ops': {},
+            'slicers': {
+                'filters': {},
+                'augmentations': {},
+                'attacks': {},
+            }
+        }
+
+        # Add an index to the dataset
+        dataset = self.map(DatasetHelpersMixin.add_index, with_indices=True)
+        self.__dict__.update(dataset.__dict__)
+
+    @staticmethod
+    def add_index(example, index):
+        if 'index' not in example:
+            example['index'] = str(index)
+        return example
+
     def __repr__(self):
-        schema_str = dict((a, str(b)) for a, b in zip(self._data.schema.names, self._data.schema.types))
+        schema_str = dict((a, str(b)) for a, b in zip(
+            self._data.schema.names, self._data.schema.types))
         return f"{self.__class__.__name__}(schema: {schema_str}, num_rows: {self.num_rows}, num_slices: {self.num_slices})"
 
     @classmethod
@@ -194,7 +347,7 @@ class Dataset(nlp.Dataset,
         """
         Load a dataset from a JSON file on disk, where each line of the json file consists of a single example.
         """
-        return cls(json.read_json(json_path))
+        return cls(jsonarrow.read_json(json_path))
 
     @classmethod
     def from_slice(cls):
@@ -252,7 +405,8 @@ class Dataset(nlp.Dataset,
         )
 
         if isinstance(output, nlp.Dataset):
-            return self.from_nlp(output)
+            self.__dict__ = tz.merge(self.__dict__, output.__dict__)
+            return self
         else:
             return output
 
@@ -271,7 +425,8 @@ class Dataset(nlp.Dataset,
 
         # Taken from Huggingface nlp.Dataset
         # Prepare output buffer and batched writer in memory or on file if we update the table
-        writer = ArrowWriter(schema=self.schema, path=os.path.join(path, 'data.arrow'), writer_batch_size=1000)
+        writer = ArrowWriter(schema=self.schema, path=os.path.join(
+            path, 'data.arrow'), writer_batch_size=1000)
 
         # Loop over single examples or batches and write to buffer/file if examples are to be updated
         for i, example in tqdm(enumerate(self)):
@@ -290,26 +445,26 @@ class Dataset(nlp.Dataset,
         # TODO(karan): v1 of robustness gym. Use it for image-based tasks, like clevr.
         pass
 
-    def initialize(self, keys):
-
-        PreprocessingMixin.__init__(self)
-
-        # For convenience
-        dataset = self
-
-        # Add an index to the dataset
-        dataset = dataset.map(DatasetHelpersMixin.add_index, with_indices=True)
-
-        # Add a dictionary for keeping track of slice membership
-        dataset = dataset.map(DatasetHelpersMixin.add_slices_key)
-
-        # Add a dictionary for keeping track of cached information
-        dataset = dataset.map(DatasetHelpersMixin.add_cache_key)
-
-        # Apply an expensive preprocessing step using Spacy
-        dataset = dataset.map(partial(self.preprocess, keys=keys), batched=True, batch_size=32)
-
-        self.__dict__.update(dataset.__dict__)
+    # def initialize(self, keys):
+    #
+    #     PreprocessingMixin.__init__(self)
+    #
+    #     # For convenience
+    #     dataset = self
+    #
+    #     # Add an index to the dataset
+    #     dataset = dataset.map(DatasetHelpersMixin.add_index, with_indices=True)
+    #
+    #     # Add a dictionary for keeping track of slice membership
+    #     dataset = dataset.map(DatasetHelpersMixin.add_slices_key)
+    #
+    #     # Add a dictionary for keeping track of cached information
+    #     dataset = dataset.map(DatasetHelpersMixin.add_cache_key)
+    #
+    #     # Apply an expensive preprocessing step using Spacy
+    #     dataset = dataset.map(partial(self.preprocess, keys=keys), batched=True, batch_size=32)
+    #
+    #     self.__dict__.update(dataset.__dict__)
 
     @classmethod
     def interleave(cls, datasets: List[Dataset]) -> Dataset:
@@ -331,8 +486,63 @@ class Dataset(nlp.Dataset,
                           *[dataset[:] for dataset in datasets])
         )
 
-    def slice(self, slicer):
+    def update_history(self, slicer, keys):
+        """
+        Update history after slicing a dataset.
+        """
+        for header in slicer.headers:
+            if (header, keys) not in self.history['slicers'][slicer.category]:
+                # Give it the next index
+                self.history['slicers'][slicer.category][(header, keys)] = len(
+                    self.history['slicers'][slicer.category]
+                )
+
+    def stow(self,
+             cached_ops: Dict[CachedOperation, List[List[str]]],
+             load_from_cache_file: bool = True):
+        """
+        Apply a list of cached operations in sequence.
+        """
+
+        def _map_fn(batch: Dict[str, List]):
+            """
+            Consolidate the application of the CachedOperations passed to stow into a single mappable function.
+            """
+            for cached_op, list_of_keys in cached_ops.items():
+                for keys in list_of_keys:
+                    batch = cached_op.process_batch(batch, keys=keys)
+
+            return batch
+
+        # Compute the hash value
+        val = 0
+        for cached_op, list_of_keys in cached_ops.items():
+            for keys in list_of_keys:
+                val ^= cached_op.get_cache_hash(keys=keys)
+
+        # Combine with the hash for the dataset on which the cached ops are applied
+        val ^= persistent_hash(
+            "-".join(
+                "-".join(str(k) + "-" + str(v) for k, v in f.items()) for f in self._data_files
+            )
+        )
+
+        # Map the cached operations over the dataset
+        dataset = self.map(_map_fn,
+                           batched=True,
+                           batch_size=32,
+                           cache_file_name='cache-' + str(abs(val)) + '.arrow',
+                           load_from_cache_file=load_from_cache_file)
+
+        # TODO(karan): should this operation be in-place or return a mapped Dataset
+        # self.__dict__.update(dataset.__dict__)
+        # return self
+        return dataset
+
+    def slice(self, slicer, keys):
         """
         Slice the dataset.
         """
-        return slicer(self)
+        # Update the history
+        self.update_history(slicer, keys)
+        return slicer(self, keys=keys)
