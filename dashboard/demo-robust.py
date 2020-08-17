@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from math import pi
@@ -51,7 +53,6 @@ def generate_report(model, task, cols, data):
         'distribution': 0.35,
         'text': 0.25
     }
-
     col_names = [col['name'] for col in cols]
     n_cols = len(cols)
     col_widths = [col_type_to_width[col['type']] for col in cols]
@@ -63,20 +64,23 @@ def generate_report(model, task, cols, data):
     group_space = 24
     header_space = 80
     height = n_chart_rows * chart_row_height + n_groups * group_space + header_space
-    fig = make_subplots(rows=n_groups,
-                        row_titles=group_names,
-                        cols=n_cols,
-                        shared_yaxes=True,
-                        subplot_titles=col_names,
-                        horizontal_spacing=.035,
-                        vertical_spacing=group_space / height,
-                        row_width=list(reversed(row_lengths)),
-                        column_width=col_widths
-                        )
+    summary_data = defaultdict(dict)
+
+    fig_detail = make_subplots(rows=n_groups,
+                               row_titles=group_names,
+                               cols=n_cols,
+                               shared_yaxes=True,
+                               subplot_titles=col_names,
+                               horizontal_spacing=.035,
+                               vertical_spacing=group_space / height,
+                               row_width=list(reversed(row_lengths)),
+                               column_width=col_widths
+                               )
 
     hms = []
     coords = []
     for row_ndx, row in enumerate(data):
+        group_name = row['group']
         for col_ndx, col in enumerate(cols):
             col_name = col['name']
             col_type = col['type']
@@ -84,7 +88,7 @@ def generate_report(model, task, cols, data):
             x = row['data'][col_name]
             if col_type == 'score':
                 max_score = col['max']
-                fig.add_trace(
+                fig_detail.add_trace(
                     go.Bar(
                         x=x,
                         y=slices,
@@ -99,7 +103,7 @@ def generate_report(model, task, cols, data):
                     row=row_ndx+1, col=col_ndx+1
                 )
                 # Add marker for complementary gray fill
-                fig.add_trace(
+                fig_detail.add_trace(
                     go.Bar(
                         x=[max_score - x_i for x_i in x],
                         y=slices,
@@ -110,6 +114,8 @@ def generate_report(model, task, cols, data):
                     ),
                     row=row_ndx+1, col=col_ndx+1
                 )
+                # Accumulate summary statistics
+                summary_data[col_name][group_name] = min(x)
             elif col_type == 'distribution':
                 annotation_text = [[f"{int(round(z * 100)):d}" for z in rw] for rw in x]
                 class_codes = col['class_codes']
@@ -120,13 +126,13 @@ def generate_report(model, task, cols, data):
                 hms.append(hm)
                 # Save annotation data for special code related to heatmaps at end
                 coords.append((n_cols * row_ndx) + col_ndx + 1)
-                fig.add_trace(
+                fig_detail.add_trace(
                     hm.data[0],
                     row=row_ndx + 1, col=col_ndx+1,
                 )
             elif col_type == 'text':
                 # Repurpose bar chart as text field.
-                fig.add_trace(
+                fig_detail.add_trace(
                     go.Bar(
                         x=[1] * len(x),
                         y=slices,
@@ -150,21 +156,22 @@ def generate_report(model, task, cols, data):
         else:
             show_x_axis = False
         for col_ndx, col in enumerate(cols):
-            fig.update_yaxes(autorange='reversed')
+            fig_detail.update_yaxes(autorange='reversed')
             col_type = col['type']
             if col_type == 'score':
                 min_score = col['min']
                 max_score = col['max']
-                fig.update_xaxes(range=[min_score, max_score], row=row_ndx + 1, col=col_ndx + 1,
+                fig_detail.update_xaxes(range=[min_score, max_score], row=row_ndx + 1, col=col_ndx + 1,
                                  tickvals=[min_score, max_score], showticklabels=show_x_axis)
             elif col_type == 'distribution':
-                fig.update_xaxes(row=row_ndx + 1, col=col_ndx + 1, showticklabels=show_x_axis)
+                fig_detail.update_xaxes(row=row_ndx + 1, col=col_ndx + 1, showticklabels=show_x_axis)
             elif col_type == 'text':
-                fig.update_xaxes(range=[0, 1], row=row_ndx + 1, col=col_ndx + 1, showticklabels=False)
+                fig_detail.update_xaxes(range=[0, 1], row=row_ndx + 1, col=col_ndx + 1, showticklabels=False)
             else:
                 raise ValueError('Invalid col type')
 
-    fig.update_layout(title=f'{task} / {model}',
+
+    fig_detail.update_layout(title=f'{task} / {model}',
                       height=height,
                       width=960,
                       barmode='stack',
@@ -175,7 +182,7 @@ def generate_report(model, task, cols, data):
                       )
 
     # Use low-level plotly interface to update padding / font size
-    for a in fig['layout']['annotations']:
+    for a in fig_detail['layout']['annotations']:
         # If label for group
         if a['text'] in group_names:
             a['x'] = .99  # Add padding
@@ -184,7 +191,7 @@ def generate_report(model, task, cols, data):
 
     # Due to a quirk of plotly, need to do some special low-level coding
     # Code based on https://community.plotly.com/t/how-to-create-annotated-heatmaps-in-subplots/36686/25
-    newfont = [go.layout.Annotation(font_size=14)] * len(fig.layout.annotations)
+    newfont = [go.layout.Annotation(font_size=14)] * len(fig_detail.layout.annotations)
     fig_annots = [newfont] + [hm.layout.annotations for hm in hms]
     for col_ndx in range(1, len(fig_annots)):
         for k in range(len(fig_annots[col_ndx])):
@@ -202,9 +209,33 @@ def generate_report(model, task, cols, data):
             result.extend(recursive_extend(mylist, nr - 1))
         return result
     new_annotations = recursive_extend(fig_annots[::-1], len(fig_annots))
-    fig.update_layout(annotations=new_annotations)
+    fig_detail.update_layout(annotations=new_annotations)
 
-    st.write(fig)
+    # Generate summary figure
+    score_names = []
+    for col in cols:
+        if col['type'] == 'score':
+            score_names.append(col['name'])
+    # TODO Support more than 2 scores
+    n_cols = len(score_names)
+    fig_summary = make_subplots(rows=1,
+                                cols=n_cols,
+                                subplot_titles=score_names,
+                                specs=[[{'type': 'polar'}] * n_cols],
+                                horizontal_spacing=.2,
+                                column_width=[.35] * n_cols
+                                )
+    for i, score_name in enumerate(score_names):
+        group_scores = [summary_data[score_name][group_name] for group_name in group_names]
+        fig_summary.add_trace(go.Scatterpolar(
+            name=score_name,
+            r=group_scores,
+            theta=group_names,
+        ), 1, i+1)
+    fig_summary.update_traces(fill='toself')
+
+    st.write(fig_summary)
+    st.write(fig_detail)
 
 
 if view == "Slice view":
