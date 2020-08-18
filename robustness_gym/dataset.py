@@ -264,7 +264,7 @@ class Dataset(nlp.Dataset,
             super(Dataset, self).__init__(*args, **kwargs)
 
         # Keep track of the original dataset keys
-        self.original_keys = self.schema.names
+        self.original_keys = list(self.features.keys())
         self.num_slices = 0
 
         # Keep track of slicers that were executed on the dataset
@@ -288,9 +288,7 @@ class Dataset(nlp.Dataset,
         return example
 
     def __repr__(self):
-        schema_str = dict((a, str(b)) for a, b in zip(
-            self._data.schema.names, self._data.schema.types))
-        return f"{self.__class__.__name__}(schema: {schema_str}, num_rows: {self.num_rows}, num_slices: {self.num_slices})"
+        return f"{self.__class__.__name__}(features: {self.features}, num_rows: {self.num_rows}, num_slices: {self.num_slices})"
 
     @classmethod
     def uncached_batch(cls,
@@ -425,7 +423,7 @@ class Dataset(nlp.Dataset,
 
         # Taken from Huggingface nlp.Dataset
         # Prepare output buffer and batched writer in memory or on file if we update the table
-        writer = ArrowWriter(schema=self.schema, path=os.path.join(
+        writer = ArrowWriter(features=self.features, path=os.path.join(
             path, 'data.arrow'), writer_batch_size=1000)
 
         # Loop over single examples or batches and write to buffer/file if examples are to be updated
