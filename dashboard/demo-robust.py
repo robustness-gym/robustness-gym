@@ -171,14 +171,19 @@ def generate_report(model, task, cols, data):
                 raise ValueError('Invalid col type')
 
 
-    fig_detail.update_layout(title=f'{task} / {model}',
-                      height=height,
+    fig_detail.update_layout(height=height,
                       width=960,
                       barmode='stack',
                       plot_bgcolor='rgba(0, 0, 0, 0)',
                       paper_bgcolor='rgba(0, 0, 0, 0)',
                       font=dict(size=13),
-                      yaxis={'autorange':'reversed'}
+                      yaxis={'autorange':'reversed'},
+                     margin=go.layout.Margin(
+                         l=0,  # left margin
+                         r=0,  # right margin
+                         b=0,  # bottom margin
+                         t=0  # top margin
+                     )
                       )
 
     # Use low-level plotly interface to update padding / font size
@@ -223,7 +228,7 @@ def generate_report(model, task, cols, data):
                                 subplot_titles=score_names,
                                 specs=[[{'type': 'polar'}] * n_cols],
                                 horizontal_spacing=.2,
-                                column_width=[.35] * n_cols
+                                column_width=[.35] * n_cols,
                                 )
     for i, score_name in enumerate(score_names):
         group_scores = [summary_data[score_name][group_name] for group_name in group_names]
@@ -233,6 +238,14 @@ def generate_report(model, task, cols, data):
             theta=group_names,
         ), 1, i+1)
     fig_summary.update_traces(fill='toself')
+    fig_summary.update_layout(height=400,
+                              margin=go.layout.Margin(
+                                  l=0,  # left margin
+                                  r=0,  # right margin
+                                  b=0,  # bottom margin
+                                  t=0  # top margin
+                              )
+                              )
 
     st.write(fig_summary)
     st.write(fig_detail)
