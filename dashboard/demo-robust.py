@@ -178,21 +178,20 @@ def generate_report(model, task, dataset, cols, data):
             else:
                 raise ValueError('Invalid col type')
 
-
     fig_detail.update_layout(height=height,
-                      width=960,
-                      barmode='stack',
-                      plot_bgcolor='rgba(0, 0, 0, 0)',
-                      paper_bgcolor='rgba(0, 0, 0, 0)',
-                      font=dict(size=13),
-                      yaxis={'autorange':'reversed'},
-                     margin=go.layout.Margin(
-                         l=0,  # left margin
-                         r=0,  # right margin
-                         b=0,  # bottom margin
-                         t=0  # top margin
-                     )
-                      )
+                             width=960,
+                             barmode='stack',
+                             plot_bgcolor='rgba(0, 0, 0, 0)',
+                             paper_bgcolor='rgba(0, 0, 0, 0)',
+                             font=dict(size=13),
+                             yaxis={'autorange': 'reversed'},
+                             margin=go.layout.Margin(
+                                 l=0,  # left margin
+                                 r=0,  # right margin
+                                 b=0,  # bottom margin
+                                 t=0  # top margin
+                             )
+                             )
 
     # Use low-level plotly interface to update padding / font size
     for a in fig_detail['layout']['annotations']:
@@ -395,8 +394,8 @@ else:
          }
          }
     ]
-    model_view_type = st.sidebar.selectbox("Choose report type", ["Standard", "Custom"])    
-    
+    model_view_type = st.sidebar.selectbox("Choose report type", ["Standard", "Custom"])
+
     st.header("Model Robustness report")
     # task = st.sidebar.selectbox("Choose dataset", ["SNLI", "SST-2", "Summarization","MRPC"])  #call Dataset.list_datasets
 
@@ -411,42 +410,6 @@ else:
     model_identifier = st.sidebar.selectbox("Choose model", [
         'huggingface/textattack/bert-base-uncased-snli'])  # ["BERT-Base", "RoBERTa-Base", "BART", "T5"])
 
-    # Load the model
-    # TODO(karan): generalize this
-    if model_identifier.split("/")[0] == 'huggingface':
-        model = Model.huggingface(
-            identifier="/".join(model_identifier.split("/")[1:]),
-            task=task,
-        )
-    else:
-        raise NotImplementedError
-
-    # Create the test bench
-    testbench = TestBench(
-        identifier='snli-nli-0.0.1dev',
-        task=task,
-        slices=[
-            Slice.from_dataset(identifier='snli-train',
-                                dataset=Dataset.load_dataset('snli', split='train[:128]')).filter(lambda example: example['label'] != -1),
-            Slice.from_dataset(identifier='snli-val',
-                                dataset=Dataset.load_dataset('snli', split='validation[:128]')).filter(lambda example: example['label'] != -1),
-            Slice.from_dataset(identifier='snli-test',
-                                dataset=Dataset.load_dataset('snli', split='test[:128]')).filter(lambda example: example['label'] != -1),
-        ]
-    )
-
-    # Create the report
-    report = testbench.create_report(model=model,
-                                        coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]))
-    # TODO(karan): this will come from the report
-    test_cols = [
-        {'type': 'score', 'name': 'accuracy', 'min': 0, 'max': 1},
-        {'type': 'score', 'name': 'f1', 'min': 0, 'max': 1},
-        # {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
-        # {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
-        {'type': 'text', 'name': 'Size'},
-    ]
-    
 
     if model_view_type == "Custom":
         # slider_pos = st.sidebar.slider('Min # examples per slice', 10, 100, 50)
@@ -473,7 +436,7 @@ else:
         for group, slices in group_slices:
             # filtered_slices = [slice['name'] for slice in slices if slice['size'] >= slider_pos]
             # group_to_selected[group] = st.multiselect(group, filtered_slices)
-            group_to_selected[group] = st.sidebar.multiselect(group, [slice['name'] for slice in slices] )
+            group_to_selected[group] = st.sidebar.multiselect(group, [slice['name'] for slice in slices])
             print('group')
             print(group_to_selected[group])
 
@@ -493,22 +456,53 @@ else:
             generate_report(model, task, dataset, filtered_cols, test_data)
 
     else:
+
+        # Load the model
+        # TODO(karan): generalize this
+        if model_identifier.split("/")[0] == 'huggingface':
+            model = Model.huggingface(
+                identifier="/".join(model_identifier.split("/")[1:]),
+                task=task,
+            )
+        else:
+            raise NotImplementedError
+
+        # Create the test bench
+        testbench = TestBench(
+            identifier='snli-nli-0.0.1dev',
+            task=task,
+            slices=[
+                Slice.from_dataset(identifier='snli-train',
+                                   dataset=Dataset.load_dataset('snli', split='train[:128]')).filter(
+                    lambda example: example['label'] != -1),
+                Slice.from_dataset(identifier='snli-val',
+                                   dataset=Dataset.load_dataset('snli', split='validation[:128]')).filter(
+                    lambda example: example['label'] != -1),
+                Slice.from_dataset(identifier='snli-test',
+                                   dataset=Dataset.load_dataset('snli', split='test[:128]')).filter(
+                    lambda example: example['label'] != -1),
+            ]
+        )
+
+        # Create the report
+        report = testbench.create_report(model=model,
+                                         coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]))
         #
         # text_cols defines format of each column in the report
         # 'type' is one of:
         #    'score': score from a particular model/metric
         #    'distribution': class distribution (heatmap)
         #    'text': free form text
+        # TODO(karan): this will come from the report
         test_cols = [
-            {'type': 'score', 'name': 'Accuracy', 'min': 0, 'max': 100},
-            {'type': 'score', 'name': 'F1', 'min': 0, 'max': 100},
-            {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
-            {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
+            {'type': 'score', 'name': 'accuracy', 'min': 0, 'max': 1},
+            {'type': 'score', 'name': 'f1', 'min': 0, 'max': 1},
+            # {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
+            # {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
             {'type': 'text', 'name': 'Size'},
         ]
 
-        #TODO(karan): remove hax
-        test_data = report[-1:] * 4# + report[1]
+        # TODO(karan): remove hax
+        test_data = report[-1:] * 4  # + report[1]
 
-        
         generate_report(model, task, dataset, test_cols, test_data)
