@@ -1,5 +1,6 @@
 from __future__ import annotations
-from robustness_gym.slicer import *
+from robustness_gym.slicemaker import *
+from robustness_gym.dataset import Spacy
 import numpy as np
 from itertools import compress
 from ahocorasick import Automaton
@@ -27,41 +28,22 @@ class AhoCorasickMixin:
         self.automaton.make_automaton()
 
 
-class SpacyMixin:
-
-    @classmethod
-    def get_tokens(cls, batch: Dict[str, List], keys: List[str]) -> List[Dict[str, List[str]]]:
-        """
-        For each example, returns the list of tokens extracted by spacy for each key.
-        """
-        return [
-            {key: cls.tokens_from_spans(doc_json=cache['spacy'][key]) for key in keys}
-            for cache in batch['cache']
-        ]
-
-    @classmethod
-    def tokens_from_spans(cls, doc_json: Dict) -> List[str]:
-        """
-        Spacy stores the span of each token under the "tokens" key.
-
-        Use this function to actually extract the tokens from the text using the span of each token.
-        """
-        tokens = []
-        for token_dict in doc_json['tokens']:
-            tokens.append(doc_json['text'][token_dict['start']:token_dict['end']])
-
-        return tokens
-
-
-class HasPhrase(Slicer,
-                FilterMixin,
+class HasPhrase(Subpopulation,
                 AhoCorasickMixin,
-                SpacyMixin):
+                Spacy):
 
     def __init__(self,
-                 phrases=None):
+                 phrases=None,
+                 *args,
+                 **kwargs):
 
-        super(HasPhrase, self).__init__()
+        super(HasPhrase, self).__init__(
+            # One slice per phrase
+            num_slices=len(self.phrases),
+            identifiers=[
+                f"{self.__class__.__name__}('{phrase}')" for phrase in phrases
+            ]
+        )
 
         # This is the list of phrases that will be searched
         self.phrases = phrases
@@ -69,16 +51,11 @@ class HasPhrase(Slicer,
             self.phrases = []
 
         # Populate the Aho-Corasick automaton
-        self.populate_automaton({i: phrase for i, phrase in enumerate(self.phrases)})
-
-        # One slice per phrase
-        self.num_slices = len(self.phrases)
-
-        # Set the headers
-        self.headers = [f"{self.__class__.__name__}('{phrase}')" for phrase in self.phrases]
+        self.populate_automaton(
+            {i: phrase for i, phrase in enumerate(self.phrases)})
 
     @classmethod
-    def from_file(cls, path: str) -> Slicer:
+    def from_file(cls, path: str) -> SliceMaker:
         """
         Load phrases from a file, one per line.
         """
@@ -87,7 +64,7 @@ class HasPhrase(Slicer,
         return cls(phrases=phrases)
 
     @classmethod
-    def default(cls) -> Slicer:
+    def default(cls) -> SliceMaker:
         """
         A default vocabulary of phrases to search.
         """
@@ -100,32 +77,27 @@ class HasPhrase(Slicer,
         """
         return [HasPhrase(phrases=list(tz.concat([slicer.phrases for slicer in slicers])))]
 
-    def alias(self) -> str:
-        return self.__class__.__name__
-
-    def slice_batch(self,
-                    batch: Dict[str, List],
-                    keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+    def apply(self,
+              slice_membership: np.ndarray,
+              batch: Dict[str, List],
+              keys: List[str],
+              *args,
+              **kwargs) -> np.ndarray:
 
         # Use the spacy cache to grab the tokens in each example (for each key)
         tokenized_batch = self.get_tokens(batch, keys)
 
-        # Construct the matrix of slice labels: (batch_size x n_phrases)
-        slice_labels = np.zeros((len(tokenized_batch), len(self.phrases)),
-                                dtype=np.int32)
-
         for i, example in enumerate(tokenized_batch):
             for key, tokens in example.items():
                 # Get the values (indices) of all the matched tokens
-                matched_indices = [self.automaton.get(token) for token in tokens if self.automaton.exists(token)]
+                matched_indices = [
+                    self.automaton.get(token) for token in tokens if self.automaton.exists(token)
+                ]
 
                 # Fill in the slice labels for slices that are present
-                slice_labels[i, matched_indices] = 1
+                slice_membership[i, matched_indices] = 1
 
-        # Store these slice labels
-        batch = self.store_slice_labels(batch, slice_labels.tolist(), self.alias())
-
-        return batch, self.slice_batch_with_slice_labels(batch, slice_labels), slice_labels
+        return slice_membership
 
 
 # HasAnyPhrase = FilterMixin.union()
@@ -138,24 +110,27 @@ class HasAnyPhrase(HasPhrase):
         super(HasAnyPhrase, self).__init__(phrases=phrases)
 
         # Set the headers
-        self.headers = [f"{self.__class__.__name__}({set(self.phrases) if alias is None else alias})"]
+        self.headers = [
+            f"{self.__class__.__name__}({set(self.phrases) if alias is None else alias})"]
 
     def alias(self) -> str:
         return self.__class__.__name__
 
-    def slice_batch(self,
-                    batch: Dict[str, List],
-                    keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+    def process_batch(self,
+                      batch: Dict[str, List],
+                      keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
         # Run the phrase matcher
-        batch, _, slice_labels = super(HasAnyPhrase, self).slice_batch(batch=batch, keys=keys)
+        batch, _, slice_labels = super(
+            HasAnyPhrase, self).process_batch(batch=batch, keys=keys)
 
         # Check if any of the slice labels is 1
         slice_labels = np.any(slice_labels, axis=1)[:, np.newaxis]
 
         # Store these slice labels
-        batch = self.store_slice_labels(batch, slice_labels.tolist(), self.alias())
+        batch = self.store_slice_labels(
+            batch, slice_labels.tolist(), self.alias())
 
-        return batch, self.slice_batch_with_slice_labels(batch, slice_labels), slice_labels
+        return batch, self.filter_batch_by_slice_membership(batch, slice_labels), slice_labels
 
 
 class HasAllPhrases(HasPhrase):
@@ -166,28 +141,30 @@ class HasAllPhrases(HasPhrase):
         super(HasAllPhrases, self).__init__(phrases=phrases)
 
         # Set the headers
-        self.headers = [f"{self.__class__.__name__}({set(self.phrases) if alias is None else alias})"]
+        self.headers = [
+            f"{self.__class__.__name__}({set(self.phrases) if alias is None else alias})"]
 
     def alias(self) -> str:
         return self.__class__.__name__
 
-    def slice_batch(self,
-                    batch: Dict[str, List],
-                    keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+    def process_batch(self,
+                      batch: Dict[str, List],
+                      keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
         # Run the phrase matcher
-        batch, _, slice_labels = super(HasAllPhrases, self).slice_batch(batch=batch, keys=keys)
+        batch, _, slice_labels = super(
+            HasAllPhrases, self).process_batch(batch=batch, keys=keys)
 
         # Check if all of the slice labels are 1
         slice_labels = np.all(slice_labels, axis=1)[:, np.newaxis]
 
         # Store these slice labels
-        batch = self.store_slice_labels(batch, slice_labels.tolist(), self.alias())
+        batch = self.store_slice_labels(
+            batch, slice_labels.tolist(), self.alias())
 
-        return batch, self.slice_batch_with_slice_labels(batch, slice_labels), slice_labels
+        return batch, self.filter_batch_by_slice_membership(batch, slice_labels), slice_labels
 
 
-class HANSPhrases(HasPhrase):
-
+# class HANSPhrases(HasPhrase):
 
 
 # Taken from https://github.com/tommccoy1/hans/blob/master/templates.py

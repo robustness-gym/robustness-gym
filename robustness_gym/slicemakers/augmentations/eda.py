@@ -1,9 +1,8 @@
-from robustness_gym.slicers.augmentations._eda import eda
-from robustness_gym.slicer import *
+from robustness_gym.slicemaker import *
+from robustness_gym.slicemakers.augmentations._eda import eda
 
 
-class EasyDataAugmentation(Slicer,
-                           AugmentationMixin):
+class EasyDataAugmentation(Augmentation):
 
     def __init__(self,
                  num_aug=1,
@@ -11,7 +10,9 @@ class EasyDataAugmentation(Slicer,
                  alpha_ri=0.1,
                  alpha_rs=0.1,
                  p_rd=0.1):
-        super(EasyDataAugmentation, self).__init__()
+        super(EasyDataAugmentation, self).__init__(
+            num_slices=num_aug,
+        )
 
         # Set the parameters
         self.num_aug = num_aug
@@ -23,9 +24,9 @@ class EasyDataAugmentation(Slicer,
     def alias(self):
         return self.__class__.__name__
 
-    def slice_batch(self,
-                    batch: Dict[str, List],
-                    keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+    def process_batch(self,
+                      batch: Dict[str, List],
+                      keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
 
         # Uncache the batch to construct the skeleton for augmented batches
         augmented_batches = [Dataset.uncached_batch(batch) for _ in range(self.num_aug)]

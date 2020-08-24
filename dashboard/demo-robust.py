@@ -1,3 +1,4 @@
+import functools
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -9,23 +10,29 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 # import SessionState
+import sys
+
+sys.path.append('..')
+from robustness_gym import *
 
 st.title("Robustness gym")
 # st.sidebar.image("gym.png",width=100,format='PNG')
-view = st.sidebar.radio("Select view", ("Slice view","Model view"))
-#html_view_tab = """<div class="tab"><button id="sliceview" onclick="document.getElementById("sliceview")">Slice View</button><button class="tabview" onclick="openView(event, "Model View")">Model View</button></div>
-#"""
-#st.markdown(html_view_tab, unsafe_allow_html=True)
-#st.markdown(js_view_tab, unsafe_allow_html=True)
-#this is for slice size slider
-#widget = st.empty()
-#if st.button('Increment position'):
+view = st.sidebar.radio("Select view", ("Slice view", "Model view"))
+
+
+# html_view_tab = """<div class="tab"><button id="sliceview" onclick="document.getElementById("sliceview")">Slice View</button><button class="tabview" onclick="openView(event, "Model View")">Model View</button></div>
+# """
+# st.markdown(html_view_tab, unsafe_allow_html=True)
+# st.markdown(js_view_tab, unsafe_allow_html=True)
+# this is for slice size slider
+# widget = st.empty()
+# if st.button('Increment position'):
 #    state.position += 1
 
 
 def generate_slice_chart(acc_slices, task_slices):
     df = pd.DataFrame(dict(
-        acc= acc_slices,
+        acc=acc_slices,
         task_slices=task_slices))
     fig = px.line_polar(df, r='acc', theta='task_slices', line_close=True, hover_data=['acc'])
     fig.update_traces(fill='toself')
@@ -40,9 +47,9 @@ def generate_slice_chart(acc_slices, task_slices):
     )
     st.write(fig)
 
-@st.cache(suppress_st_warning=True)
-def generate_report(model, task, cols, data):
 
+@st.cache(suppress_st_warning=True)
+def generate_report(model, task, dataset, cols, data):
     score_colors = ['#EC7734', '#477CC9']
     score_color_complement = '#F3F4F7'
     text_fill_color = '#F3F4F7'
@@ -100,7 +107,7 @@ def generate_report(model, task, cols, data):
                         width=.95,
                         textfont=dict(color='white')
                     ),
-                    row=row_ndx+1, col=col_ndx+1
+                    row=row_ndx + 1, col=col_ndx + 1
                 )
                 # Add marker for complementary gray fill
                 fig_detail.add_trace(
@@ -112,7 +119,7 @@ def generate_report(model, task, cols, data):
                         showlegend=False,
                         width=.9
                     ),
-                    row=row_ndx+1, col=col_ndx+1
+                    row=row_ndx + 1, col=col_ndx + 1
                 )
                 # Accumulate summary statistics
                 summary_data[col_name][group_name] = min(x)
@@ -128,7 +135,7 @@ def generate_report(model, task, cols, data):
                 coords.append((n_cols * row_ndx) + col_ndx + 1)
                 fig_detail.add_trace(
                     hm.data[0],
-                    row=row_ndx + 1, col=col_ndx+1,
+                    row=row_ndx + 1, col=col_ndx + 1,
                 )
             elif col_type == 'text':
                 # Repurpose bar chart as text field.
@@ -162,7 +169,7 @@ def generate_report(model, task, cols, data):
                 min_score = col['min']
                 max_score = col['max']
                 fig_detail.update_xaxes(range=[min_score, max_score], row=row_ndx + 1, col=col_ndx + 1,
-                                 tickvals=[min_score, max_score], showticklabels=show_x_axis)
+                                        tickvals=[min_score, max_score], showticklabels=show_x_axis)
             elif col_type == 'distribution':
                 fig_detail.update_xaxes(row=row_ndx + 1, col=col_ndx + 1, showticklabels=show_x_axis)
             elif col_type == 'text':
@@ -170,16 +177,15 @@ def generate_report(model, task, cols, data):
             else:
                 raise ValueError('Invalid col type')
 
-
-    fig_detail.update_layout(title=f'{task} / {model}',
-                      height=height,
-                      width=960,
-                      barmode='stack',
-                      plot_bgcolor='rgba(0, 0, 0, 0)',
-                      paper_bgcolor='rgba(0, 0, 0, 0)',
-                      font=dict(size=13),
-                      yaxis={'autorange':'reversed'}
-                      )
+    fig_detail.update_layout(title=f'{dataset} / {model.identifier}',
+                             height=height,
+                             width=960,
+                             barmode='stack',
+                             plot_bgcolor='rgba(0, 0, 0, 0)',
+                             paper_bgcolor='rgba(0, 0, 0, 0)',
+                             font=dict(size=13),
+                             yaxis={'autorange': 'reversed'}
+                             )
 
     # Use low-level plotly interface to update padding / font size
     for a in fig_detail['layout']['annotations']:
@@ -199,6 +205,7 @@ def generate_report(model, task, cols, data):
             fig_annots[col_ndx][k]['xref'] = f'x{coord}'
             fig_annots[col_ndx][k]['yref'] = f'y{coord}'
             fig_annots[col_ndx][k]['font_size'] = 11
+
     def recursive_extend(mylist, nr):
         # mylist is a list of lists
         result = []
@@ -208,6 +215,7 @@ def generate_report(model, task, cols, data):
             result.extend(mylist[nr - 1])
             result.extend(recursive_extend(mylist, nr - 1))
         return result
+
     new_annotations = recursive_extend(fig_annots[::-1], len(fig_annots))
     fig_detail.update_layout(annotations=new_annotations)
 
@@ -231,7 +239,7 @@ def generate_report(model, task, cols, data):
             name=score_name,
             r=group_scores,
             theta=group_names,
-        ), 1, i+1)
+        ), 1, i + 1)
     fig_summary.update_traces(fill='toself')
 
     st.write(fig_summary)
@@ -255,7 +263,7 @@ else:
         slider_pos = st.sidebar.slider('Min # examples per slice', 10, 100, 50)
         # get_all_slices(task) returns df_slices
         df_sfs = pd.DataFrame({
-            'sfs': ['negation','length < 10','temporal preposition', 'ends with verb', 'gendered words'],
+            'sfs': ['negation', 'length < 10', 'temporal preposition', 'ends with verb', 'gendered words'],
             'size': [500, 79, 80, 56, 150],
             'perf': [75, 83, 57, 49, 66]
 
@@ -266,7 +274,7 @@ else:
         filtered_slices = df_sfs.loc[df_sfs['size'] >= slider_pos]
         selected_slices = st.multiselect('Data slices', filtered_slices['sfs'])
         selected_slices_frame = df_sfs.loc[selected_slices]
-        #st.write(selected_slices_frame.head())
+        # st.write(selected_slices_frame.head())
         fig = px.line_polar(filtered_slices, r='perf', theta='sfs', line_close=True)
         fig.update_traces(fill='toself')
         fig.update_layout(
@@ -426,8 +434,58 @@ else:
              }
         ]
         st.header("Model Robustness report")
-        task = st.sidebar.selectbox("Choose dataset", ["SNLI", "SST-2", "Summarization","MRPC"])  #call Dataset.list_datasets
-        model = st.sidebar.selectbox("Choose model", ["BERT-Base", "RoBERTa-Base", "BART", "T5"])
-        generate_report(model, task, test_cols, test_data)
+        # task = st.sidebar.selectbox("Choose dataset", ["SNLI", "SST-2", "Summarization","MRPC"])  #call Dataset.list_datasets
 
+        # Select a task
+        task_identifier = st.sidebar.selectbox("Choose a task", ["TernaryNaturalLanguageInference"])
+        task = Task.create(task=task_identifier)
 
+        # Select a dataset
+        dataset = st.sidebar.selectbox("Choose dataset", list(task.datasets()))
+
+        # Select a model
+        model_identifier = st.sidebar.selectbox("Choose model", [
+            'huggingface/textattack/bert-base-uncased-snli'])  # ["BERT-Base", "RoBERTa-Base", "BART", "T5"])
+
+        # Load the model
+        # TODO(karan): generalize this
+        if model_identifier.split("/")[0] == 'huggingface':
+            model = Model.huggingface(
+                identifier="/".join(model_identifier.split("/")[1:]),
+                task=task,
+            )
+        else:
+            raise NotImplementedError
+
+        # Create the test bench
+        testbench = TestBench(
+            identifier='snli-nli-0.0.1dev',
+            task=task,
+            slices=[
+                Slice.from_dataset(identifier='snli-train',
+                                   dataset=Dataset.load_dataset('snli', split='train[:128]')).filter(lambda example: example['label'] != -1),
+                Slice.from_dataset(identifier='snli-val',
+                                   dataset=Dataset.load_dataset('snli', split='validation[:128]')).filter(lambda example: example['label'] != -1),
+                Slice.from_dataset(identifier='snli-test',
+                                   dataset=Dataset.load_dataset('snli', split='test[:128]')).filter(lambda example: example['label'] != -1),
+            ]
+        )
+
+        # Create the report
+        report = testbench.create_report(model=model,
+                                         coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]))
+        # TODO(karan): this will come from the report
+        test_cols = [
+            {'type': 'score', 'name': 'accuracy', 'min': 0, 'max': 1},
+            {'type': 'score', 'name': 'f1', 'min': 0, 'max': 1},
+            # {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
+            # {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
+            {'type': 'text', 'name': 'Size'},
+        ]
+
+        print(report)
+        #TODO(karan): remove hax
+        test_data = report[-1:] * 4# + report[1]
+
+        
+        generate_report(model, task, dataset, test_cols, test_data)

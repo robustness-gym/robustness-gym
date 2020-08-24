@@ -32,7 +32,8 @@ class CachedOperation:
 
     def __init__(self,
                  identifier,
-                 apply_fn=None):
+                 apply_fn=None,
+                 ):
         # Set the identifier for the preprocessor
         self.identifier = identifier
 
@@ -92,8 +93,6 @@ class CachedOperation:
         """
 
         # Apply the cached operation
-        # Pass a file name for the cache: the automatically generated cache filename changes across sessions,
-        # since the hash value of a class method is not fixed.
         return dataset.map(partial(self.process_batch, keys=keys), batched=True, batch_size=batch_size,
                            cache_file_name=self.get_cache_file_name(keys=keys))
 
@@ -152,12 +151,39 @@ class Spacy(CachedOperation):
         val = super(Spacy, self).__hash__()
         return val ^ persistent_hash(self.name)
 
-    def apply(self, text_batch) -> List:
+    def apply(self, text_batch: List[str]) -> List:
         # Apply spacy's pipe method to process the examples
         docs = list(self.nlp.pipe(text_batch))
 
         # Convert the docs to json
         return [val.to_json() for val in docs]
+
+    @classmethod
+    def get_tokens(cls,
+                   batch: Dict[str, List],
+                   keys: List[str]) -> List[Dict[str, List[str]]]:
+        """
+        For each example, returns the list of tokens extracted by spacy for each key.
+        """
+        return [
+            {key: cls.tokens_from_spans(
+                doc_json=cache['Spacy'][key]) for key in keys}
+            for cache in batch['cache']
+        ]
+
+    @classmethod
+    def tokens_from_spans(cls, doc_json: Dict) -> List[str]:
+        """
+        Spacy stores the span of each token under the "tokens" key.
+
+        Use this function to actually extract the tokens from the text using the span of each token.
+        """
+        tokens = []
+        for token_dict in doc_json['tokens']:
+            tokens.append(doc_json['text']
+                          [token_dict['start']:token_dict['end']])
+
+        return tokens
 
 
 class AllenConstituencyParser(CachedOperation):
@@ -214,18 +240,6 @@ class TextBlob(CachedOperation):
         pass
 
 
-# class PreprocessingMixin:
-#     preprocessors = ['spacy', 'textblob', 'striptext', 'constituency_parser']
-
-#     def preprocess(self, examples: Dict[str], keys: List[str]):
-#         for key in keys:
-#             examples = self.strip_text(examples, key)
-#             examples = self.spacy_pipe(examples, key)
-#             # examples = self.constituency_parse(examples, key)
-
-#         return examples
-
-
 class DatasetHelpersMixin:
 
     @staticmethod
@@ -252,7 +266,6 @@ class DatasetHelpersMixin:
 
 class Dataset(nlp.Dataset,
               DatasetHelpersMixin,
-              #   PreprocessingMixin
               ):
 
     def __init__(self, *args, **kwargs):
@@ -381,6 +394,7 @@ class Dataset(nlp.Dataset,
             writer_batch_size: Optional[int] = 1000,
             arrow_schema: Optional[pa.Schema] = None,
             disable_nullable: bool = True,
+            **kwargs
             ):
         """
         Wrap map.

@@ -186,3 +186,23 @@ class TextAttack:
         return slice
 
         pass
+
+
+
+
+# Sub-population
+# - Filter
+# - Minimal: define what's in and what's not
+
+# Augmentation
+# - Transformation
+# - Minimal: define the transformation and create the List[Slice]
+# - Alternate: define the transformation and create the List[Slice] as well as what was and wasn't transformed
+
+# Attack
+# - Transformation
+# - Minimal: define the attack and create the List[Slice] as well as what was and wasn't attacked
+
+# Curated Slice
+# - Creation
+# - Minimal:

@@ -13,7 +13,7 @@ sys.path.append('../')
 from nlp import list_datasets
 # from robustness_gym.dataset import Dataset
 from robustness_gym import Dataset
-from robustness_gym.slicers.filters.phrase import HasPhrase
+from robustness_gym.curators.filters.phrase import HasPhrase
 
 # import SessionState
 
