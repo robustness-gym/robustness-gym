@@ -1,5 +1,6 @@
 import functools
 from collections import defaultdict
+from random import randint
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -177,15 +178,21 @@ def generate_report(model, task, dataset, cols, data):
             else:
                 raise ValueError('Invalid col type')
 
-    fig_detail.update_layout(title=f'{dataset} / {model.identifier}',
-                             height=height,
-                             width=960,
-                             barmode='stack',
-                             plot_bgcolor='rgba(0, 0, 0, 0)',
-                             paper_bgcolor='rgba(0, 0, 0, 0)',
-                             font=dict(size=13),
-                             yaxis={'autorange': 'reversed'}
-                             )
+
+    fig_detail.update_layout(height=height,
+                      width=960,
+                      barmode='stack',
+                      plot_bgcolor='rgba(0, 0, 0, 0)',
+                      paper_bgcolor='rgba(0, 0, 0, 0)',
+                      font=dict(size=13),
+                      yaxis={'autorange':'reversed'},
+                     margin=go.layout.Margin(
+                         l=0,  # left margin
+                         r=0,  # right margin
+                         b=0,  # bottom margin
+                         t=0  # top margin
+                     )
+                      )
 
     # Use low-level plotly interface to update padding / font size
     for a in fig_detail['layout']['annotations']:
@@ -231,7 +238,7 @@ def generate_report(model, task, dataset, cols, data):
                                 subplot_titles=score_names,
                                 specs=[[{'type': 'polar'}] * n_cols],
                                 horizontal_spacing=.2,
-                                column_width=[.35] * n_cols
+                                column_width=[.35] * n_cols,
                                 )
     for i, score_name in enumerate(score_names):
         group_scores = [summary_data[score_name][group_name] for group_name in group_names]
@@ -241,6 +248,14 @@ def generate_report(model, task, dataset, cols, data):
             theta=group_names,
         ), 1, i + 1)
     fig_summary.update_traces(fill='toself')
+    fig_summary.update_layout(height=400,
+                              margin=go.layout.Margin(
+                                  l=0,  # left margin
+                                  r=0,  # right margin
+                                  b=0,  # bottom margin
+                                  t=0  # top margin
+                              )
+                              )
 
     st.write(fig_summary)
     st.write(fig_detail)
@@ -253,45 +268,231 @@ if view == "Slice view":
     slider_pos = st.sidebar.slider('Min # examples per slice', 10, 100, 50)
     # call Slice.nlpviewer(slider_pos)
 else:
-    model_view_type = st.sidebar.selectbox("Choose model view type", ["Robustness report", "Model analysis"])
-    if model_view_type == "Model analysis":
-        st.header("Model Analysis")
-        # st.markdown(html_view_tab,unsafe_allow_html=True)
-        task = st.sidebar.selectbox("Choose dataset",
-                                    ["SNLI", "SST-2", "Summarization", "MRPC"])  # call Dataset.list_datasets
-        model = st.sidebar.selectbox("Choose model", ["BERT-Base", "RoBERTa-Base", "BART", "T5"])
-        slider_pos = st.sidebar.slider('Min # examples per slice', 10, 100, 50)
-        # get_all_slices(task) returns df_slices
-        df_sfs = pd.DataFrame({
-            'sfs': ['negation', 'length < 10', 'temporal preposition', 'ends with verb', 'gendered words'],
-            'size': [500, 79, 80, 56, 150],
-            'perf': [75, 83, 57, 49, 66]
+    # Each item in test_data contains data for one group, e.g. the data for augmentations
+    test_data = [
+        # First group
+        {'group': '',  # Name of group
+         'slices': ['Test split'],  # Tests/slices for group
+         'data': {  # Data, indexed by column name
+             'Accuracy': [55],
+             'F1': [45],
+             'Class %': [
+                 [0.3, 0.4, 0.3]
+             ],
+             'Pred. class %': [
+                 [0.27, 0.43, 0.3]
+             ],
+             'Size': '13K'
+         }
+         },
+        # Second group, etc.
+        {'group': 'Slices',
+         'slices': ['Negation', 'Contains -ing', 'Temporal preposition', 'Ends with verb', 'slice 5',
+                    'slice 6', 'slice 7'],
+         'data': {
+             'Accuracy': [50, 40, 30, 20, 10, 30, 20],
+             'F1': [20, 30, 10, 75, 80, 75, 80],
+             'Class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.2, 0.4, 0.4],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6]
+             ],
+             'Pred. class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.3, 0.4, 0.4],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+             ],
+             'Size': ['15K', '18K', '12K', '30K', '24K', '40K', '15K'],
+         }
+         },
+        {'group': 'Augmentations',
+         'slices': ['Augmentation 1', 'Augmentation 2', 'Augmentation 3',
+                    'Augmentation 4', 'Augmentation 5', 'Augmentation 6', 'Augmentation 7'],
+         'data': {
+             'Accuracy': [50, 40, 30, 20, 10, 20, 10],
+             'F1': [20, 30, 10, 75, 80, 75, 80],
+             'Class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.1, 0.6, 0.3],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6]
+             ],
+             'Pred. class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.2, 0.5, 0.3],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6]
+             ],
+             'Size': ['230', '521', '1K', '100', '2K', '3K', '210'],
+         }
+         },
+        {'group': 'TextAttack',
+         'slices': ['Textfooler', 'Hotflip', 'Morpheus', 'Seq2Sick', 'Hotflip 2',
+                    'Morpheus 2', 'Seq2Sick 2'],
+         'data': {
+             'Accuracy': [50, 40, 30, 20, 10, 20, 10],
+             'F1': [20, 30, 10, 75, 80, 10, 75, 80],
+             'Class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.8, 0.1, 0.1],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+             ],
+             'Pred. class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.3, 0.4, 0.2],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.1, 0.8],
+                 [0.1, 0.3, 0.6],
+             ],
+             'Size': ['3.1K', '15K', '412', '8.1K', '15K', '412', '8.1K'],
+         }
+         },
+        {'group': 'Eval Sets',
+         'slices': ['Eval set 1', 'Eval set 2', 'Eval set 3', 'Eval set 4', 'Eval set 5',
+                    'Eval set 6', 'Eval set 7'],
+         'data': {
+             'Accuracy': [50, 40, 30, 20, 10, 20, 10],
+             'F1': [20, 30, 10, 75, 80, 10, 75, 80],
+             'Class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.2, 0.6, 0.2],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+             ],
+             'Pred. class %': [
+                 [0.1, 0.3, 0.6],
+                 [0.3, 0.5, 0.2],
+                 [0.4, 0.4, 0.2],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+                 [0.1, 0.3, 0.6],
+             ],
+             'Size': ['3.1K', '15K', '412', '8.1K', '15K', '412', '8.1K'],
+         }
+         }
+    ]
+    model_view_type = st.sidebar.selectbox("Choose report type", ["Standard", "Custom"])    
+    
+    st.header("Model Robustness report")
+    # task = st.sidebar.selectbox("Choose dataset", ["SNLI", "SST-2", "Summarization","MRPC"])  #call Dataset.list_datasets
 
-        })
-        # 'adv': {'Weight poisoning', 'Adversarial triggers', 'Hotflip', 'Textfool'},
-        # 'aug': {'Counterfactual', 'Backtranslation', 'Substitution', 'EDA'},
-        # 'eval': {'Stress set', 'Contrast set', 'HANS', 'ANLI'}
-        filtered_slices = df_sfs.loc[df_sfs['size'] >= slider_pos]
-        selected_slices = st.multiselect('Data slices', filtered_slices['sfs'])
-        selected_slices_frame = df_sfs.loc[selected_slices]
-        # st.write(selected_slices_frame.head())
-        fig = px.line_polar(filtered_slices, r='perf', theta='sfs', line_close=True)
-        fig.update_traces(fill='toself')
-        fig.update_layout(
-            polar=dict(
-                radialaxis=dict(
-                    visible=True,
-                    range=[0, 100],
-                    showticklabels=True
-                )),
-            showlegend=False
+    # Select a task
+    task_identifier = st.sidebar.selectbox("Choose a task", ["TernaryNaturalLanguageInference"])
+    task = Task.create(task=task_identifier)
+
+    # Select a dataset
+    dataset = st.sidebar.selectbox("Choose dataset", list(task.datasets()))
+
+    # Select a model
+    model_identifier = st.sidebar.selectbox("Choose model", [
+        'huggingface/textattack/bert-base-uncased-snli'])  # ["BERT-Base", "RoBERTa-Base", "BART", "T5"])
+
+    # Load the model
+    # TODO(karan): generalize this
+    if model_identifier.split("/")[0] == 'huggingface':
+        model = Model.huggingface(
+            identifier="/".join(model_identifier.split("/")[1:]),
+            task=task,
         )
-        fig.show()
-        st.write(fig)
-        # dynamic_plot
+    else:
+        raise NotImplementedError
+
+    # Create the test bench
+    testbench = TestBench(
+        identifier='snli-nli-0.0.1dev',
+        task=task,
+        slices=[
+            Slice.from_dataset(identifier='snli-train',
+                                dataset=Dataset.load_dataset('snli', split='train[:128]')).filter(lambda example: example['label'] != -1),
+            Slice.from_dataset(identifier='snli-val',
+                                dataset=Dataset.load_dataset('snli', split='validation[:128]')).filter(lambda example: example['label'] != -1),
+            Slice.from_dataset(identifier='snli-test',
+                                dataset=Dataset.load_dataset('snli', split='test[:128]')).filter(lambda example: example['label'] != -1),
+        ]
+    )
+
+    # Create the report
+    report = testbench.create_report(model=model,
+                                        coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]))
+    # TODO(karan): this will come from the report
+    test_cols = [
+        {'type': 'score', 'name': 'accuracy', 'min': 0, 'max': 1},
+        {'type': 'score', 'name': 'f1', 'min': 0, 'max': 1},
+        # {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
+        # {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
+        {'type': 'text', 'name': 'Size'},
+    ]
+    
+
+    if model_view_type == "Custom":
+        # slider_pos = st.sidebar.slider('Min # examples per slice', 10, 100, 50)
+
+        # JSON data below would be specific to dataset
+        group_slices = [
+            ('Slices', [{'name': f'Slice_{i}', 'size': randint(10, 100)} for i in range(1, 21)]),
+            ('Augmentations', [{'name': f'Augmentation_{i}', 'size': randint(10, 100)} for i in range(1, 21)]),
+            ('Adversarial', [{'name': f'Adversarial_{i}', 'size': randint(10, 100)} for i in range(1, 21)]),
+            ('Eval Sets', [{'name': f'EvalSet_{i}', 'size': randint(10, 100)} for i in range(1, 21)])
+        ]
+        cols = [
+            {'type': 'score', 'name': 'Accuracy', 'min': 0, 'max': 100},
+            {'type': 'score', 'name': 'F1', 'min': 0, 'max': 100},
+            {'type': 'score', 'name': 'Precision', 'min': 0, 'max': 100},
+            {'type': 'score', 'name': 'Recall', 'min': 0, 'max': 100},
+            {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
+            {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
+            {'type': 'text', 'name': 'Size'},
+        ]
+        default_cols = ['Accuracy', 'F1', 'Class %', 'Pred. class %']
+
+        group_to_selected = {}
+        for group, slices in group_slices:
+            # filtered_slices = [slice['name'] for slice in slices if slice['size'] >= slider_pos]
+            # group_to_selected[group] = st.multiselect(group, filtered_slices)
+            group_to_selected[group] = st.sidebar.multiselect(group, [slice['name'] for slice in slices] )
+            print('group')
+            print(group_to_selected[group])
+
+        st.write("**Display columns**")
+        include_col = {}
+        for col in cols:
+            col_name = col['name']
+            if col_name in default_cols:
+                value = True
+            else:
+                value = False
+            include_col[col_name] = st.checkbox(col_name, value=value)
+        filtered_cols = [col for col in cols if include_col[col['name']]]
+        st.text("")
+
+        if st.button('Generate report'):
+            generate_report(model, task, dataset, filtered_cols, test_data)
 
     else:
-        # Mock data for testing
         #
         # text_cols defines format of each column in the report
         # 'type' is one of:
@@ -306,184 +507,6 @@ else:
             {'type': 'text', 'name': 'Size'},
         ]
 
-        # Each item in test_data contains data for one group, e.g. the data for augmentations
-        test_data = [
-            # First group
-            {'group': '',  # Name of group
-             'slices': ['Test split'],  # Tests/slices for group
-             'data': {  # Data, indexed by column name
-                 'Accuracy': [55],
-                 'F1': [45],
-                 'Class %': [
-                     [0.3, 0.4, 0.3]
-                 ],
-                 'Pred. class %': [
-                     [0.27, 0.43, 0.3]
-                 ],
-                 'Size': '13K'
-             }
-             },
-            # Second group, etc.
-            {'group': 'Slices',
-             'slices': ['Negation', 'Contains -ing', 'Temporal preposition', 'Ends with verb', 'slice 5',
-                        'slice 6', 'slice 7'],
-             'data': {
-                 'Accuracy': [50, 40, 30, 20, 10, 30, 20],
-                 'F1': [20, 30, 10, 75, 80, 75, 80],
-                 'Class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.2, 0.4, 0.4],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6]
-                 ],
-                 'Pred. class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.3, 0.4, 0.4],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                 ],
-                 'Size': ['15K', '18K', '12K', '30K', '24K', '40K', '15K'],
-             }
-             },
-            {'group': 'Augmentations',
-             'slices': ['Augmentation 1', 'Augmentation 2', 'Augmentation 3',
-                        'Augmentation 4', 'Augmentation 5', 'Augmentation 6', 'Augmentation 7'],
-             'data': {
-                 'Accuracy': [50, 40, 30, 20, 10, 20, 10],
-                 'F1': [20, 30, 10, 75, 80, 75, 80],
-                 'Class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.1, 0.6, 0.3],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6]
-                 ],
-                 'Pred. class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.2, 0.5, 0.3],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6]
-                 ],
-                 'Size': ['230', '521', '1K', '100', '2K', '3K', '210'],
-             }
-             },
-            {'group': 'TextAttack',
-             'slices': ['Textfooler', 'Hotflip', 'Morpheus', 'Seq2Sick', 'Hotflip 2',
-                        'Morpheus 2', 'Seq2Sick 2'],
-             'data': {
-                 'Accuracy': [50, 40, 30, 20, 10, 20, 10],
-                 'F1': [20, 30, 10, 75, 80, 10, 75, 80],
-                 'Class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.8, 0.1, 0.1],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                 ],
-                 'Pred. class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.3, 0.4, 0.2],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.1, 0.8],
-                     [0.1, 0.3, 0.6],
-                 ],
-                 'Size': ['3.1K', '15K', '412', '8.1K', '15K', '412', '8.1K'],
-             }
-             },
-            {'group': 'Eval Sets',
-             'slices': ['Eval set 1', 'Eval set 2', 'Eval set 3', 'Eval set 4', 'Eval set 5',
-                        'Eval set 6', 'Eval set 7'],
-             'data': {
-                 'Accuracy': [50, 40, 30, 20, 10, 20, 10],
-                 'F1': [20, 30, 10, 75, 80, 10, 75, 80],
-                 'Class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.2, 0.6, 0.2],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                 ],
-                 'Pred. class %': [
-                     [0.1, 0.3, 0.6],
-                     [0.3, 0.5, 0.2],
-                     [0.4, 0.4, 0.2],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                     [0.1, 0.3, 0.6],
-                 ],
-                 'Size': ['3.1K', '15K', '412', '8.1K', '15K', '412', '8.1K'],
-             }
-             }
-        ]
-        st.header("Model Robustness report")
-        # task = st.sidebar.selectbox("Choose dataset", ["SNLI", "SST-2", "Summarization","MRPC"])  #call Dataset.list_datasets
-
-        # Select a task
-        task_identifier = st.sidebar.selectbox("Choose a task", ["TernaryNaturalLanguageInference"])
-        task = Task.create(task=task_identifier)
-
-        # Select a dataset
-        dataset = st.sidebar.selectbox("Choose dataset", list(task.datasets()))
-
-        # Select a model
-        model_identifier = st.sidebar.selectbox("Choose model", [
-            'huggingface/textattack/bert-base-uncased-snli'])  # ["BERT-Base", "RoBERTa-Base", "BART", "T5"])
-
-        # Load the model
-        # TODO(karan): generalize this
-        if model_identifier.split("/")[0] == 'huggingface':
-            model = Model.huggingface(
-                identifier="/".join(model_identifier.split("/")[1:]),
-                task=task,
-            )
-        else:
-            raise NotImplementedError
-
-        # Create the test bench
-        testbench = TestBench(
-            identifier='snli-nli-0.0.1dev',
-            task=task,
-            slices=[
-                Slice.from_dataset(identifier='snli-train',
-                                   dataset=Dataset.load_dataset('snli', split='train[:128]')).filter(lambda example: example['label'] != -1),
-                Slice.from_dataset(identifier='snli-val',
-                                   dataset=Dataset.load_dataset('snli', split='validation[:128]')).filter(lambda example: example['label'] != -1),
-                Slice.from_dataset(identifier='snli-test',
-                                   dataset=Dataset.load_dataset('snli', split='test[:128]')).filter(lambda example: example['label'] != -1),
-            ]
-        )
-
-        # Create the report
-        report = testbench.create_report(model=model,
-                                         coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]))
-        # TODO(karan): this will come from the report
-        test_cols = [
-            {'type': 'score', 'name': 'accuracy', 'min': 0, 'max': 1},
-            {'type': 'score', 'name': 'f1', 'min': 0, 'max': 1},
-            # {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
-            # {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
-            {'type': 'text', 'name': 'Size'},
-        ]
-
-        print(report)
         #TODO(karan): remove hax
         test_data = report[-1:] * 4# + report[1]
 
