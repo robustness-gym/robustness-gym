@@ -1,0 +1,9 @@
+jupyterlab
+transformers==3.0.2
+wandb
+scikit-learn
+matplotlib
+faiss-gpu
+overrides
+contexttimer
+pandas

@@ -1,0 +1,7 @@
+#!/bin/bash
+podName=$1
+sourcePort=$2
+targetPort=8888
+
+kubectl logs ${podName} | grep token | grep http
+kubectl port-forward ${podName} ${sourcePort}:${targetPort}

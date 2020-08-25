@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+ name: sfr-pod-hguo
+ namespace: sfr-ns-hguo
+spec:
+  restartPolicy: OnFailure
+  volumes:
+    - name: sfr-home-pv-hguo
+      persistentVolumeClaim:
+        claimName: sfr-home-pvc-hguo
+    - name: sfr-share-pv-hguo
+      persistentVolumeClaim:
+        claimName: sfr-share-pvc-hguo
+    # Hack
+    # https://stackoverflow.com/questions/46085748/define-size-for-dev-shm-on-container-engine
+    - name: dshm
+      emptyDir:
+        medium: Memory
+  containers:
+    - name: hguo-scratchpad
+      image: "gcr.io/salesforce-research-internal/hguo-scratchpad:IMAGE_TAG"
+      command: ["/bin/bash"]
+      args: ["-c", "cd hguo-scratchpad/ && git config --global credential.helper 'cache --timeout=3600' && jupyter-lab --ip=127.0.0.1 --allow-root"]
+      resources:
+        limits:
+          nvidia.com/gpu: 4
+          cpu: "31"
+          memory: 192G
+      volumeMounts:
+        - name: sfr-home-pv-hguo
+          mountPath: "/export/home"
+        - name: sfr-share-pv-hguo
+          mountPath: "/export/share"
+        - mountPath: /dev/shm
+          name: dshm
+  tolerations:
+  - key: "gpu_num"
+    operator: "Equal"
+    value: "8"
+    effect: "NoSchedule"
