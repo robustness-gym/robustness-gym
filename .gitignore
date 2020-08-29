@@ -1,4 +1,6 @@
 examples/save/
+# Apache Arrow
+*.arrow
 
 # Pycharm
 .idea

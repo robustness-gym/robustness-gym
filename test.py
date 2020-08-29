@@ -1,7 +1,7 @@
 # from robustness_gym.dataset import Dataset
-from robustness_gym.slicer import *
+from robustness_gym.slicemaker import *
 from robustness_gym.slice import *
-from robustness_gym.slicers.filters.phrase import *
+from robustness_gym.curators.filters.phrase import *
 from robustness_gym.slicers.augmentations.eda import *
 import streamlit as st
 import pandas as pd
@@ -108,11 +108,11 @@ for header, slice in zip(has_phrase_slicer.headers, slices):
 st.write(pd.DataFrame(slice_labels, columns=has_phrase_slicer.headers))
 
 has_any_phrase_slicer = HasAnyPhrase(phrases=['iran', 'afghanistan'])
-batch, _, slice_labels = has_any_phrase_slicer.slice_batch(batch=dataset[:2], keys=['question'])
+batch, _, slice_labels = has_any_phrase_slicer.process_batch(batch=dataset[:2], keys=['question'])
 st.write(pd.DataFrame(slice_labels, columns=has_any_phrase_slicer.headers))
 
 has_all_phrases_slicer = HasAllPhrases(phrases=['iran', 'afghanistan', 'samaritan'])
-batch, _, slice_labels = has_all_phrases_slicer.slice_batch(batch=dataset[:2], keys=['question'])
+batch, _, slice_labels = has_all_phrases_slicer.process_batch(batch=dataset[:2], keys=['question'])
 st.write(pd.DataFrame(slice_labels, columns=has_all_phrases_slicer.headers))
 
 # Augmentation
@@ -138,8 +138,8 @@ st.write(Slice.chain(slices))
 st.write(slice_labels)
 
 # Simple way to create a generic slicer from a fn
-example = Slicer(slice_batch_fn=lambda b, k: st.write("My slicer just ran."))
-example.slice_batch(None, None)
+example = SliceMaker(slice_batch_fn=lambda b, k: st.write("My slicer just ran."))
+example.process_batch(None, None)
 
 union_has_phrase = FilterMixin.union(*[
     HasPhrase(['iran', 'samaritan']),
