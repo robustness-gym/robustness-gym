@@ -1,4 +1,6 @@
 examples/save/
+brainstorm.py
+test.py
 # Apache Arrow
 *.arrow
 
