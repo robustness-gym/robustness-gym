@@ -1,5 +1,5 @@
 # from robustness_gym.dataset import Dataset
-from robustness_gym.slicemaker import *
+from robustness_gym.slicemakers.slicemaker import *
 from robustness_gym.slice import *
 from robustness_gym.curators.filters.phrase import *
 from robustness_gym.slicers.augmentations.eda import *
