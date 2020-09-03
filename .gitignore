@@ -1,3 +1,4 @@
+examples/save/
 # Apache Arrow
 *.arrow
 
