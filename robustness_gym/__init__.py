@@ -17,7 +17,7 @@ from robustness_gym.slicemakers.subpopulations.phrase.phrase import (
     HasAllPhrases,
 )
 from robustness_gym.slicemakers.attacks.textattack.textattack import TextAttack
-from .testbench import TestBench
+from robustness_gym.testbench.testbench import TestBench
 from .cached_ops.cached_ops import (
     CachedOperation,
     stow
