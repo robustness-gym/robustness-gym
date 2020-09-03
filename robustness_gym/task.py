@@ -1,8 +1,10 @@
-import cytoolz as tz
-from typing import *
-from nlp.features import ClassLabel, Value, FeatureType
-from robustness_gym.dataset import Dataset
 from collections import OrderedDict
+from typing import *
+
+import cytoolz as tz
+from nlp.features import ClassLabel, Value, FeatureType
+
+from robustness_gym.dataset import Dataset
 
 
 class Space:

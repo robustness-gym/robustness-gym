@@ -5,7 +5,8 @@ import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
 from transformers import *
 
-from robustness_gym import *
+from robustness_gym.task import Task
+from robustness_gym.dataset import Dataset
 
 
 class Model:
@@ -14,6 +15,7 @@ class Model:
                  identifier: str,
                  task: Task,
                  evaluation_fn=None):
+
         # TODO(karan): improve this wrapper around models
         self.identifier = identifier
         self.task = task

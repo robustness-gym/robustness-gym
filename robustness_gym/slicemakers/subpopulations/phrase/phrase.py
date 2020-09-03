@@ -1,14 +1,20 @@
 from __future__ import annotations
-from robustness_gym.slicemaker import *
-from robustness_gym.dataset import Spacy
+
+from typing import List, Dict, Tuple, Any, Sequence, Optional
+
+import cytoolz as tz
 import numpy as np
-from itertools import compress
 from ahocorasick import Automaton
+
+from robustness_gym.cached_ops.spacy.spacy import Spacy
+from robustness_gym.identifier import Identifier
+from robustness_gym.slicemakers.subpopulation import Subpopulation
 
 
 class AhoCorasickMixin:
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super(AhoCorasickMixin, self).__init__(*args, **kwargs)
         # Use the Aho-Corasick search algorithm to speed up phrase lookups
         self.automaton = Automaton()
 
@@ -28,8 +34,8 @@ class AhoCorasickMixin:
         self.automaton.make_automaton()
 
 
-class HasPhrase(Subpopulation,
-                AhoCorasickMixin,
+class HasPhrase(AhoCorasickMixin,
+                Subpopulation,
                 Spacy):
 
     def __init__(self,
@@ -39,9 +45,11 @@ class HasPhrase(Subpopulation,
 
         super(HasPhrase, self).__init__(
             # One slice per phrase
-            num_slices=len(self.phrases),
+            num_slices=len(phrases),
             identifiers=[
-                f"{self.__class__.__name__}('{phrase}')" for phrase in phrases
+                Identifier(name=self.__class__.__name__,
+                           phrase=phrase)
+                for phrase in phrases
             ]
         )
 
@@ -55,7 +63,7 @@ class HasPhrase(Subpopulation,
             {i: phrase for i, phrase in enumerate(self.phrases)})
 
     @classmethod
-    def from_file(cls, path: str) -> SliceMaker:
+    def from_file(cls, path: str) -> Subpopulation:
         """
         Load phrases from a file, one per line.
         """
@@ -64,7 +72,7 @@ class HasPhrase(Subpopulation,
         return cls(phrases=phrases)
 
     @classmethod
-    def default(cls) -> SliceMaker:
+    def default(cls) -> Subpopulation:
         """
         A default vocabulary of phrases to search.
         """
@@ -100,72 +108,41 @@ class HasPhrase(Subpopulation,
         return slice_membership
 
 
-# HasAnyPhrase = FilterMixin.union()
-
-class HasAnyPhrase(HasPhrase):
+class HasAnyPhrase(Subpopulation):
 
     def __init__(self,
-                 phrases=None,
-                 alias=None):
-        super(HasAnyPhrase, self).__init__(phrases=phrases)
+                 phrases=None):
+        # Take the union of the phrases
+        subpopulation = Subpopulation.union(
+            HasPhrase(phrases=phrases),
+            identifier=Identifier(
+                name=self.__class__.__name__,
+                phrases=set(phrases),
+            )
+        )
 
-        # Set the headers
-        self.headers = [
-            f"{self.__class__.__name__}({set(self.phrases) if alias is None else alias})"]
-
-    def alias(self) -> str:
-        return self.__class__.__name__
-
-    def process_batch(self,
-                      batch: Dict[str, List],
-                      keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
-        # Run the phrase matcher
-        batch, _, slice_labels = super(
-            HasAnyPhrase, self).process_batch(batch=batch, keys=keys)
-
-        # Check if any of the slice labels is 1
-        slice_labels = np.any(slice_labels, axis=1)[:, np.newaxis]
-
-        # Store these slice labels
-        batch = self.store_slice_labels(
-            batch, slice_labels.tolist(), self.alias())
-
-        return batch, self.filter_batch_by_slice_membership(batch, slice_labels), slice_labels
+        super(HasAnyPhrase, self).__init__(identifiers=subpopulation.identifiers,
+                                           apply_fn=subpopulation.apply)
 
 
-class HasAllPhrases(HasPhrase):
+class HasAllPhrases(Subpopulation):
 
     def __init__(self,
-                 phrases=None,
-                 alias=None):
-        super(HasAllPhrases, self).__init__(phrases=phrases)
+                 phrases=None):
+        # Take the intersection of the phrases
+        subpopulation = Subpopulation.intersection(
+            HasPhrase(phrases=phrases),
+            identifier=Identifier(
+                name=self.__class__.__name__,
+                phrases=set(phrases),
+            )
+        )
 
-        # Set the headers
-        self.headers = [
-            f"{self.__class__.__name__}({set(self.phrases) if alias is None else alias})"]
-
-    def alias(self) -> str:
-        return self.__class__.__name__
-
-    def process_batch(self,
-                      batch: Dict[str, List],
-                      keys: List[str]) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
-        # Run the phrase matcher
-        batch, _, slice_labels = super(
-            HasAllPhrases, self).process_batch(batch=batch, keys=keys)
-
-        # Check if all of the slice labels are 1
-        slice_labels = np.all(slice_labels, axis=1)[:, np.newaxis]
-
-        # Store these slice labels
-        batch = self.store_slice_labels(
-            batch, slice_labels.tolist(), self.alias())
-
-        return batch, self.filter_batch_by_slice_membership(batch, slice_labels), slice_labels
+        super(HasAllPhrases, self).__init__(identifiers=subpopulation.identifiers,
+                                            apply_fn=subpopulation.apply)
 
 
 # class HANSPhrases(HasPhrase):
-
 
 # Taken from https://github.com/tommccoy1/hans/blob/master/templates.py
 class SingularNouns(HasPhrase):

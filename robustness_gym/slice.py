@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from robustness_gym.dataset import *
+from robustness_gym.dataset import Dataset
 
 
 class Slice(Dataset):
 
     def __init__(self,
-                 identifier: str,
-                 dataset: Dataset = None,
                  *args,
+                 identifier: str = None,
+                 dataset: Dataset = None,
                  **kwargs):
 
         if dataset is not None:
@@ -38,17 +38,3 @@ class Slice(Dataset):
     def __repr__(self):
         schema_str = dict((a, str(b)) for a, b in zip(self._data.schema.names, self._data.schema.types))
         return f"{self.__class__.__name__}(schema: {schema_str}, num_rows: {self.num_rows})"
-
-    # def __init__(self):
-    #     # A slice contains information about how it was derived
-    #     self.info = {
-    #
-    #         'type': [],  # ['augmentation', 'adv_attack', 'eval_set', 'sfs', 'dataset'],
-    #         'tasks': [],  # ['NLI'],
-    #
-    #         'split': None,  # ['train', 'val', 'test'] --> val is most likely for our library
-    #
-    #         # Dependencies is
-    #         'dependencies': {},  # dependence find a better word
-    #
-    #     }

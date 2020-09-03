@@ -3,7 +3,10 @@ from typing import *
 import cytoolz as tz
 import numpy as np
 
-from robustness_gym import *
+from robustness_gym.model import Model
+from robustness_gym.report import Report
+from robustness_gym.slice import Slice
+from robustness_gym.task import Task
 
 
 # TODO(karan): make the TestBench hashable

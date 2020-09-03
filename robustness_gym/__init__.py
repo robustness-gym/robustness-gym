@@ -1,27 +1,46 @@
 """
 Import common classes.
 """
-from .dataset import (
-    CachedOperation,
-    Spacy,
-    StripText,
+
+from robustness_gym.cached_ops.allen.constituency_parser.constituency_parser import (
     AllenConstituencyParser
 )
-from .dataset import Dataset
-from .slice import Slice
-from .slicemaker import (
-    SliceMaker,
-    Subpopulation,
-    Augmentation,
-    Attack,
-    Curator
+from robustness_gym.slicemakers.augmentations.eda.eda import (
+    EasyDataAugmentation,
 )
+from robustness_gym.slicemakers.slicemaker import (
+    SliceMaker,
+)
+from robustness_gym.slicemakers.subpopulations.phrase.phrase import (
+    HasPhrase,
+    HasAnyPhrase,
+    HasAllPhrases,
+)
+from robustness_gym.slicemakers.attacks.textattack.textattack import TextAttack
+from .testbench import TestBench
+from .cached_ops.cached_ops import (
+    CachedOperation,
+    stow
+)
+from .cached_ops.custom.strip_text import StripText
+from .cached_ops.spacy.spacy import Spacy
+from .dataset import Dataset
+from .identifier import Identifier
+from .model import Model
+from .report import Report
+from .slice import Slice
+from .slicemakers.attack import Attack
+from .slicemakers.augmentation import Augmentation
+from .slicemakers.curator import Curator
+from .slicemakers.subpopulation import Subpopulation
+from .storage import PicklerMixin
 from .task import (
     Task,
     NaturalLanguageInference,
     BinaryNaturalLanguageInference,
     TernaryNaturalLanguageInference,
 )
-from .model import Model
-from .report import Report
-from .bench import TestBench
+from .tools import (
+    recmerge,
+    persistent_hash,
+)
