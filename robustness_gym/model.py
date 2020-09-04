@@ -241,9 +241,9 @@ class HuggingfaceModel(Model):
         for metric in self.task.metrics:
             if metric == 'accuracy':
                 # Calculate the accuracy
-                evaluation_dict[metric] = lightning_metrics.accuracy(predictions['pred'], labels)
+                evaluation_dict[metric] = lightning_metrics.accuracy(predictions['pred'], labels).item()
             elif metric == 'f1':
                 # Calculate the f1
-                evaluation_dict[metric] = lightning_metrics.f1_score(predictions['pred'], labels)
+                evaluation_dict[metric] = lightning_metrics.f1_score(predictions['pred'], labels).item()
 
         return evaluation_dict

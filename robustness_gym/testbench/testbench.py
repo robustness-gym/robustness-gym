@@ -2,9 +2,10 @@ from typing import *
 
 import cytoolz as tz
 import numpy as np
+import pandas as pd
 
 from robustness_gym.model import Model
-from robustness_gym.report import Report
+from robustness_gym.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
 from robustness_gym.slice import Slice
 from robustness_gym.task import Task
 
@@ -15,7 +16,8 @@ class TestBench:
     def __init__(self,
                  identifier: str,
                  task: Task,
-                 slices: List[Slice]):
+                 slices: List[Slice],
+                 dataset_id: str = None):
 
         # An identifier for the TestBench
         self.identifier = identifier
@@ -27,6 +29,8 @@ class TestBench:
         self.metrics = {}
 
         self.schema_type = 'default'
+
+        self.dataset_id = dataset_id
 
     @classmethod
     def for_dataset(
@@ -131,51 +135,38 @@ class TestBench:
         ]
         category_to_index = {category: i for i, category in enumerate(categories)}
 
-        report = [
-            {
-                'group': category,
-                'slices': [],
-                'data': tz.merge(
-                    # Task-dependent model metrics
-                    {metric: [] for metric in self.task.metrics},
-
-                    # Task-dependent model predictions
-                    # TODO(karan): e.g. average class distribution predicted, figure out how to put this in
-                    {},
-
-                    # Task-dependent slice information
-                    # TODO(karan): e.g. class distribution
-                    {},
-
-                    # Task-independent slice information
-                    {'Size': []},
-                )
-            }
-            for category in categories
-        ]
-
+        df = pd.DataFrame()
+        data = []
+        metric_ids = None
         for slice in self.slices:
-            # Check what category the slice is in
-            index = category_to_index[slice.category]
-
-            # Get the slice metrics
+            row = {
+                'category_order': category_to_index[slice.category],
+                'category': slice.category,
+                'slice_name': slice.identifier,
+                'Size': len(slice)
+            }
             slice_metrics = model_metrics[slice.identifier]
+            row.update(slice_metrics)
+            data.append(row)
+            if metric_ids is None:
+                metric_ids = list(slice_metrics.keys())
+        df = pd.DataFrame(data)
+        df = df.sort_values(['category_order', 'slice_name'])
 
-            # Aggregate: convert list of dicts -> dict with aggregated values
-            # TODO(karan): generalize aggregation
-            slice_metrics = tz.merge_with(np.mean, slice_metrics)
+        columns = []
+        for metric_id in metric_ids:
+            # TODO store these min and max values somewhere
+            columns.append(ScoreColumn(metric_id, 0.0, 100.0))
+        columns.append(NumericColumn('Size'))
+        # Aggregate: convert list of dicts -> dict with aggregated values
+        # TODO(karan): generalize aggregation
+        # slice_metrics = tz.merge_with(np.mean, slice_metrics)
+        # Task-dependent model predictions
+        # TODO(karan): e.g. average class distribution predicted, figure out how to put this in
+        # Task-dependent slice information
+        # TODO(karan): e.g. class distribution
 
-            # Store the slice name
-            report[index]["slices"].append(slice.identifier)
-
-            # Update the task-dependent model metrics for this slice
-            for metric in self.task.metrics:
-                report[index]["data"][metric].append(slice_metrics[metric])
-
-            # Update the task-independent slice information
-            report[index]["data"]["Size"].append(len(slice))
-
-        return report
+        return Report(df, columns, model.identifier, self.dataset_id)
 
     def set_schema(self, schema_type: str):
         assert schema_type in {'default', 'task'}
