@@ -481,12 +481,13 @@ else:
                 Slice.from_dataset(identifier='snli-test',
                                    dataset=Dataset.load_dataset('snli', split='test[:128]')).filter(
                     lambda example: example['label'] != -1),
-            ]
+            ],
+            dataset_id='snli'
         )
 
         # Create the report
         report = testbench.create_report(model=model,
-                                         coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]))
+                                         coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]),)
         #
         # text_cols defines format of each column in the report
         # 'type' is one of:
@@ -507,5 +508,6 @@ else:
         #
         # generate_report(model, task, dataset, test_cols, test_data)
         fig1, fig2 = report.figures
-        fig1
+        if fig1 is not None:
+            fig1
         fig2

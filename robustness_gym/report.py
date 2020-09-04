@@ -225,58 +225,75 @@ class Report:
         fig_detail.update_layout(annotations=new_annotations)
 
         # Generate summary figure
-        fig_summary = make_subplots(rows=1,
-                                    cols=len(score_cols),
-                                    # subplot_titles=score_names,
-                                    specs=[[{'type': 'polar'}] * len(score_cols)],
-                                    horizontal_spacing=.2,
-                                    # column_width=[.35] * n_cols,
-                                    )
-        for i, col in enumerate(score_cols):
-            # TODO Convention for the baseline blank category
-            include_categories = [category for category in categories if category != '']
-            category_scores = [summary_data[col.name][category] for category in include_categories]
-            fig_summary.add_trace(go.Scatterpolar(
-                name=col.name,
-                r=category_scores,
-                theta=include_categories,
-                line=go.scatterpolar.Line(color=score_colors[len(score_cols) - 1][i])
-            ), 1, i+1)
-        fig_summary.update_traces(fill='toself')
-        fig_summary.update_layout(height=330,
-                                  width=960,
-                                  margin=go.layout.Margin(
-                                      # l=0,  # left margin
-                                      # r=0,  # right margin
-                                      b=60,  # bottom margin
-                                      t=60  # top margin
-                                  ),
-                                  polar=dict(
-                                      radialaxis=dict(
-                                          visible=True,
-                                          range=[col.min, col.max]
-                                      )
-                                  ),
-                                  polar2=dict(
-                                      radialaxis=dict(
-                                          visible=True,
-                                          range=[col.min, col.max]
-                                      )
-                                  ),
-                                  polar3=dict(
-                                      radialaxis=dict(
-                                          visible=True,
-                                          range=[col.min, col.max]
-                                      )
-                                  ),
-                                  title={
-                                      'text': f"{self.dataset_name}/{self.model_name} Robustness Report",
-                                      'y': .98,
-                                      'x': 0.5,
-                                      'xanchor': 'center',
-                                      'yanchor': 'top'}
+        if len(categories) >= 3:
+            fig_summary = make_subplots(rows=1,
+                                        cols=len(score_cols),
+                                        # subplot_titles=score_names,
+                                        specs=[[{'type': 'polar'}] * len(score_cols)],
+                                        horizontal_spacing=.2,
+                                        # column_width=[.35] * n_cols,
+                                        )
+            for i, col in enumerate(score_cols):
+                # TODO Convention for the baseline blank category
+                include_categories = [category for category in categories if category != '']
+                category_scores = [summary_data[col.name][category] for category in include_categories]
+                fig_summary.add_trace(go.Scatterpolar(
+                    name=col.name,
+                    r=category_scores,
+                    theta=include_categories,
+                    line=go.scatterpolar.Line(color=score_colors[len(score_cols) - 1][i])
+                ), 1, i+1)
+            fig_summary.update_traces(fill='toself')
+            fig_summary.update_layout(height=330,
+                                      width=960,
+                                      margin=go.layout.Margin(
+                                          # l=0,  # left margin
+                                          # r=0,  # right margin
+                                          b=60,  # bottom margin
+                                          t=60  # top margin
+                                      ),
+                                      polar=dict(
+                                          radialaxis=dict(
+                                              visible=True,
+                                              range=[col.min, col.max]
+                                          )
+                                      ),
+                                      polar2=dict(
+                                          radialaxis=dict(
+                                              visible=True,
+                                              range=[col.min, col.max]
+                                          )
+                                      ),
+                                      polar3=dict(
+                                          radialaxis=dict(
+                                              visible=True,
+                                              range=[col.min, col.max]
+                                          )
+                                      ),
+                                      title={
+                                          'text': f"{self.dataset_name} {self.model_name} Robustness Report",
+                                          'y': .98,
+                                          'x': 0.5,
+                                          'xanchor': 'center',
+                                          'yanchor': 'top'}
                                   )
-        fig_summary.update_yaxes(automargin=True)
+            fig_summary.update_yaxes(automargin=True)
+        else:
+            fig_summary = None
+            fig_detail.update_layout(
+                title={
+                    'text': f"{self.dataset_name} {self.model_name} Robustness Report",
+                    # 'y': .98,
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    # 'yanchor': 'top'
+                }, margin=go.layout.Margin(
+                                         # l=0,  # left margin
+                                         r=0,  # right margin
+                                         b=0,  # bottom margin
+                                         t=80  # top margin
+                                     )
+            )
 
         self._figures = fig_summary, fig_detail
         return self._figures
