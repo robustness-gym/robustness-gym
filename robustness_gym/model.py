@@ -237,8 +237,6 @@ class HuggingfaceModel(Model):
 
         # TODO(karan): make this easier
         # TODO(karan): move to the right device
-        print(predictions['pred'])
-        print(labels)
         evaluation_dict = {}
         for metric in self.task.metrics:
             if metric == 'accuracy':
