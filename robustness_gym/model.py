@@ -17,6 +17,7 @@ class Model:
                  evaluation_fn=None):
 
         # TODO(karan): improve this wrapper around models
+        # TODO(karan): add some human-readble identifier to this as optional
         self.identifier = identifier
         self.task = task
 

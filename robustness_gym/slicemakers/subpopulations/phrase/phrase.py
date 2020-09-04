@@ -11,31 +11,32 @@ from robustness_gym.identifier import Identifier
 from robustness_gym.slicemakers.subpopulation import Subpopulation
 
 
-class AhoCorasickMixin:
+class AhoCorasick:
 
     def __init__(self, *args, **kwargs):
-        super(AhoCorasickMixin, self).__init__(*args, **kwargs)
+        super(AhoCorasick, self).__init__(*args, **kwargs)
+
         # Use the Aho-Corasick search algorithm to speed up phrase lookups
         self.automaton = Automaton()
 
-    def populate_automaton(self,
-                           phrases: Dict[Any, str],
-                           reset_automaton: bool = False) -> None:
-        if reset_automaton:
-            # Create a new automaton
-            self.automaton = Automaton()
+    @classmethod
+    def from_phrases(cls,
+                     phrases: Dict[Any, str]) -> AhoCorasick:
+        # Create a new automaton
+        ahocorasick = cls()
 
         # Add all the phrases we want to search for
         for key, phrase in phrases.items():
             # As values, we add the key of the phrase
-            self.automaton.add_word(phrase, key)
+            ahocorasick.automaton.add_word(phrase, key)
 
         # Initialize Aho-Corasick
-        self.automaton.make_automaton()
+        ahocorasick.automaton.make_automaton()
+
+        return ahocorasick
 
 
-class HasPhrase(AhoCorasickMixin,
-                Subpopulation,
+class HasPhrase(Subpopulation,
                 Spacy):
 
     def __init__(self,
@@ -59,9 +60,13 @@ class HasPhrase(AhoCorasickMixin,
         if self.phrases is None:
             self.phrases = []
 
-        # Populate the Aho-Corasick automaton
-        self.populate_automaton(
-            {i: phrase for i, phrase in enumerate(self.phrases)})
+        # Create and populate Aho-Corasick automatons for words and phrases
+        self.word_ahocorasick = AhoCorasick.from_phrases({
+            i: phrase for i, phrase in enumerate(self.phrases) if " " not in phrase
+        })
+        self.phrase_ahocorasick = AhoCorasick.from_phrases({
+            i: phrase for i, phrase in enumerate(self.phrases) if " " in phrase
+        })
 
     @classmethod
     def from_file(cls, path: str) -> Subpopulation:
@@ -96,15 +101,28 @@ class HasPhrase(AhoCorasickMixin,
         # Use the spacy cache to grab the tokens in each example (for each key)
         tokenized_batch = self.get_tokens(batch, keys)
 
-        for i, example in enumerate(tokenized_batch):
-            for key, tokens in example.items():
-                # Get the values (indices) of all the matched tokens
-                matched_indices = [
-                    self.automaton.get(token) for token in tokens if self.automaton.exists(token)
-                ]
+        # Search for words
+        if len(self.word_ahocorasick.automaton) > 0:
+            for i, example in enumerate(tokenized_batch):
+                for key, tokens in example.items():
+                    # Get the values (indices) of all the matched tokens
+                    matched_indices = [
+                        self.word_ahocorasick.automaton.get(token) for token in tokens
+                        if self.word_ahocorasick.automaton.exists(token)
+                    ]
 
-                # Fill in the slice labels for slices that are present
-                slice_membership[i, matched_indices] = 1
+                    # Fill in the slice labels for slices that are present
+                    slice_membership[i, matched_indices] = 1
+
+        # Search for phrases
+        if len(self.phrase_ahocorasick.automaton) > 0:
+            for key in keys:
+                for i, example in enumerate(batch[key]):
+                    # Get the values (indices) of all the matched phrases
+                    matched_indices = [index for _, index in self.phrase_ahocorasick.automaton.iter(example)]
+
+                    # Fill in the slice labels for slices that are present
+                    slice_membership[i, matched_indices] = 1
 
         return slice_membership
 

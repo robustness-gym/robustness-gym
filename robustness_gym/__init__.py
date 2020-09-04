@@ -12,6 +12,7 @@ from robustness_gym.slicemakers.slicemaker import (
     SliceMaker,
 )
 from robustness_gym.slicemakers.subpopulations.phrase.phrase import (
+    AhoCorasick,
     HasPhrase,
     HasAnyPhrase,
     HasAllPhrases,
