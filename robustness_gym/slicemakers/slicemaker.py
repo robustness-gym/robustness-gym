@@ -60,7 +60,9 @@ class SliceMaker(PicklerMixin):
                  keys: List[str],
                  mask: List[int] = None,
                  store_compressed: bool = None,
-                 store: bool = None):
+                 store: bool = None,
+                 *args,
+                 **kwargs):
 
         # Check that prerequisites are satisfied
         self.prerequisites_handler(batch_or_dataset)
@@ -80,7 +82,9 @@ class SliceMaker(PicklerMixin):
                     for identifier in self.identifiers
                 ] if not mask else mask,
                 store_compressed=True if store_compressed is None else store_compressed,
-                store=True if store is None else store
+                store=True if store is None else store,
+                *args,
+                **kwargs
             )
 
             # Update the Dataset's history
@@ -98,13 +102,17 @@ class SliceMaker(PicklerMixin):
                 print("Compressed storage cannot be used on a batch. Please use Dataset.from_batch(batch) before "
                       "applying the SliceMaker.")
             # Slice a batch
-            return self.process_batch(batch=batch_or_dataset,
-                                      keys=keys,
-                                      mask=mask,
-                                      # Don't allow compressed storage for __call__ on a batch
-                                      store_compressed=False,
-                                      # Don't store by default
-                                      store=False if store is None else store)
+            return self.process_batch(
+                batch=batch_or_dataset,
+                keys=keys,
+                mask=mask,
+                # Don't allow compressed storage for __call__ on a batch
+                store_compressed=False,
+                # Don't store by default
+                store=False if store is None else store,
+                *args,
+                **kwargs
+            )
         else:
             raise NotImplementedError
 
@@ -150,7 +158,9 @@ class SliceMaker(PicklerMixin):
                         batch_size: int = 32,
                         mask: List[int] = None,
                         store_compressed: bool = True,
-                        store: bool = True) -> Tuple[Dataset, List[Slice], np.ndarray]:
+                        store: bool = True,
+                        *args,
+                        **kwargs) -> Tuple[Dataset, List[Slice], np.ndarray]:
         """
         Apply a SliceMaker to a dataset.
         """
@@ -161,7 +171,9 @@ class SliceMaker(PicklerMixin):
                                  keys=keys,
                                  mask=mask,
                                  store_compressed=store_compressed,
-                                 store=store)
+                                 store=store,
+                                 *args,
+                                 **kwargs)
               for batch in tz.partition_all(batch_size, dataset)]
         )
 
@@ -189,7 +201,9 @@ class SliceMaker(PicklerMixin):
                       keys: List[str],
                       mask: List[int] = None,
                       store_compressed: bool = True,
-                      store: bool = True) \
+                      store: bool = True,
+                      *args,
+                      **kwargs) \
             -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
         return batch, [batch], None
 

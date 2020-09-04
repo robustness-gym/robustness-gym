@@ -126,10 +126,11 @@ class Dataset(nlp.Dataset, InteractionTapeHierarchyMixin):
         if len(args) == 1 and isinstance(args[0], nlp.Dataset):
             # Create a Dataset directly from an nlp.Dataset object
             self.__dict__ = args[0].__dict__.copy()
-            # Call the superclass constructor
-            InteractionTapeHierarchyMixin.__init__(self)
         else:
             super(Dataset, self).__init__(*args, **kwargs)
+
+        # Call the superclass constructor
+        InteractionTapeHierarchyMixin.__init__(self)
 
         # Keep track of the original dataset keys
         self.original_keys = list(self.features.keys())
@@ -264,8 +265,9 @@ class Dataset(nlp.Dataset, InteractionTapeHierarchyMixin):
         )
 
         if isinstance(output, nlp.Dataset):
-            self.__dict__ = tz.merge(self.__dict__, output.__dict__)
-            return self
+            dataset = deepcopy(self)
+            dataset.__dict__ = tz.merge(dataset.__dict__, output.__dict__)
+            return dataset
         else:
             return output
 

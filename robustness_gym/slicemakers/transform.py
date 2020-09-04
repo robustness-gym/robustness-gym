@@ -37,7 +37,9 @@ class Transform(SliceMaker):
                       keys: List[str],
                       mask: List[int] = None,
                       store_compressed: bool = True,
-                      store: bool = True) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+                      store: bool = True,
+                      *args,
+                      **kwargs) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
         # Determine the size of the batch
         batch_size = len(batch[list(batch.keys())[0]])
 
@@ -56,7 +58,9 @@ class Transform(SliceMaker):
             skeleton_batches=skeleton_batches,
             slice_membership=slice_membership,
             batch=batch,
-            keys=keys
+            keys=keys,
+            *args,
+            **kwargs,
         )
 
         # Store the transformed examples

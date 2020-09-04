@@ -39,7 +39,9 @@ class Subpopulation(SliceMaker):
                       keys: List[str],
                       mask: List[int] = None,
                       store_compressed: bool = True,
-                      store: bool = True) \
+                      store: bool = True,
+                      *args,
+                      **kwargs) \
             -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
         # Determine the size of the batch
         batch_size = len(batch[list(batch.keys())[0]])
@@ -48,7 +50,7 @@ class Subpopulation(SliceMaker):
         slice_membership = np.zeros((batch_size, self.num_slices), dtype=np.int32)
 
         # Apply the SliceMaker's core functionality
-        slice_membership = self.apply(slice_membership, batch, keys)
+        slice_membership = self.apply(slice_membership, batch, keys, *args, **kwargs)
 
         # Store these slice labels
         # TODO(karan): figure out how to set the alias
