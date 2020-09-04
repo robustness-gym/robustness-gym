@@ -1,5 +1,7 @@
 import itertools
+import shutil
 from collections import defaultdict
+from pathlib import Path
 from typing import List
 
 import pandas as pd
@@ -43,7 +45,7 @@ class Report:
     @property
     def figures(self):
         if self._figures is not None:
-            return self.figures()
+            return self._figures
 
         score_colors = [['#3499EC'],
                         ['#EC7734', '#3499EC'],
@@ -306,14 +308,27 @@ class Report:
 \\section{{Appendix}}
 \\begin{{figure}}[h]
 \\begin{{center}}
-    \\includegraphics[width=\\linewidth]{{../images/robustness_gym_summary.pdf}}
     \\includegraphics[width=\\linewidth]{{../images/robustness_gym_detail.pdf}}
 \\end{{center}}
 \\caption{{Robustness report for {self.model_name} model on {self.dataset_name} dataset. Summary view (top) shows the minimum score within
  each robustness category for each metric. Detail view (bottom) reports score for each robustness test, broken out by
  category. Tests include: {refs}}}.
  \end{{figure}}"""
-        return conf_to_latex['iclr2021']
+        return conf_to_latex
+
+
+    def write_appendix(self, outdir):
+        reports_path = Path(__file__).parent.parent / 'reports'
+        shutil.copytree(reports_path / 'template', outdir)
+        image_path = outdir / 'images'
+        image_path.mkdir(parents=True, exist_ok=True)
+        fig_summary, fig_detail = self.figures
+        if fig_summary is not None:
+            fig_summary.write_image(str(image_path / 'robustness_gym_summary.pdf'))
+        fig_detail.write_image(str(image_path / 'robustness_gym_detail.pdf'))
+        for conf_id, latex in self.latex.items():
+            with open(outdir / conf_id / 'robustness_gym_appendix.tex', 'w') as f:
+                f.write(latex)
 
 
 def human_format(num):

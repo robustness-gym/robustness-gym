@@ -1,5 +1,7 @@
+import datetime
 import functools
 from collections import defaultdict
+from pathlib import Path
 from random import randint
 
 import matplotlib.pyplot as plt
@@ -440,6 +442,9 @@ else:
             print('group')
             print(group_to_selected[group])
 
+
+
+
         st.write("**Display columns**")
         include_col = {}
         for col in cols:
@@ -511,3 +516,9 @@ else:
         if fig1 is not None:
             fig1
         fig2
+        if st.button('Generate appendix'):
+            tstamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            reports_path = Path(__file__).parent.parent / 'reports'
+            output_path = reports_path / f'appendix_{tstamp}'
+            report.write_appendix(output_path)
+            f'Files written to {output_path}. See README.txt in appropriate subdirectory.'
