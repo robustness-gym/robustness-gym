@@ -494,15 +494,18 @@ else:
         #    'distribution': class distribution (heatmap)
         #    'text': free form text
         # TODO(karan): this will come from the report
-        test_cols = [
-            {'type': 'score', 'name': 'accuracy', 'min': 0, 'max': 1},
-            {'type': 'score', 'name': 'f1', 'min': 0, 'max': 1},
-            # {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
-            # {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
-            {'type': 'text', 'name': 'Size'},
-        ]
-
-        # TODO(karan): remove hax
-        test_data = report[-1:] * 4  # + report[1]
-
-        generate_report(model, task, dataset, test_cols, test_data)
+        # test_cols = [
+        #     {'type': 'score', 'name': 'accuracy', 'min': 0, 'max': 1},
+        #     {'type': 'score', 'name': 'f1', 'min': 0, 'max': 1},
+        #     # {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
+        #     # {'type': 'distribution', 'name': 'Pred. class %', 'class_codes': ['E', 'N', 'C']},
+        #     {'type': 'text', 'name': 'Size'},
+        # ]
+        #
+        # # TODO(karan): remove hax
+        # test_data = report[-1:] * 4  # + report[1]
+        #
+        # generate_report(model, task, dataset, test_cols, test_data)
+        fig1, fig2 = report.figures
+        fig1
+        fig2
