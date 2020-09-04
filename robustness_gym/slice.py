@@ -34,7 +34,7 @@ class Slice(Dataset):
                      dataset: Dataset,
                      identifier: str):
         return cls(identifier=identifier, dataset=dataset)
-
-    def __repr__(self):
-        schema_str = dict((a, str(b)) for a, b in zip(self._data.schema.names, self._data.schema.types))
-        return f"{self.__class__.__name__}(schema: {schema_str}, num_rows: {self.num_rows})"
+    #
+    # def __repr__(self):
+    #     schema_str = dict((a, str(b)) for a, b in zip(self._data.schema.names, self._data.schema.types))
+    #     return f"{self.__class__.__name__}(schema: {schema_str}, num_rows: {self.num_rows})"

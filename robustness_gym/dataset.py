@@ -121,7 +121,10 @@ class InteractionTapeHierarchyMixin:
 
 class Dataset(nlp.Dataset, InteractionTapeHierarchyMixin):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,
+                 identifier: Union[Identifier, str],
+                 *args,
+                 **kwargs):
 
         if len(args) == 1 and isinstance(args[0], nlp.Dataset):
             # Create a Dataset directly from an nlp.Dataset object
@@ -131,6 +134,8 @@ class Dataset(nlp.Dataset, InteractionTapeHierarchyMixin):
 
         # Call the superclass constructor
         InteractionTapeHierarchyMixin.__init__(self)
+
+        self.identifier = identifier
 
         # Keep track of the original dataset keys
         self.original_keys = list(self.features.keys())
@@ -175,7 +180,7 @@ class Dataset(nlp.Dataset, InteractionTapeHierarchyMixin):
         """
         Create a Dataset from a Huggingface nlp.Dataset.
         """
-        return cls(dataset)
+        return cls(dataset.info.builder_name, dataset)
 
     @classmethod
     def load_dataset(cls,
@@ -196,17 +201,23 @@ class Dataset(nlp.Dataset, InteractionTapeHierarchyMixin):
         dataset = nlp.load_dataset(*args, **kwargs)
 
         if isinstance(dataset, dict):
-            return dict(map(lambda t: (t[0], cls(t[1])), dataset.items()))
+            return dict(map(lambda t: (t[0], cls(Identifier(name=t[1].info.builder_name,
+                                                            split=str(t[1].split),
+                                                            version=t[1].version),
+                                                 t[1])), dataset.items()))
         else:
-            return cls(dataset)
+            return cls(Identifier(name=dataset.info.builder_name,
+                                  split=str(dataset.split),
+                                  version=dataset.version), dataset)
 
     @classmethod
     def from_json(cls,
-                  json_path: str) -> Dataset:
+                  json_path: str,
+                  identifier: Identifier) -> Dataset:
         """
         Load a dataset from a JSON file on disk, where each line of the json file consists of a single example.
         """
-        return cls(jsonarrow.read_json(json_path))
+        return cls(identifier, jsonarrow.read_json(json_path))
 
     @classmethod
     def from_slice(cls):
@@ -214,21 +225,25 @@ class Dataset(nlp.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def from_batch(cls,
-                   batch: Dict[str, List]) -> Dataset:
+                   batch: Dict[str, List],
+                   identifier: Identifier = None) -> Dataset:
         """
         Convert a batch to a Dataset.
 
         TODO(karan): disable preprocessing in this case
         """
-        return cls(table(batch))
+        return cls(identifier, table(batch))
 
     @classmethod
     def from_batches(cls,
-                     batches: Sequence[Dict[str, List]]) -> Dataset:
+                     batches: Sequence[Dict[str, List]],
+                     identifier: Identifier = None
+                     ) -> Dataset:
         """
         Convert a list of batches to a dataset.
         """
-        return cls.from_batch(tz.merge_with(tz.concat, *batches))
+        return cls.from_batch(tz.merge_with(tz.concat, *batches),
+                              identifier)
 
     def map(self,
             function,

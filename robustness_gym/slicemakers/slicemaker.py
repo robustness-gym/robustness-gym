@@ -190,6 +190,11 @@ class SliceMaker(PicklerMixin):
         # Create the dataset slices
         slices = [Slice.from_batches(slice_batches)
                   for slice_batches in zip(*all_sliced_batches)]
+        # TODO(karan): make this more systematic
+        for i, sl in enumerate(slices):
+            # TODO(karan): fix the combination of identifiers
+            sl.identifier = str(dataset.identifier) + '-' + str(self.identifiers[i])
+            sl.info.features = dataset.features
 
         # Create a single slice label matrix
         slice_membership = np.concatenate(all_slice_memberships, axis=0)
