@@ -235,6 +235,8 @@ class HuggingfaceModel(Model):
         assert len(output_keys) == 1, "Only supports classification."
         labels = targets[list(targets.keys())[0]]
 
+        num_classes = self.task.output_schema.features[list(self.task.output_schema.keys())[0]].num_classes
+
         # TODO(karan): make this easier
         # TODO(karan): move to the right device
         evaluation_dict = {}
@@ -245,5 +247,13 @@ class HuggingfaceModel(Model):
             elif metric == 'f1':
                 # Calculate the f1
                 evaluation_dict[metric] = lightning_metrics.f1_score(predictions['pred'], labels).item()
+            elif metric == 'dist':
+                # Calculate class distribution
+                evaluation_dict[metric] = lightning_metrics.to_onehot(labels,
+                                                                      num_classes).double().mean(axis=0).tolist()
+            elif metric == 'pred_dist':
+                # Calculate predicted class distribution
+                evaluation_dict[metric] = lightning_metrics.to_onehot(predictions['pred'],
+                                                                      num_classes).double().mean(axis=0).tolist()
 
         return evaluation_dict
