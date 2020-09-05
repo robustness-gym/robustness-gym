@@ -114,7 +114,8 @@ class TestBench:
     def create_report(self,
                       model: Model,
                       batch_size: int = 32,
-                      coerce_fn: Callable = None) -> Report:
+                      coerce_fn: Callable = None,
+                      metric_ids: List[str] = None) -> Report:
         """
         Generate a report for a model.
         """
@@ -137,7 +138,6 @@ class TestBench:
 
         df = pd.DataFrame()
         data = []
-        metric_ids = None
         for slice in self.slices:
             row = {
                 'category_order': category_to_index[slice.category],
