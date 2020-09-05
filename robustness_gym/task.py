@@ -150,6 +150,24 @@ class BinaryNaturalLanguageInference(NaturalLanguageInference):
     def __init__(self):
         super(BinaryNaturalLanguageInference, self).__init__(
             num_classes=2,
+            input_schema=Schema(
+                features=OrderedDict([
+                    ('premise', Value(dtype='string')),
+                    ('hypothesis', Value(dtype='string')),
+                ]),
+                grounding_candidates={
+                    'premise': {'premise', 'sentence1'},
+                    'hypothesis': {'hypothesis', 'sentence2'},
+                }
+            ),
+            output_schema=Schema(
+                features=OrderedDict([
+                    ('label', ClassLabel(names=['entailment', 'non entailment'])),
+                ]),
+                grounding_candidates={
+                    'label': {'label'},
+                }
+            ),
             identifier=self.__class__.__name__,
         )
 
@@ -179,20 +197,6 @@ class TernaryNaturalLanguageInference(NaturalLanguageInference):
             ),
             identifier=self.__class__.__name__,
         )
-
-        self.schema = {
-            'premise': Value(dtype='string'),
-            'hypothesis': Value(dtype='string'),
-            'label': ClassLabel(names=['entailment', 'neutral', 'contradiction'])
-        }
-
-        self.schema_grounding = {
-            'premise': {'premise', 'sentence1'},
-            'hypothesis': {'hypothesis', 'sentence2'},
-            'label': {'label'},
-        }
-
-        self.reversed_schema_grounding = {v: k for k, values in self.schema_grounding.items() for v in values}
 
     def datasets(self):
         return {

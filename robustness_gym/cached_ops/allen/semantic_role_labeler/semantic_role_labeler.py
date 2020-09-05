@@ -3,14 +3,16 @@ from typing import List
 import torch
 from allennlp.predictors import Predictor
 
-import robustness_gym.cached_ops.cached_ops
+from robustness_gym.cached_ops.cached_ops import CachedOperation
+from robustness_gym.identifier import Identifier
 
 
-class AllenSemanticRoleLabeler(robustness_gym.cached_ops.cached_ops.CachedOperation):
+class AllenSemanticRoleLabeler(CachedOperation):
 
     def __init__(self):
         super(AllenSemanticRoleLabeler, self).__init__(
-            identifier='AllenSemanticRoleLabeler')
+            identifier=Identifier(name=self.__class__.__name__)
+        )
 
         # Set up AllenNLP's constituency parser
         if torch.cuda.is_available():
@@ -31,4 +33,3 @@ class AllenSemanticRoleLabeler(robustness_gym.cached_ops.cached_ops.CachedOperat
 
         # Extract the tree from the output of the constituency parser
         return [val['trees'] for val in role_labels]
-

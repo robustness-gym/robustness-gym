@@ -4,6 +4,7 @@ import spacy
 
 from robustness_gym.cached_ops.cached_ops import CachedOperation
 from robustness_gym.tools import persistent_hash
+from robustness_gym.identifier import Identifier
 
 
 class Spacy(CachedOperation):
@@ -11,7 +12,8 @@ class Spacy(CachedOperation):
     def __init__(self,
                  name: str = "en_core_web_sm"):
         super(Spacy, self).__init__(
-            identifier=self.__class__.__name__,
+            identifier=Identifier(name=self.__class__.__name__,
+                                  lang=name),
         )
 
         # Load up the spacy module

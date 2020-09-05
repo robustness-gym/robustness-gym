@@ -3,14 +3,16 @@ from typing import List
 import torch
 from allennlp.predictors import Predictor
 
-import robustness_gym.cached_ops.cached_ops
+from robustness_gym.cached_ops.cached_ops import CachedOperation
+from robustness_gym.identifier import Identifier
 
 
-class AllenConstituencyParser(robustness_gym.cached_ops.cached_ops.CachedOperation):
+class AllenConstituencyParser(CachedOperation):
 
     def __init__(self):
         super(AllenConstituencyParser, self).__init__(
-            identifier='AllenConstituencyParser')
+            identifier=Identifier(name=self.__class__.__name__),
+        )
 
         # Set up AllenNLP's constituency parser
         if torch.cuda.is_available():
