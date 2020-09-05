@@ -41,12 +41,9 @@ class Report:
         self.columns = columns
         self.model_name = model_name
         self.dataset_name = dataset_name
-        self._figures = None
 
-    @property
-    def figures(self):
-        if self._figures is not None:
-            return self._figures
+
+    def figures(self, show_title=False):
 
         score_colors = [['#3499EC'],
                         ['#EC7734', '#3499EC'],
@@ -247,6 +244,14 @@ class Report:
                     line=go.scatterpolar.Line(color=score_colors[len(score_cols) - 1][i])
                 ), 1, i+1)
             fig_summary.update_traces(fill='toself')
+            if show_title:
+                title = {'text': f"{self.dataset_name} {self.model_name} Robustness Report",
+                    'y': .98,
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'yanchor': 'top'}
+            else:
+                title = None
             fig_summary.update_layout(height=330,
                                       width=960,
                                       margin=go.layout.Margin(
@@ -273,24 +278,24 @@ class Report:
                                               range=[col.min, col.max]
                                           )
                                       ),
-                                      title={
-                                          'text': f"{self.dataset_name} {self.model_name} Robustness Report",
-                                          'y': .98,
-                                          'x': 0.5,
-                                          'xanchor': 'center',
-                                          'yanchor': 'top'}
+                                      title=title
                                   )
+
             fig_summary.update_yaxes(automargin=True)
         else:
             fig_summary = None
-            fig_detail.update_layout(
+            if show_title:
                 title={
                     'text': f"{self.dataset_name} {self.model_name} Robustness Report",
                     # 'y': .98,
                     'x': 0.5,
-                    'xanchor': 'center',
+                    'xanchor': 'center',}
                     # 'yanchor': 'top'
-                }, margin=go.layout.Margin(
+            else:
+                title = None
+            fig_detail.update_layout(
+                title= title,
+                margin=go.layout.Margin(
                                          # l=0,  # left margin
                                          r=0,  # right margin
                                          b=0,  # bottom margin
@@ -301,7 +306,6 @@ class Report:
         self._figures = fig_summary, fig_detail
         return self._figures
 
-    @property
     def latex(self):
         conf_to_latex = {}
         refs = "TextAttack (Morris 2020), TextFooler (Jin 2019))"
@@ -323,11 +327,11 @@ class Report:
         shutil.copytree(reports_path / 'template', outdir)
         image_path = outdir / 'images'
         image_path.mkdir(parents=True, exist_ok=True)
-        fig_summary, fig_detail = self.figures
+        fig_summary, fig_detail = self.figures(show_title=True)
         if fig_summary is not None:
             fig_summary.write_image(str(image_path / 'robustness_gym_summary.pdf'))
         fig_detail.write_image(str(image_path / 'robustness_gym_detail.pdf'))
-        for conf_id, latex in self.latex.items():
+        for conf_id, latex in self.latex().items():
             with open(outdir / conf_id / 'robustness_gym_appendix.tex', 'w') as f:
                 f.write(latex)
 

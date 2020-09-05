@@ -442,9 +442,6 @@ else:
             print('group')
             print(group_to_selected[group])
 
-
-
-
         st.write("**Display columns**")
         include_col = {}
         for col in cols:
@@ -512,7 +509,7 @@ else:
         # test_data = report[-1:] * 4  # + report[1]
         #
         # generate_report(model, task, dataset, test_cols, test_data)
-        fig1, fig2 = report.figures
+        fig1, fig2 = report.figures()
         if fig1 is not None:
             fig1
         fig2
