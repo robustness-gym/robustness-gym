@@ -5,12 +5,13 @@ from typing import Dict, List, Optional, Union
 from robustness_gym.constants import *
 from robustness_gym.dataset import Dataset
 from robustness_gym.tools import recmerge, persistent_hash
+from robustness_gym.identifier import Identifier
 
 
 class CachedOperation:
 
     def __init__(self,
-                 identifier,
+                 identifier: Identifier,
                  apply_fn=None,
                  ):
 
@@ -47,7 +48,7 @@ class CachedOperation:
         """
         Compute a hash value for the cached operation object.
         """
-        return persistent_hash(self.identifier)
+        return persistent_hash(str(self.identifier))
 
     def get_cache_hash(self,
                        keys: Optional[List[str]] = None):
@@ -154,14 +155,20 @@ def stow(dataset: Dataset,
 
     # Check the InteractionTape to remove CachedOperations that have already been stowed
     for cached_op, list_of_keys in list(cached_ops.items()):
-        for i, keys in enumerate(list_of_keys):
+        indices_to_remove = []
+        for i, keys in enumerate(list(list_of_keys)):
             if not dataset.check_tape(
                     path=[CACHED_OPS],
                     identifier=cached_op.identifier,
                     keys=keys
             ):
                 # Remove the keys at index i
-                cached_ops[cached_op].pop(i)
+                indices_to_remove.append(i)
+
+        # Remove the keys that are already cached
+        for index in sorted(indices_to_remove, reverse=True):
+            keys = cached_ops[cached_op].pop(index)
+            print(f"skipped: {cached_op.identifier} -> {keys}", flush=True)
 
         # Check if list_of_keys is now empty
         if not cached_ops[cached_op]:
