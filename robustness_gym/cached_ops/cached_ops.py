@@ -78,7 +78,7 @@ class CachedOperation:
 
         # Apply the cached operation
         return dataset.map(
-            partial(func=self.process_batch, keys=keys),
+            partial(self.process_batch, keys=keys),
             batched=True,
             batch_size=batch_size,
             cache_file_name=self.get_cache_file_name(keys=keys)
@@ -97,7 +97,7 @@ class CachedOperation:
 
         # Construct updates
         updates = [
-            {self.identifier: {json.dumps(keys) if len(keys) > 1 else keys[0]: val}}
+            {str(self.identifier): {json.dumps(keys) if len(keys) > 1 else keys[0]: val}}
             for val in processed_outputs
         ]
 
@@ -117,7 +117,7 @@ class CachedOperation:
         if isinstance(batch_or_dataset, Dataset):
             # Check the InteractionTape to see if the CachedOperation was applied
             if not batch_or_dataset.check_tape(
-                    path=CACHED_OPS,
+                    path=[CACHED_OPS],
                     identifier=self.identifier,
                     keys=keys,
             ):
@@ -131,7 +131,7 @@ class CachedOperation:
 
             # Update the InteractionTape with the applied CachedOperation
             dataset.update_tape(
-                path=CACHED_OPS,
+                path=[CACHED_OPS],
                 identifier=self.identifier,
                 keys=keys,
             )
