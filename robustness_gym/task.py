@@ -136,6 +136,8 @@ class NaturalLanguageInference(Task,
             metrics=[
                 'accuracy',
                 'f1',
+                'dist',
+                'pred_dist'
                 # TODO(karan): calibration, other metrics
             ],
             *args,
