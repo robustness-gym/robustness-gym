@@ -96,10 +96,14 @@ class CachedOperation:
         processed_outputs = self.apply(*[batch[key] for key in keys])
 
         # Construct updates
-        updates = [
-            {str(self.identifier): {json.dumps(keys) if len(keys) > 1 else keys[0]: val}}
-            for val in processed_outputs
-        ]
+        updates = [{
+            # TODO(karan): Update this to handle identifiers: figure out how to access inside slicemakers
+            # str(self.identifier)
+            self.__class__.__name__: {
+                json.dumps(keys) if len(keys) > 1 else keys[0]: val
+            }
+        }
+            for val in processed_outputs]
 
         # Update the cache and return the updated batch
         return self.store(batch=batch, updates=updates)
