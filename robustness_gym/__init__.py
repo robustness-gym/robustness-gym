@@ -5,6 +5,15 @@ Import common classes.
 from robustness_gym.cached_ops.allen.constituency_parser.constituency_parser import (
     AllenConstituencyParser
 )
+from robustness_gym.cached_ops.allen.dependency_parser.dependency_parser import (
+    AllenDependencyParser
+)
+from robustness_gym.cached_ops.allen.semantic_role_labeler.semantic_role_labeler import (
+    AllenSemanticRoleLabeler
+)
+from robustness_gym.cached_ops.allen.allen_predictor import (
+    AllenPredictor
+)
 from robustness_gym.slicemakers.augmentations.eda.eda import (
     EasyDataAugmentation,
 )
@@ -61,6 +70,7 @@ from .cached_ops.cached_ops import (
 )
 from .cached_ops.custom.strip_text import StripText
 from .cached_ops.spacy.spacy import Spacy
+from .cached_ops.textblob.textblob import TextBlob
 from .dataset import Dataset
 from .identifier import Identifier
 from .model import Model

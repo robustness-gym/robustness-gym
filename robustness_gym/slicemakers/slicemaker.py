@@ -129,7 +129,7 @@ class SliceMaker(PicklerMixin):
             pending = self.prerequisites
         else:
             pending = {prerequisite for prerequisite in self.prerequisites
-                       if prerequisite.__name__ not in batch['cache'][0]}
+                       if not prerequisite.available(batch)}
 
         # TODO(karan): Automatically run the pending pre-requisites
         if pending:

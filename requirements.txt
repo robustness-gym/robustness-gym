@@ -13,6 +13,7 @@ tqdm==4.41.0
 nltk==3.4.4
 pandas==1.0.3
 nlp
+textblob
 plotly==4.9.0
 torch==1.5.0
 pyahocorasick==1.4.0

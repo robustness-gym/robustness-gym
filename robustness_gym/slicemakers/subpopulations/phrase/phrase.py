@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Dict, Tuple, Any, Sequence, Optional
+from typing import List, Dict, Any, Sequence
 
 import cytoolz as tz
 import numpy as np
@@ -99,12 +99,16 @@ class HasPhrase(Subpopulation,
               **kwargs) -> np.ndarray:
 
         # Use the spacy cache to grab the tokens in each example (for each key)
-        tokenized_batch = self.get_tokens(batch, keys)
+        tokenized_batch = Spacy.retrieve(
+            batch=batch,
+            keys=[[key] for key in keys],
+            proc_fns='tokens',
+        )
 
         # Search for words
         if len(self.word_ahocorasick.automaton) > 0:
-            for i, example in enumerate(tokenized_batch):
-                for key, tokens in example.items():
+            for key, tokens_batch in tokenized_batch.items():
+                for i, tokens in enumerate(tokens_batch):
                     # Get the values (indices) of all the matched tokens
                     matched_indices = [
                         self.word_ahocorasick.automaton.get(token) for token in tokens
@@ -159,3 +163,7 @@ class HasAllPhrases(Subpopulation):
 
         super(HasAllPhrases, self).__init__(identifiers=subpopulation.identifiers,
                                             apply_fn=subpopulation.apply)
+
+
+class HasArticle(HasAnyPhrase):
+    pass

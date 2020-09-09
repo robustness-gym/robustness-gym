@@ -29,6 +29,16 @@ class InteractionTape:
     def update(self,
                identifier: Identifier,
                keys: List[str]):
+        """
+        Update the interaction tape with information about an interaction.
+
+        Args:
+            identifier: Identifier for the interaction used.
+            keys: list of keys on which the interaction was applied.
+
+        Returns: True if the interaction was added to the tape, False if it was already applied before.
+
+        """
 
         # Dump the keys to JSON
         json_keys = strings_as_json(strings=keys)

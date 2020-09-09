@@ -1,10 +1,9 @@
-from typing import List, Dict
+import json
+from typing import List
 
 import spacy
 
 from robustness_gym.cached_ops.cached_ops import CachedOperation
-from robustness_gym.tools import persistent_hash
-from robustness_gym.identifier import Identifier
 
 
 class Spacy(CachedOperation):
@@ -12,52 +11,44 @@ class Spacy(CachedOperation):
     def __init__(self,
                  name: str = "en_core_web_sm"):
         super(Spacy, self).__init__(
-            identifier=Identifier(name=self.__class__.__name__,
-                                  lang=name),
+            lang=name,
         )
 
         # Load up the spacy module
         spacy.prefer_gpu()
         self.name = name
-        self.nlp = spacy.load(name)
+        self._nlp = spacy.load(name)
 
-    def __hash__(self):
-        """
-        For Spacy, the hash value includes the name of the module being loaded.
-        """
-        val = super(Spacy, self).__hash__()
-        return val ^ persistent_hash(self.name)
+    @property
+    def nlp(self):
+        return self._nlp
+
+    @classmethod
+    def encode(cls, obj) -> str:
+        # Convert the Spacy Doc to json before caching
+        return json.dumps(obj.to_json())
 
     def apply(self, text_batch: List[str]) -> List:
         # Apply spacy's pipe method to process the examples
-        docs = list(self.nlp.pipe(text_batch))
-
-        # Convert the docs to json
-        return [val.to_json() for val in docs]
+        return list(self.nlp.pipe(text_batch))
 
     @classmethod
-    def get_tokens(cls,
-                   batch: Dict[str, List],
-                   keys: List[str]) -> List[Dict[str, List[str]]]:
+    def tokens(cls,
+               decoded_batch: List) -> List[List[str]]:
         """
-        For each example, returns the list of tokens extracted by spacy for each key.
-        """
-        return [
-            {key: cls.tokens_from_spans(
-                doc_json=cache['Spacy'][key]) for key in keys}
-            for cache in batch['cache']
-        ]
+        For each example, returns the list of tokens extracted by Spacy for each key.
 
-    @classmethod
-    def tokens_from_spans(cls, doc_json: Dict) -> List[str]:
-        """
         Spacy stores the span of each token under the "tokens" key.
-
-        Use this function to actually extract the tokens from the text using the span of each token.
+        This function extracts the tokens from the text using the span of each token.
         """
-        tokens = []
-        for token_dict in doc_json['tokens']:
-            tokens.append(doc_json['text']
-                          [token_dict['start']:token_dict['end']])
 
-        return tokens
+        token_batch = []
+        # Iterate over each decoded Doc dictionary
+        for doc_dict in decoded_batch:
+            tokens = []
+            for token_dict in doc_dict['tokens']:
+                tokens.append(doc_dict['text'][token_dict['start']:token_dict['end']])
+
+            token_batch.append(tokens)
+
+        return token_batch

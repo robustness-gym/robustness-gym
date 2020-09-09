@@ -1,26 +1,67 @@
 import json
+from abc import ABC, abstractmethod
 from functools import partial
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Callable
 
 from robustness_gym.constants import *
 from robustness_gym.dataset import Dataset
-from robustness_gym.tools import recmerge, persistent_hash
 from robustness_gym.identifier import Identifier
+from robustness_gym.tools import recmerge, persistent_hash, strings_as_json
 
 
-class CachedOperation:
+class Operation(ABC):
 
     def __init__(self,
-                 identifier: Identifier,
-                 apply_fn=None,
-                 ):
-
-        # Set the identifier for the preprocessor
-        self.identifier = identifier
+                 apply_fn: Callable = None,
+                 *args,
+                 **kwargs):
+        # Set the identifier for the operation
+        self._identifier = Identifier(name=self.__class__.__name__, **kwargs)
 
         # Assign the apply_fn
         if apply_fn:
             self.apply = apply_fn
+
+    def __hash__(self):
+        """
+        Compute a hash value for the cached operation object.
+        """
+        return persistent_hash(str(self.identifier))
+
+    @property
+    def identifier(self):
+        return self._identifier
+
+    @classmethod
+    def identify(cls, **kwargs):
+        return Identifier(name=cls.__name__, **kwargs)
+
+    @classmethod
+    def encode(cls, obj) -> str:
+        return json.dumps(obj)
+
+    @classmethod
+    def decode(cls, s: str):
+        return json.loads(s)
+
+    @abstractmethod
+    def apply(self, *args, **kwargs):
+        pass
+
+
+class CachedOperation(Operation):
+
+    def __init__(self,
+                 apply_fn: Callable = None,
+                 *args,
+                 **kwargs,
+                 ):
+
+        super(CachedOperation, self).__init__(
+            apply_fn=apply_fn,
+            *args,
+            **kwargs,
+        )
 
     @staticmethod
     def store(batch: Dict[str, List],
@@ -28,27 +69,105 @@ class CachedOperation:
         """
         Updates the cache of preprocessed information stored with each example in a batch.
 
-        - batch must contain a key called 'cache' that maps to a dictionary.
-        - batch['cache'] is a list of dictionaries, one per example
-        - updates is a list of dictionaries, one per example
+        Args:
+            batch: a batch of data
+            updates: a list of dictionaries, one per example
+
+        Returns: updated batch
+
         """
         if 'cache' not in batch:
             batch['cache'] = [{} for _ in range(len(batch['index']))]
 
-        # assert 'cache' in batch, "Examples must have a key called 'cache'."
-        # assert len(batch['cache']) == len(updates), "Number of examples must equal the number of updates."
-
         # For each example, recursively merge the example's original cache dictionary with the update dictionary
-        batch['cache'] = [recmerge(cache_dict, update_dict)
-                          for cache_dict, update_dict in zip(batch['cache'], updates)]
+        batch['cache'] = [
+            recmerge(cache_dict, update_dict)
+            for cache_dict, update_dict in zip(batch['cache'], updates)
+        ]
 
         return batch
 
-    def __hash__(self):
+    @classmethod
+    def retrieve(cls,
+                 batch: Dict[str, List],
+                 keys: Union[List[str], List[List[str]]],
+                 proc_fns: Union[str, Callable, List[Union[str, Callable]]] = None,
+                 identifier: Union[str, Identifier] = None,
+                 reapply: bool = False,
+                 **kwargs,
+                 ) -> Optional[Union[Dict[str, List], List[Dict[str, List]]]]:
         """
-        Compute a hash value for the cached operation object.
+        Retrieve information from the cache.
+
+        Args:
+
+            batch:
+            keys:
+            proc_fns:
+            identifier:
+            reapply:
+
+        Returns:
+
         """
-        return persistent_hash(str(self.identifier))
+
+        if not reapply:
+            # Nothing to return if there's no cache
+            if 'cache' not in batch:
+                return None
+
+            # Infer the most relevant key to retrieve if an identifier is not specified
+            if not identifier:
+                for ident_key in batch['cache'][0].keys():
+                    # Pick the first key that matches the cls name
+                    if ident_key.startswith(cls.__name__):
+                        identifier = ident_key
+                        break
+            try:
+                if isinstance(keys[0], str):
+                    retrieval = {
+                        strings_as_json(keys): [
+                            cls.decode(cache[str(identifier)][strings_as_json(keys)]) for cache in batch['cache']
+                        ]
+                    }
+                else:
+                    retrieval = {
+                        strings_as_json(keys_): [
+                            cls.decode(cache[str(identifier)][strings_as_json(keys_)]) for cache in batch['cache']
+                        ]
+                        for keys_ in keys
+                    }
+
+            except KeyError:
+                raise ValueError('Could not retrieve information for all keys.')
+
+            # Check if the retrieved information needs to be processed
+            if not proc_fns:
+                return retrieval
+
+            # Resolve the str proc_fns to callable(s)
+            if isinstance(proc_fns, str):
+                proc_fns = getattr(cls, proc_fns)
+            elif isinstance(proc_fns, List):
+                proc_fns = [proc_fn if isinstance(proc_fn, Callable) else getattr(cls, proc_fn) for proc_fn in proc_fns]
+
+            # Process and return the retrieved information
+            if isinstance(proc_fns, Callable):
+                return {k: proc_fns(v) for k, v in retrieval.items()}
+
+            return [{k: proc_fn(v) for k, v in retrieval.items()} for proc_fn in proc_fns]
+
+        else:
+            if proc_fns:
+                print("Warning: proc_fns has no effect when reapply=True.")
+
+            # Run the operation on the fly
+            if isinstance(keys[0], str):
+                return {strings_as_json(keys): cls(**kwargs).apply(*[batch[key] for key in keys])}
+            return {
+                strings_as_json(keys_): cls(**kwargs).apply(*[batch[key] for key in keys_])
+                for keys_ in keys
+            }
 
     def get_cache_hash(self,
                        keys: Optional[List[str]] = None):
@@ -92,18 +211,22 @@ class CachedOperation:
         """
         assert len(set(keys) - set(batch.keys())) == 0, "Any key in 'keys' must be present in 'batch'."
 
-        # Run the cached operation and get outputs
-        processed_outputs = self.apply(*[batch[key] for key in keys])
+        # Run the cached operation, and encode outputs (defaults to json.dumps)
+        encoded_outputs = [
+            self.encode(example_output)
+            for example_output in self.apply(*[batch[key] for key in keys])
+        ]
 
         # Construct updates
         updates = [{
             # TODO(karan): Update this to handle identifiers: figure out how to access inside slicemakers
-            # str(self.identifier)
-            self.__class__.__name__: {
-                json.dumps(keys) if len(keys) > 1 else keys[0]: val
-            }
+            str(self.identifier):
+            # self.__class__.__name__:
+                {
+                    strings_as_json(keys): val
+                }
         }
-            for val in processed_outputs]
+            for val in encoded_outputs]
 
         # Update the cache and return the updated batch
         return self.store(batch=batch, updates=updates)
@@ -113,6 +236,13 @@ class CachedOperation:
         Implements the core functionality of the cached operation.
         """
         pass
+
+    @classmethod
+    def available(cls, batch: Dict[str, List]):
+        # Check if the cached operation is available to retrieve in the batch
+        if 'cache' not in batch:
+            return False
+        return any([key.startswith(cls.__name__) for key in batch['cache'][0].keys()])
 
     def __call__(self,
                  batch_or_dataset: Union[Dict[str, List], Dataset],

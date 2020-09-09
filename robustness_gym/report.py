@@ -42,7 +42,6 @@ class Report:
         self.model_name = model_name
         self.dataset_name = dataset_name
 
-
     def figures(self, show_title=False):
 
         score_colors = [['#3499EC'],
@@ -191,7 +190,7 @@ class Report:
                                      r=0,  # right margin
                                      b=0,  # bottom margin
                                      t=20  # top margin
-                                    )
+                                 )
                                  )
 
         # Use low-level plotly interface to update padding / font size
@@ -212,6 +211,7 @@ class Report:
                 fig_annots[col_ndx][k]['xref'] = f'x{coord}'
                 fig_annots[col_ndx][k]['yref'] = f'y{coord}'
                 fig_annots[col_ndx][k]['font_size'] = 11
+
         def recursive_extend(mylist, nr):
             # mylist is a list of lists
             result = []
@@ -221,6 +221,7 @@ class Report:
                 result.extend(mylist[nr - 1])
                 result.extend(recursive_extend(mylist, nr - 1))
             return result
+
         new_annotations = recursive_extend(fig_annots[::-1], len(fig_annots))
         fig_detail.update_layout(annotations=new_annotations)
 
@@ -242,14 +243,14 @@ class Report:
                     r=category_scores,
                     theta=include_categories,
                     line=go.scatterpolar.Line(color=score_colors[len(score_cols) - 1][i])
-                ), 1, i+1)
+                ), 1, i + 1)
             fig_summary.update_traces(fill='toself')
             if show_title:
                 title = {'text': f"{self.dataset_name} {self.model_name} Robustness Report",
-                    'y': .98,
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'yanchor': 'top'}
+                         'y': .98,
+                         'x': 0.5,
+                         'xanchor': 'center',
+                         'yanchor': 'top'}
             else:
                 title = None
             fig_summary.update_layout(height=330,
@@ -279,28 +280,28 @@ class Report:
                                           )
                                       ),
                                       title=title
-                                  )
+                                      )
 
             fig_summary.update_yaxes(automargin=True)
         else:
             fig_summary = None
             if show_title:
-                title={
+                title = {
                     'text': f"{self.dataset_name} {self.model_name} Robustness Report",
                     # 'y': .98,
                     'x': 0.5,
-                    'xanchor': 'center',}
-                    # 'yanchor': 'top'
+                    'xanchor': 'center', }
+                # 'yanchor': 'top'
             else:
                 title = None
             fig_detail.update_layout(
-                title= title,
+                title=title,
                 margin=go.layout.Margin(
-                                         # l=0,  # left margin
-                                         r=0,  # right margin
-                                         b=0,  # bottom margin
-                                         t=80  # top margin
-                                     )
+                    # l=0,  # left margin
+                    r=0,  # right margin
+                    b=0,  # bottom margin
+                    t=80  # top margin
+                )
             )
 
         self._figures = fig_summary, fig_detail
@@ -320,7 +321,6 @@ class Report:
  category. Tests include: {refs}}}.
  \end{{figure}}"""
         return conf_to_latex
-
 
     def write_appendix(self, outdir):
         reports_path = Path(__file__).parent.parent / 'reports'
@@ -369,7 +369,7 @@ if __name__ == "__main__":
             # Second group, etc.
             {'group': 'slice_name',
              'slice_name': ['Negation', 'Contains -ing', 'Temporal preposition', 'Ends with verb', 'slice 5',
-                        'slice 6', 'slice 7'],
+                            'slice 6', 'slice 7'],
              'data': {
                  'Accuracy': [50, 40, 30, 20, 10, 30, 20],
                  'F1': [20, 30, 10, 75, 80, 75, 80],
@@ -397,7 +397,7 @@ if __name__ == "__main__":
              },
             {'group': 'Augmentations',
              'slice_name': ['Augmentation 1', 'Augmentation 2', 'Augmentation 3',
-                        'Augmentation 4', 'Augmentation 5', 'Augmentation 6', 'Augmentation 7'],
+                            'Augmentation 4', 'Augmentation 5', 'Augmentation 6', 'Augmentation 7'],
              'data': {
                  'Accuracy': [50, 40, 30, 20, 50, 20, 40],
                  'F1': [50, 50, 60, 75, 80, 75, 80],
@@ -425,7 +425,7 @@ if __name__ == "__main__":
              },
             {'group': 'TextAttack',
              'slice_name': ['Textfooler', 'Hotflip', 'Morpheus', 'Seq2Sick', 'Hotflip 2',
-                        'Morpheus 2', 'Seq2Sick 2'],
+                            'Morpheus 2', 'Seq2Sick 2'],
              'data': {
                  'Accuracy': [50, 40, 30, 40, 40, 50, 70],
                  'F1': [60, 50, 40, 75, 80, 40, 75, 80],
@@ -453,7 +453,7 @@ if __name__ == "__main__":
              },
             {'group': 'Eval Sets',
              'slice_name': ['Eval set 1', 'Eval set 2', 'Eval set 3', 'Eval set 4', 'Eval set 5',
-                        'Eval set 6', 'Eval set 7'],
+                            'Eval set 6', 'Eval set 7'],
              'data': {
                  'Accuracy': [50, 40, 30, 20, 10, 20, 10],
                  'F1': [20, 30, 10, 75, 80, 10, 75, 80],
@@ -519,6 +519,7 @@ if __name__ == "__main__":
         print(report.latex)
     else:
         import robustness_gym as rg
+
         model_identifier = 'huggingface/textattack/bert-base-uncased-snli'
         task = rg.TernaryNaturalLanguageInference()
         if model_identifier.split("/")[0] == 'huggingface':
@@ -535,13 +536,13 @@ if __name__ == "__main__":
             task=task,
             slices=[
                 rg.Slice.from_dataset(identifier='snli-train',
-                                   dataset=rg.Dataset.load_dataset('snli', split='train[:128]')).filter(
+                                      dataset=rg.Dataset.load_dataset('snli', split='train[:128]')).filter(
                     lambda example: example['label'] != -1),
                 rg.Slice.from_dataset(identifier='snli-val',
-                                   dataset=rg.Dataset.load_dataset('snli', split='validation[:128]')).filter(
+                                      dataset=rg.Dataset.load_dataset('snli', split='validation[:128]')).filter(
                     lambda example: example['label'] != -1),
                 rg.Slice.from_dataset(identifier='snli-test',
-                                   dataset=rg.Dataset.load_dataset('snli', split='test[:128]')).filter(
+                                      dataset=rg.Dataset.load_dataset('snli', split='test[:128]')).filter(
                     lambda example: example['label'] != -1),
             ],
             dataset_id='snli'
@@ -549,7 +550,7 @@ if __name__ == "__main__":
 
         # Create the report
         report = testbench.create_report(model=model,
-                                coerce_fn=functools.partial(rg.Model.remap_labels, label_map=[1, 2, 0]), )
+                                         coerce_fn=functools.partial(rg.Model.remap_labels, label_map=[1, 2, 0]), )
         figure1, figure2 = report.figures
         if figure1:
             figure1.show()
