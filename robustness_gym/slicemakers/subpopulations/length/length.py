@@ -40,18 +40,18 @@ class HasLength(HasScore,
               **kwargs) -> np.ndarray:
         # Compute the length of each example under each key
         lengths = [
-            Spacy.retrieve(batch=batch,
-                           keys=[key],
-                           proc_fns=tz.compose(lambda l: [len(t) for t in l], Spacy.tokens))[key]
+            Spacy.retrieve(
+                batch=batch,
+                keys=[key],
+                proc_fns=tz.compose(
+                    # Compute lengths (# of words) for each tokenized text in a batch
+                    lambda l: np.array([len(t) for t in l]),
+                    # Extract tokens using Spacy
+                    Spacy.tokens
+                )
+            )[key]
             for key in keys
         ]
 
-        lengths = [
-            np.array([len(tokens) for tokens in
-                      np.array([len(cache['Spacy'][key]['tokens']) for cache in batch['cache']])
-                      for key in keys
-                      ]
-
         # Reduction over the key axis
-
-    return self.reduction_fn(np.array(lengths), axis=0)
+        return self.reduction_fn(np.array(lengths), axis=0)
