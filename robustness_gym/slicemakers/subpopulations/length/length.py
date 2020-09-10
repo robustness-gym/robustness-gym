@@ -21,11 +21,16 @@ class HasLength(HasScore,
                  **kwargs
                  ):
         super(HasLength, self).__init__(
-            identifiers=[Identifier(name=self.__class__.__name__,
-                                    gte=interval[0],
-                                    lte=interval[1],
-                                    reduction_fn=reduction_fn)
-                         for interval in intervals],
+            intervals=intervals,
+            identifiers=[
+                Identifier(
+                    name=self.__class__.__name__,
+                    gte=interval[0],
+                    lte=interval[1],
+                    reduction_fn=reduction_fn
+                )
+                for interval in intervals
+            ],
             *args,
             **kwargs,
         )
