@@ -6,11 +6,11 @@ import spacy
 from robustness_gym.cached_ops.cached_ops import CachedOperation
 
 
-class Spacy(CachedOperation):
+class SpacyAdvanced(CachedOperation):
 
     def __init__(self,
-                 lang: str = "en_core_web_sm"):
-        super(Spacy, self).__init__(
+                 lang: str = "en"):
+        super(SpacyAdvanced, self).__init__(
             lang=lang,
         )
 

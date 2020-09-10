@@ -63,7 +63,7 @@ from robustness_gym.slicemakers.subpopulations.phrase.hans import (
     HansAdvsEntailed,
 )
 from robustness_gym.slicemakers.subpopulations.ner.entity_frequency import EntityFrequency
-from robustness_gym.slicemakers.subpopulations.length.length import MinLength
+from robustness_gym.slicemakers.subpopulations.length.length import HasLength
 from robustness_gym.slicemakers.attacks.textattack.textattack import TextAttack
 from robustness_gym.testbench.testbench import TestBench
 from .cached_ops.cached_ops import (
