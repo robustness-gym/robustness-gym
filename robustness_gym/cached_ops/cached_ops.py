@@ -1,4 +1,5 @@
 import json
+import pathlib
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Dict, List, Optional, Union, Callable
@@ -50,6 +51,12 @@ class Operation(ABC):
 
 
 class CachedOperation(Operation):
+
+    # Path to a log directory
+    logdir: pathlib.Path = pathlib.Path('~/robustnessgym/cachedops/')
+
+    # Create a directory
+    logdir.mkdir(exist_ok=True)
 
     def __init__(self,
                  apply_fn: Callable = None,

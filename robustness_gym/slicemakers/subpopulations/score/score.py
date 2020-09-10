@@ -17,11 +17,13 @@ class HasScore(Subpopulation):
                  ):
 
         if not identifiers:
-            identifiers = [Identifier(name=self.__class__.__name__,
-                                      gte=interval[0],
-                                      lte=interval[1],
-                                      score_fn=score_fn)
-                           for interval in intervals]
+            identifiers = [
+                Identifier(name=self.__class__.__name__,
+                           gte=interval[0],
+                           lte=interval[1],
+                           score_fn=score_fn)
+                for interval in intervals
+            ]
 
         super(HasScore, self).__init__(
             identifiers=identifiers,
