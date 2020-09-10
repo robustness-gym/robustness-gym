@@ -248,7 +248,7 @@ class HuggingfaceModel(Model):
             elif metric == 'f1':
                 # Calculate the f1
                 evaluation_dict[metric] = lightning_metrics.f1_score(predictions['pred'], labels).item()
-            elif metric == 'dist':
+            elif metric == 'class_dist':
                 # Calculate class distribution
                 evaluation_dict[metric] = lightning_metrics.to_onehot(labels,
                                                                       num_classes).double().mean(axis=0).tolist()

@@ -156,7 +156,7 @@ class TestBench:
         columns = []
         for metric_id in metric_ids:
             # TODO store these min and max values somewhere
-            if metric_id in ('dist', 'pred_dist'):
+            if metric_id in ('class_dist', 'pred_dist'):
                 class_names = self.task.output_schema.features[list(self.task.output_schema.keys())[0]].names
                 class_inits = [name[0].upper() for name in class_names]
                 if len(set(class_inits)) == len(class_inits):

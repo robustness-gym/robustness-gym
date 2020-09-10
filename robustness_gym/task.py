@@ -136,7 +136,7 @@ class NaturalLanguageInference(Task,
             metrics=[
                 'accuracy',
                 'f1',
-                'dist',
+                'class_dist',
                 'pred_dist'
                 # TODO(karan): calibration, other metrics
             ],
@@ -223,3 +223,17 @@ class QuestionAnswering(Task):
 # (generic task, model) ### QuestionAnswering/NLI
 # (narrow task, model) ### MultiHopQuestionAnswering/BinaryNLI
 # (dataset, model) ### Particular Dataset/QNLI
+
+class Summarization(Task):
+
+    def __init__(self):
+        super(QuestionAnswering, self).__init__(
+            identifier=self.__class__.__name__,
+            input_schema=Tuple[str, str],
+            output_schema=int,
+            metrics=[
+                # blah,
+                # TODO(karan): calibration, other metrics
+            ],
+
+        )

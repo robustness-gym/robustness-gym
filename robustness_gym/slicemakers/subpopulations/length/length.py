@@ -1,13 +1,17 @@
-from typing import List, Tuple, Dict, Callable
+from __future__ import annotations
+
+from typing import List, Dict, Tuple, Callable
 
 import numpy as np
+import cytoolz as tz
 
 from robustness_gym.cached_ops.spacy.spacy import Spacy
+
 from robustness_gym.identifier import Identifier
-from robustness_gym.slicemakers.subpopulations.multiplicity.multiplicity import HasMultiplicity
+from robustness_gym.slicemakers.subpopulations.score.score import HasScore
 
 
-class HasLength(HasMultiplicity,
+class HasLength(HasScore,
                 Spacy):
 
     def __init__(self,
@@ -23,27 +27,31 @@ class HasLength(HasMultiplicity,
                                     reduction_fn=reduction_fn)
                          for interval in intervals],
             *args,
-            **kwargs
+            **kwargs,
         )
-
-        # Set the intervals
-        self.intervals = intervals
-        self.left_limits = np.array([interval[0] for interval in intervals])
-        self.right_limits = np.array([interval[1] for interval in intervals])
 
         # Assign the reduction fn
         self.reduction_fn = reduction_fn
 
-    def multiplicity(self,
-                     batch: Dict[str, List],
-                     keys: List[str],
-                     *args,
-                     **kwargs) -> np.ndarray:
+    def score(self,
+              batch: Dict[str, List],
+              keys: List[str],
+              *args,
+              **kwargs) -> np.ndarray:
         # Compute the length of each example under each key
         lengths = [
-            np.array([len(cache['Spacy'][key]['tokens']) for cache in batch['cache']])
+            Spacy.retrieve(batch=batch,
+                           keys=[key],
+                           proc_fns=tz.compose(lambda l: [len(t) for t in l], Spacy.tokens))[key]
             for key in keys
         ]
 
+        lengths = [
+            np.array([len(tokens) for tokens in
+                      np.array([len(cache['Spacy'][key]['tokens']) for cache in batch['cache']])
+                      for key in keys
+                      ]
+
         # Reduction over the key axis
-        return self.reduction_fn(np.array(lengths), axis=0)
+
+    return self.reduction_fn(np.array(lengths), axis=0)
