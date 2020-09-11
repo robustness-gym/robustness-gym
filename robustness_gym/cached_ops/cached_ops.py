@@ -52,7 +52,7 @@ class Operation(ABC):
 
 class CachedOperation(Operation):
     # Path to a log directory
-    logdir: pathlib.Path = pathlib.Path('~/robustnessgym/cachedops/')
+    logdir: pathlib.Path = pathlib.Path.home() / 'robustnessgym/cachedops/'
 
     # Create a directory
     logdir.mkdir(parents=True, exist_ok=True)

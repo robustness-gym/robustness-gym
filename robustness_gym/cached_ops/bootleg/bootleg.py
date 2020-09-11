@@ -7,6 +7,8 @@ from bootleg.annotator import Annotator
 from bootleg.utils.parser_utils import get_full_config
 
 from robustness_gym.cached_ops.cached_ops import CachedOperation
+from robustness_gym.cached_ops.textblob.textblob import TextBlob
+from robustness_gym.tools import DownloadProgressBar
 
 
 class Bootleg(CachedOperation):
@@ -16,7 +18,7 @@ class Bootleg(CachedOperation):
                  device: str = None,
                  *args,
                  **kwargs):
-        
+
         super(Bootleg, self).__init__(
             threshold=threshold,
             *args,
@@ -36,28 +38,35 @@ class Bootleg(CachedOperation):
             device=device,
             cand_map=self.logdir / 'entity_db/entity_mappings/alias2qids_wiki.json',
         )
+        self.annotator.set_threshold(threshold)
 
     @classmethod
     def _fetch_sources(cls):
         if not (cls.logdir / 'bootleg_wiki').exists():
+            print("bootleg_wiki not found. Downloading..")
             urllib.request.urlretrieve('https://bootleg-emb.s3.amazonaws.com/models/2020_08_25/bootleg_wiki.tar.gz',
-                                       filename=str(cls.logdir / 'bootleg_wiki.tar.gz'))
+                                       filename=str(cls.logdir / 'bootleg_wiki.tar.gz'),
+                                       reporthook=DownloadProgressBar())
 
             tar = tarfile.open(str(cls.logdir / 'bootleg_wiki.tar.gz'), "r:gz")
             tar.extractall()
             tar.close()
 
         if not (cls.logdir / 'emb_data').exists():
+            print("emb_data not found. Downloading..")
             urllib.request.urlretrieve('https://bootleg-emb.s3.amazonaws.com/emb_data.tar.gz',
-                                       filename=str(cls.logdir / 'emb_data.tar.gz'))
+                                       filename=str(cls.logdir / 'emb_data.tar.gz'),
+                                       reporthook=DownloadProgressBar())
 
             tar = tarfile.open(str(cls.logdir / 'emb_data.tar.gz'), "r:gz")
             tar.extractall()
             tar.close()
 
         if not (cls.logdir / 'entity_db').exists():
+            print("entity_db not found. Downloading..")
             urllib.request.urlretrieve('https://bootleg-emb.s3.amazonaws.com/entity_db.tar.gz',
-                                       filename=str(cls.logdir / 'entity_db.tar.gz'))
+                                       filename=str(cls.logdir / 'entity_db.tar.gz'),
+                                       reporthook=DownloadProgressBar())
 
             tar = tarfile.open(str(cls.logdir / 'entity_db.tar.gz'), "r:gz")
             tar.extractall()
@@ -83,8 +92,14 @@ class Bootleg(CachedOperation):
 
     def apply(self,
               text_batch: List[str]) -> List:
+
+        # Use TextBlob to split the text_batch into sentences
+        blobs = TextBlob().apply(text_batch)
+
         # Annotate each example
         return [
-            (self.annotator.extract_mentions(text), self.annotator.label_mentions(text))
-            for text in text_batch
+            [(self.annotator.extract_mentions(str(text)),
+              self.annotator.label_mentions(str(text)))
+             for text in blob.sentences]
+            for blob in blobs
         ]

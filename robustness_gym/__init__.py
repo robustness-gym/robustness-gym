@@ -14,6 +14,9 @@ from robustness_gym.cached_ops.allen.semantic_role_labeler.semantic_role_labeler
 from robustness_gym.cached_ops.allen.allen_predictor import (
     AllenPredictor
 )
+from robustness_gym.cached_ops.bootleg.bootleg import (
+    Bootleg
+)
 from robustness_gym.slicemakers.augmentations.eda.eda import (
     EasyDataAugmentation,
 )

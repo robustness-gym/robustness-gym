@@ -1,4 +1,6 @@
 import hashlib
+import inspect
+import progressbar
 import json
 from functools import partial
 from typing import Mapping, Sequence, List
@@ -44,3 +46,37 @@ def strings_as_json(strings: List[str]):
 
     """
     return json.dumps(strings) if len(strings) > 1 else strings[0]
+
+
+def get_default_args(func) -> dict:
+    """
+    Inspect a function to get arguments that have default values.
+
+    Args:
+        func: a Python function
+
+    Returns: dictionary where keys correspond to arguments, and values correspond to their defaults.
+
+    """
+    signature = inspect.signature(func)
+    return {
+        k: v.default
+        for k, v in signature.parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }
+
+
+class DownloadProgressBar():
+    def __init__(self):
+        self.pbar = None
+
+    def __call__(self, block_num, block_size, total_size):
+        if not self.pbar:
+            self.pbar = progressbar.ProgressBar(maxval=total_size)
+            self.pbar.start()
+
+        downloaded = block_num * block_size
+        if downloaded < total_size:
+            self.pbar.update(downloaded)
+        else:
+            self.pbar.finish()
