@@ -1,6 +1,12 @@
 examples/save/
 brainstorm.py
 test.py
+_analysis
+.DS_STORE
+
+# VSCode
+.vscode
+
 # Apache Arrow
 *.arrow
 

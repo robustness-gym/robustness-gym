@@ -19,6 +19,6 @@ setup(
     description="Robustness Gym is a toolkit for evaluating the robustness of NLP models.",
     keywords="nlp ml ai deep learning evaluation robustness",
     # url="http://packages.python.org/an_example_pypi_project",
-    packages=['robustness_gym'],
+    packages=['robustnessgym'],
     long_description=read('README.md'),
 )
