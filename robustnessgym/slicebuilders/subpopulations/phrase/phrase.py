@@ -48,7 +48,7 @@ class HasPhrase(Subpopulation,
         super(HasPhrase, self).__init__(
             # One slice per phrase
             identifiers=[
-                Identifier(name=self.__class__.__name__,
+                Identifier(_name=self.__class__.__name__,
                            phrase=phrase)
                 for phrase in phrases
             ] if not identifiers else identifiers,
@@ -143,7 +143,7 @@ class HasAnyPhrase(Subpopulation):
         subpopulation = Subpopulation.union(
             HasPhrase(phrases=phrases),
             identifier=Identifier(
-                name=self.__class__.__name__,
+                _name=self.__class__.__name__,
                 phrases=set(phrases),
             ) if not identifier else identifier
         )
@@ -176,7 +176,7 @@ class HasAllPhrases(Subpopulation):
         subpopulation = Subpopulation.intersection(
             HasPhrase(phrases=phrases),
             identifier=Identifier(
-                name=self.__class__.__name__,
+                _name=self.__class__.__name__,
                 phrases=set(phrases),
             ) if not identifier else identifier
         )

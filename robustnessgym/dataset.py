@@ -33,7 +33,7 @@ class InteractionTape:
 
     def update(self,
                identifier: Identifier,
-               columns: List[str]):
+               columns: List[str]) -> None:
         """
         Update the interaction tape with information about an interaction.
 
@@ -52,20 +52,27 @@ class InteractionTape:
         if (identifier, json_columns) not in self.history:
             # Give it the next index
             self.history[(identifier, json_columns)] = len(self.history)
-            return True
-        return False
 
     def check(self,
               identifier: Identifier,
-              columns: List[str]):
+              columns: List[str]) -> bool:
+        """
+
+        Args:
+            identifier:
+            columns:
+
+        Returns:
+
+        """
 
         # Dump the column names to JSON
         json_columns = strings_as_json(strings=columns)
 
         # Check if the entry is already in the history
         if (identifier, json_columns) in self.history:
-            return 0
-        return 1
+            return True
+        return False
 
 
 class InteractionTapeHierarchyMixin:
@@ -83,7 +90,7 @@ class InteractionTapeHierarchyMixin:
     def update_tape(
             self,
             path: List[str],
-            identifier: Identifier,
+            identifiers: Union[Identifier, List[Identifier]],
             columns: List[str],
     ):
         """
@@ -91,32 +98,46 @@ class InteractionTapeHierarchyMixin:
 
         Args:
             path: Location of the InteractionTape in the hierarchy.
-            identifier:
+            identifiers:
             columns:
 
         Returns:
 
         """
-        return self.fetch_tape(path=path).update(identifier=identifier, columns=columns)
+        # Fetch the tape
+        tape = self.fetch_tape(path=path)
+
+        # Update it
+        if isinstance(identifiers, Identifier):
+            return tape.update(identifier=identifiers, columns=columns)
+        else:
+            return [tape.update(identifier=identifier, columns=columns) for identifier in identifiers]
 
     def check_tape(
             self,
             path: List[str],
-            identifier: Identifier,
-            columns: List[str]
-    ):
+            identifiers: Union[Identifier, List[Identifier]],
+            columns: List[str]):
         """
         Check the tape.
 
         Args:
+
             path:
-            identifier:
+            identifiers:
             columns:
 
         Returns:
 
         """
-        return self.fetch_tape(path=path).check(identifier=identifier, columns=columns)
+        # Fetch the tape
+        tape = self.fetch_tape(path=path)
+
+        # Check it
+        if isinstance(identifiers, Identifier):
+            return tape.check(identifier=identifiers, columns=columns)
+        else:
+            return [tape.check(identifier=identifier, columns=columns) for identifier in identifiers]
 
     def fetch_tape(
             self,
@@ -132,6 +153,10 @@ class InteractionTapeHierarchyMixin:
 
         """
         return tz.get_in(path, self.interactions)
+
+
+Batch = Dict[str, List]
+BatchOrDataset = Union[Batch, 'Dataset']
 
 
 class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
@@ -173,8 +198,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def uncached_batch(cls,
-                       batch: Dict[str, List],
-                       copy=True) -> Dict[str, List]:
+                       batch: Batch,
+                       copy=True) -> Batch:
         """
         Return batch with the "cache" and "slices" columns removed.
         """
@@ -219,7 +244,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             return dict(map(
                 lambda t: (t[0],
                            cls(Identifier(
-                               name=t[1].info.builder_name,
+                               _name=t[1].info.builder_name,
                                split=str(t[1].split),
                                version=t[1].version
                            ),
@@ -227,7 +252,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
                 dataset.items())
             )
         else:
-            return cls(Identifier(name=dataset.info.builder_name,
+            return cls(Identifier(_name=dataset.info.builder_name,
                                   split=str(dataset.split),
                                   version=dataset.version), dataset)
 
@@ -246,7 +271,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def from_batch(cls,
-                   batch: Dict[str, List],
+                   batch: Batch,
                    identifier: Identifier = None) -> Dataset:
         """
         Convert a batch to a Dataset.
@@ -257,7 +282,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def from_batches(cls,
-                     batches: Sequence[Dict[str, List]],
+                     batches: Sequence[Batch],
                      identifier: Identifier = None
                      ) -> Dataset:
         """

@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from functools import partial
 from typing import Dict, List, Optional, Union, Callable
 
-from robustnessgym.cached_ops.decorators import singlecolumn
+from robustnessgym.decorators import singlecolumn, methods_with_decorator, batch_processing, dataset_processing
 from robustnessgym.constants import *
-from robustnessgym.dataset import Dataset
+from robustnessgym.dataset import Dataset, Batch, BatchOrDataset
 from robustnessgym.identifier import Identifier
 from robustnessgym.tools import recmerge, persistent_hash, strings_as_json
 
@@ -15,29 +15,205 @@ class Operation(ABC):
 
     def __init__(self,
                  apply_fn: Callable = None,
-                 identifier: Identifier = None,
+                 identifiers: List[Identifier] = None,
+                 num_outputs: int = None,
                  *args,
                  **kwargs):
-        # Set the identifier for the operation
-        self._identifier = Identifier(name=self.__class__.__name__, **kwargs) if not identifier else identifier
+
+        if not identifiers:
+            assert num_outputs, "Must pass in num_outputs if no identifiers are specified."
+
+        # Set the identifiers for the outputs of the Operation
+        self._identifiers = Identifier.range(
+            n=num_outputs,
+            _name=self.__class__.__name__,
+            **kwargs
+        ) if not identifiers else identifiers
 
         # Assign the apply_fn
         if apply_fn:
             self.apply = apply_fn
 
+        # # Find the batch and dataset processors
+        # self._batch_processors = {method.__name__ for method in
+        #                           methods_with_decorator(self.__class__, batch_processing)}
+        # self._dataset_processors = {method.__name__ for method in
+        #                             methods_with_decorator(self.__class__, dataset_processing)}
+
+    @property
+    def identifiers(self):
+        return self._identifiers
+
+    # @property
+    # @abstractmethod
+    # def processors(self):
+    #     raise NotImplementedError("Must specify the order in which processors are applied.")
+    #
+    # @property
+    # def batch_processors(self):
+    #     return self._batch_processors
+    #
+    # @property
+    # def dataset_processors(self):
+    #     return self._dataset_processors
+
     def __hash__(self):
         """
         Compute a hash value for the cached operation object.
         """
-        return persistent_hash(str(self.identifier))
+        val = 0
+        for identifier in self.identifiers:
+            val ^= persistent_hash(str(identifier))
+        return val
 
-    @property
-    def identifier(self):
-        return self._identifier
+    # def get_cache_hash(self,
+    #                    columns: List[str],
+    #                    processor: str = None):
+    #     """
+    #     Construct a hash that will be used to identify the application of a Operation to the columns of a dataset.
+    #     """
+    #
+    #     # Hash the Operation
+    #     val = hash(self)
+    #
+    #     # Combine with the hash for each column
+    #     for column in columns:
+    #         val ^= persistent_hash(column)
+    #
+    #     # Combine with the hash for the processor
+    #     if processor:
+    #         val ^= persistent_hash(processor)
+    #
+    #     return val
+    #
+    # def get_cache_file_name(self,
+    #                         columns: List[str],
+    #                         processor: str = None) -> str:
+    #     """
+    #     Construct a file name for caching.
+    #     """
+    #     return 'cache-' + str(abs(self.get_cache_hash(columns=columns, processor=processor))) + '.arrow'
+
+    # # FIXME: temporary
+    # def __call__(self,
+    #              batch_or_dataset: BatchOrDataset,
+    #              columns: List[str],
+    #              mask: List[int] = None,
+    #              *args,
+    #              **kwargs) -> BatchOrDataset:
+    #
+    #     if isinstance(batch_or_dataset, Dataset):
+    #         # Check the Dataset's InteractionTape to see if the Operation was previously applied
+    #         if not mask:
+    #             # This infers a mask that specifies which outputs of the Operation are not required
+    #             mask = batch_or_dataset.check_tape(
+    #                 path=[self.__class__.__name__],
+    #                 identifiers=self.identifiers,
+    #                 columns=columns
+    #             )
+    #
+    #         # If all outputs of the Operation were previously present in the Dataset, simply return
+    #         if all(mask):
+    #             return batch_or_dataset
+    #
+    #         # Apply the CachedOperation to the dataset
+    #         dataset = self.process_dataset(
+    #             dataset=batch_or_dataset,
+    #             columns=columns,
+    #         )
+    #
+    #         # Update the InteractionTape with the applied CachedOperation
+    #         dataset.update_tape(
+    #             path=[CACHED_OPS],
+    #             identifiers=self.identifiers,
+    #             columns=columns,
+    #         )
+    #
+    #         return dataset
+    #
+    #     elif isinstance(batch_or_dataset, Dict):
+    #
+    #         assert len(self.dataset_processors) == 0, \
+    #             f"Cannot apply {self.__class__.__name__} to a batch, " \
+    #             f"since it has dataset processors: {self.dataset_processors}. " \
+    #             f"Use Dataset.from_batch(batch) before calling {self.__class__.__name__}."
+    #
+    #         # Apply the Operation
+    #         return self.process_batch(
+    #             batch=batch_or_dataset,
+    #             columns=columns
+    #         )
+    #     else:
+    #         raise NotImplementedError
+    #
+    # def wrap_batch_processor(self,
+    #                          batch_processor: Callable) -> Callable:
+    #
+    #     def _wrap_batch_processor(batch: Batch,
+    #                               columns: List[str],
+    #                               **kwargs):
+    #
+    #         return batch_processor(batch=batch, columns=columns, **kwargs)
+    #
+    #     return _wrap_batch_processor
+    #
+    # def process_dataset(self,
+    #                     dataset: Dataset,
+    #                     columns: List[str],
+    #                     batch_size: int = 32) -> Dataset:
+    #     """
+    #     Apply the Operation to a dataset.
+    #     """
+    #
+    #     # Apply them in order
+    #     for method in self.processors:
+    #
+    #         # Apply batch processors by .map(..) over the dataset
+    #         if method.__name__ in self.batch_processors:
+    #             dataset = dataset.map(
+    #                 partial(method, columns=columns),
+    #                 batched=True,
+    #                 batch_size=batch_size,
+    #                 cache_file_name=self.get_cache_file_name(columns=columns, processor=method)
+    #             )
+    #         # Apply dataset processors directly
+    #         elif method.__name__ in self.dataset_processors:
+    #             dataset = method(
+    #                 dataset=dataset,
+    #                 columns=columns,
+    #             )
+    #         else:
+    #             raise RuntimeError(f"{method} is not a processor. "
+    #                                f"Please remove {method} from the `processors` property or decorate it.")
+    #
+    #     return dataset
+    #
+    # def process_batch(self,
+    #                   batch: Batch,
+    #                   columns: List[str]) -> Batch:
+    #     """
+    #     Apply the cached operation to a batch.
+    #     """
+    #     assert len(set(columns) - set(batch.keys())) == 0, "Any column in 'columns' must be present in 'batch'."
+    #
+    #     # Run the cached operation, and encode outputs (defaults to json.dumps)
+    #     encoded_outputs = [
+    #         self.encode(example_output)
+    #         for example_output in self.apply(batch=batch, columns=columns)
+    #     ]
+    #
+    #     # Construct updates
+    #     updates = self.construct_updates(
+    #         encoded_outputs=encoded_outputs,
+    #         columns=columns
+    #     )
+    #
+    #     # Update the cache and return the updated batch
+    #     return self.store(batch=batch, updates=updates)
 
     @classmethod
     def identify(cls, **kwargs):
-        return Identifier(name=cls.__name__, **kwargs)
+        return Identifier(_name=cls.__name__, **kwargs)
 
     @classmethod
     def encode(cls, obj) -> str:
@@ -68,14 +244,19 @@ class CachedOperation(Operation):
 
         super(CachedOperation, self).__init__(
             apply_fn=apply_fn,
-            identifier=identifier,
+            identifiers=[identifier] if identifier else None,
+            num_outputs=1,
             *args,
             **kwargs,
         )
 
+    @property
+    def identifier(self):
+        return self.identifiers[0]
+
     @staticmethod
-    def store(batch: Dict[str, List],
-              updates: List[Dict]) -> Dict[str, List]:
+    def store(batch: Batch,
+              updates: List[Dict]) -> Batch:
         """
         Updates the cache of preprocessed information stored with each example in a batch.
 
@@ -99,13 +280,13 @@ class CachedOperation(Operation):
 
     @classmethod
     def retrieve(cls,
-                 batch: Dict[str, List],
+                 batch: Batch,
                  columns: Union[List[str], List[List[str]]],
                  proc_fns: Union[str, Callable, List[Union[str, Callable]]] = None,
                  identifier: Union[str, Identifier] = None,
                  reapply: bool = False,
                  **kwargs,
-                 ) -> Optional[Union[Dict[str, List], List[Dict[str, List]]]]:
+                 ) -> Optional[Union[Batch, List[Batch]]]:
         """
         Retrieve information from the cache.
 
@@ -197,32 +378,62 @@ class CachedOperation(Operation):
         """
         return 'cache-' + str(abs(self.get_cache_hash(columns=columns))) + '.arrow'
 
-    def process_dataset(self,
+    def prepare_batch(self,
+                      batch: Batch,
+                      columns: List[str]) -> Batch:
+        """
+        Preparation that is applied before the CachedOperation.
+
+        This is provided as a convenience function that can be called by prepare_dataset.
+
+        Args:
+            batch: batch of examples
+            columns: list of columns
+
+        Returns: updated batch
+        """
+        return batch
+
+    def prepare_dataset(self,
                         dataset: Dataset,
                         columns: List[str],
                         batch_size: int = 32) -> Dataset:
         """
-        Apply the cached operation to a dataset.
+        Preparation that is applied before the CachedOperation.
+
+        Many CachedOperations require a full pass over the dataset to precompute some variables
+        before the core operation can actually be applied e.g. to create a Bag-of-Words representation,
+        constructing a dataset vocabulary to keep only tokens that are frequently seen across the dataset.
+
+        Args:
+            dataset: Dataset
+            columns: list of columns
+            batch_size: batch size for .map(..)
+
+        Returns: updated Dataset
+
         """
 
-        # Apply the cached operation
+        # Apply preparation to the dataset
         return dataset.map(
-            partial(self.process_batch, columns=columns),
+            partial(self.prepare_batch, columns=columns),
             batched=True,
             batch_size=batch_size,
-            cache_file_name=self.get_cache_file_name(columns=columns)
         )
 
-    def construct_updates(self,
-                          encoded_outputs: List[str],
-                          columns: List[str]):
-        return [{
-            str(self.identifier): {strings_as_json(columns): val}
-        } for val in encoded_outputs]
+    def apply(self,
+              batch: Batch,
+              columns: List[str],
+              *args,
+              **kwargs) -> List:
+        """
+        Implements the core functionality of the cached operation.
+        """
+        pass
 
     def process_batch(self,
-                      batch: Dict[str, List],
-                      columns: List[str]) -> Dict[str, List]:
+                      batch: Batch,
+                      columns: List[str]) -> Batch:
         """
         Apply the cached operation to a batch.
         """
@@ -244,32 +455,52 @@ class CachedOperation(Operation):
         # Update the cache and return the updated batch
         return self.store(batch=batch, updates=updates)
 
-    def apply(self,
-              batch: Dict[str, List],
-              columns: List[str],
-              *args,
-              **kwargs) -> List:
+    def process_dataset(self,
+                        dataset: Dataset,
+                        columns: List[str],
+                        batch_size: int = 32) -> Dataset:
         """
-        Implements the core functionality of the cached operation.
+        Apply the cached operation to a dataset.
         """
-        pass
+
+        # Prepare to apply the CachedOperation to the dataset
+        dataset = self.prepare_dataset(
+            dataset=dataset,
+            columns=columns,
+            batch_size=batch_size,
+        )
+
+        return dataset.map(
+            partial(self.process_batch, columns=columns),
+            batched=True,
+            batch_size=batch_size,
+            cache_file_name=self.get_cache_file_name(columns=columns)
+        )
+
+    def construct_updates(self,
+                          encoded_outputs: List[str],
+                          columns: List[str]):
+        return [{
+            str(self.identifier): {strings_as_json(columns): val}
+        } for val in encoded_outputs]
 
     @classmethod
-    def available(cls, batch: Dict[str, List]):
+    def available(cls, batch: Batch):
         # Check if the cached operation is available to retrieve in the batch
         if 'cache' not in batch:
             return False
         return any([key.startswith(cls.__name__) for key in batch['cache'][0].keys()])
 
     def __call__(self,
-                 batch_or_dataset: Union[Dict[str, List], Dataset],
-                 columns: List[str]) -> Union[Dict[str, List], Dataset]:
+                 batch_or_dataset: BatchOrDataset,
+                 columns: List[str]) -> BatchOrDataset:
 
         if isinstance(batch_or_dataset, Dataset):
+
             # Check the InteractionTape to see if the CachedOperation was applied
-            if not batch_or_dataset.check_tape(
+            if batch_or_dataset.check_tape(
                     path=[CACHED_OPS],
-                    identifier=self.identifier,
+                    identifiers=self.identifier,
                     columns=columns,
             ):
                 return batch_or_dataset
@@ -283,16 +514,19 @@ class CachedOperation(Operation):
             # Update the InteractionTape with the applied CachedOperation
             dataset.update_tape(
                 path=[CACHED_OPS],
-                identifier=self.identifier,
+                identifiers=self.identifier,
                 columns=columns,
             )
 
             return dataset
 
         elif isinstance(batch_or_dataset, Dict):
-            # Apply the CachedOperation to a batch
-            return self.process_batch(batch=batch_or_dataset,
-                                      columns=columns)
+
+            # Apply the CachedOperation
+            return self.process_batch(
+                batch=batch_or_dataset,
+                columns=columns
+            )
         else:
             raise NotImplementedError
 
@@ -300,8 +534,8 @@ class CachedOperation(Operation):
 class SingleColumnCachedOperation(CachedOperation):
 
     def __call__(self,
-                 batch_or_dataset: Union[Dict[str, List], Dataset],
-                 columns: List[str]) -> Union[Dict[str, List], Dataset]:
+                 batch_or_dataset: BatchOrDataset,
+                 columns: List[str]) -> BatchOrDataset:
         """
         Apply independently to each column.
 
@@ -323,7 +557,7 @@ class SingleColumnCachedOperation(CachedOperation):
 
     @singlecolumn
     def apply(self,
-              batch: Dict[str, List],
+              batch: Batch,
               columns: List[str],
               *args,
               **kwargs) -> List:
@@ -333,6 +567,16 @@ class SingleColumnCachedOperation(CachedOperation):
                             column_batch: List,
                             **kwargs) -> List:
         raise NotImplementedError("Must implement single_column_apply.")
+
+
+class ScoreOperation(CachedOperation):
+
+    def apply(self,
+              batch: Batch,
+              columns: List[str],
+              *args,
+              **kwargs) -> List[Union[int, float]]:
+        return super().apply(batch, columns, *args, **kwargs)
 
 
 def stow(dataset: Dataset,
@@ -346,9 +590,9 @@ def stow(dataset: Dataset,
     for cached_op, list_of_columns in list(cached_ops.items()):
         indices_to_remove = []
         for i, columns in enumerate(list(list_of_columns)):
-            if not dataset.check_tape(
+            if dataset.check_tape(
                     path=[CACHED_OPS],
-                    identifier=cached_op.identifier,
+                    identifiers=cached_op.identifier,
                     columns=columns,
             ):
                 # Remove the columns at index i
@@ -364,7 +608,7 @@ def stow(dataset: Dataset,
             # Remove the op entirely
             cached_ops.pop(cached_op)
 
-    def _map_fn(batch: Dict[str, List]):
+    def _map_fn(batch: Batch):
         """
         Consolidate the application of the CachedOperations passed to stow into a single mappable function.
         """
@@ -402,7 +646,7 @@ def stow(dataset: Dataset,
         for columns in list_of_columns:
             dataset.update_tape(
                 path=[CACHED_OPS],
-                identifier=cached_op.identifier,
+                identifiers=cached_op.identifier,
                 columns=columns
             )
 

@@ -123,7 +123,7 @@ class Transform(SliceBuilder):
                                                                                                    transformed_batch)
                             }
                             for j, transformed_batch in enumerate(transformed_batches)
-                            if (not mask or mask[j]) and (slice_membership[i, j])
+                            if (not mask or not mask[j]) and (slice_membership[i, j])
                         }
                     }
                 } if np.any(slice_membership[i, :]) else {} for i in range(batch_size)]

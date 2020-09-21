@@ -22,7 +22,7 @@ class Augmentation(Transform):
             category=AUGMENTATION,
             identifiers=[
                 Identifier(
-                    name=f"{self.__class__.__name__}-{i + 1}",
+                    _name=f"{self.__class__.__name__}-{i + 1}",
                 )
                 for i in range(num_transformed)
             ] if not identifiers else identifiers,

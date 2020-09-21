@@ -88,7 +88,8 @@ class Subpopulation(SliceBuilder):
                         json.dumps(columns) if len(columns) > 1 else columns[0]: row
                     }
                 }
-            } for row in (slice_membership[:, np.array(mask, dtype=bool)] if mask else slice_membership).tolist()]
+            } for row in (slice_membership[:, np.logical_not(np.array(mask, dtype=bool))]
+                          if mask else slice_membership).tolist()]
 
         return [{
             self.category: {
@@ -96,7 +97,7 @@ class Subpopulation(SliceBuilder):
                     str(self.identifiers[i]): {
                         json.dumps(columns) if len(columns) > 1 else columns[0]: membership
                     }
-                    for i, membership in enumerate(row) if not mask or mask[i]
+                    for i, membership in enumerate(row) if not mask or not mask[i]
                 },
             }
         } for row in slice_membership.tolist()]

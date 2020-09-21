@@ -20,8 +20,8 @@ class NlpAug(SingleColumnAugmentation):
             num_transformed=num_transformed,
             identifiers=[
                 Identifier(
-                    name=f"{self.__class__.__name__}-{i + 1}",
-                    pipeline=[Identifier(name=augmenter.name,
+                    _name=f"{self.__class__.__name__}-{i + 1}",
+                    pipeline=[Identifier(_name=augmenter.name,
                                          src=augmenter.aug_src,
                                          action=augmenter.action,
                                          method=augmenter.method)

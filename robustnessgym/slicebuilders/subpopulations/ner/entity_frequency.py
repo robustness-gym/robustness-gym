@@ -24,7 +24,7 @@ class EntityFrequency(Subpopulation,
         for entity_type, thresholds in entity_thresholds:
             for threshold in thresholds:
                 identifiers.append(
-                    Identifier(name=self.__class__.__name__,
+                    Identifier(_name=self.__class__.__name__,
                                entity_type=entity_type,
                                threshold=threshold)
                 )

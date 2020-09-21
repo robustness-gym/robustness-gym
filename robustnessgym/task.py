@@ -120,6 +120,56 @@ class ClassificationMixin:
         self.output_schema = None
 
 
+class Sentiment(Task, ClassificationMixin):
+
+    def __init__(self,
+                 identifier,
+                 input_schema,
+                 output_schema,
+                 *args,
+                 **kwargs):
+        super(Sentiment, self).__init__(
+            identifier=identifier,
+            input_schema=input_schema,
+            output_schema=output_schema,
+            metrics=[
+                'accuracy',
+                'f1',
+                'class_dist',
+                'pred_dist'
+                # TODO(karan): calibration, other metrics
+            ],
+            *args,
+            **kwargs,
+        )
+
+class BinarySentiment(Snetiment):
+
+
+class Summarization(Task, ClassificationMixin):
+
+    def __init__(self,
+                 identifier,
+                 input_schema,
+                 output_schema,
+                 *args,
+                 **kwargs):
+        super(Summarization, self).__init__(
+            identifier=identifier,
+            input_schema=input_schema,
+            output_schema=output_schema,
+            metrics=[
+                'accuracy',
+                'f1',
+                'class_dist',
+                'pred_dist'
+                # TODO(karan): calibration, other metrics
+            ],
+            *args,
+            **kwargs,
+        )
+
+
 class NaturalLanguageInference(Task,
                                ClassificationMixin):
 

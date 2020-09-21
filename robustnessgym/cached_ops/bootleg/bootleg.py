@@ -7,7 +7,7 @@ from bootleg.utils.parser_utils import get_full_config
 from torch import cuda
 
 from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
-from robustnessgym.cached_ops.decorators import singlecolumn
+from robustnessgym.decorators import singlecolumn
 from robustnessgym.cached_ops.textblob.textblob import TextBlob
 from robustnessgym.tools import DownloadProgressBar
 

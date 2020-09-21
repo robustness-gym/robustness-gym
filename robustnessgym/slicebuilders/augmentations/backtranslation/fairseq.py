@@ -27,7 +27,7 @@ class FairseqBacktranslation(SingleColumnAugmentation):
         super(FairseqBacktranslation, self).__init__(
             identifiers=[
                 Identifier(
-                    name=f"{self.__class__.__name__}-{i + 1}",
+                    _name=f"{self.__class__.__name__}-{i + 1}",
                     langs=langs,
                     src2tgt_topk=src2tgt_topk,
                     src2tgt_temp=src2tgt_temp,

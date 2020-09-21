@@ -31,11 +31,11 @@ from robustnessgym.slicebuilders.slicebuilder import (
     SliceBuilder,
 )
 from robustnessgym.slicebuilders.subpopulations.constituency_overlap.constituency_overlap import (
-    HasConstituencyOverlap,
-    HasConstituencySubtree,
-    HasFuzzyConstituencySubtree,
+    ConstituencyOverlapSubpopulation,
+    ConstituencySubtreeSubpopulation,
+    FuzzyConstituencySubtreeSubpopulation,
 )
-from robustnessgym.slicebuilders.subpopulations.length.length import HasLength
+from robustnessgym.slicebuilders.subpopulations.length.length import LengthSubpopulation
 from robustnessgym.slicebuilders.subpopulations.ner.entity_frequency import EntityFrequency
 from robustnessgym.slicebuilders.subpopulations.phrase.hans import (
     HansAllPhrases,
@@ -85,6 +85,7 @@ from robustnessgym.slicebuilders.subpopulations.phrase.wordlists import (
 from robustnessgym.testbench.testbench import TestBench
 from .cached_ops.cached_ops import (
     CachedOperation,
+    SingleColumnCachedOperation,
     stow
 )
 from .cached_ops.custom.strip_text import StripText

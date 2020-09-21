@@ -19,7 +19,7 @@ class EasyDataAugmentation(Augmentation):
         super(EasyDataAugmentation, self).__init__(
             identifiers=[
                 Identifier(
-                    name=f"{self.__class__.__name__}-{i + 1}",
+                    _name=f"{self.__class__.__name__}-{i + 1}",
                     alpha_sr=alpha_sr,
                     alpha_ri=alpha_ri,
                     alpha_rs=alpha_rs,

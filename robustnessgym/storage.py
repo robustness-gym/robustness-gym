@@ -4,7 +4,7 @@ import dill as pickle
 class PicklerMixin:
 
     def __init__(self, *args, **kwargs):
-        pass
+        super(PicklerMixin, self).__init__(*args, **kwargs)
 
     def save(self, path: str) -> None:
         """

@@ -8,11 +8,11 @@ import cytoolz as tz
 from robustnessgym.cached_ops.spacy.spacy import Spacy
 
 from robustnessgym.identifier import Identifier
-from robustnessgym.slicebuilders.subpopulations.score.score import HasScore
+from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
 
 
-class HasLength(HasScore,
-                Spacy):
+class LengthSubpopulation(ScoreSubpopulation,
+                          Spacy):
 
     def __init__(self,
                  intervals: List[Tuple[int, int]],
@@ -20,11 +20,11 @@ class HasLength(HasScore,
                  *args,
                  **kwargs
                  ):
-        super(HasLength, self).__init__(
+        super(LengthSubpopulation, self).__init__(
             intervals=intervals,
             identifiers=[
                 Identifier(
-                    name=self.__class__.__name__,
+                    _name=self.__class__.__name__,
                     gte=interval[0],
                     lte=interval[1],
                     reduction_fn=reduction_fn
@@ -40,7 +40,7 @@ class HasLength(HasScore,
 
     def score(self,
               batch: Dict[str, List],
-              keys: List[str],
+              columns: List[str],
               *args,
               **kwargs) -> np.ndarray:
         # Compute the length of each example under each key
@@ -55,7 +55,7 @@ class HasLength(HasScore,
                     Spacy.tokens
                 )
             )[key]
-            for key in keys
+            for key in columns
         ]
 
         # Reduction over the key axis

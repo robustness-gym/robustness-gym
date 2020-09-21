@@ -6,19 +6,19 @@ from nltk import Tree
 
 from robustnessgym.cached_ops.allen.constituency_parser.constituency_parser import AllenConstituencyParser
 from robustnessgym.identifier import Identifier
-from robustnessgym.slicebuilders.subpopulations.score.score import HasScore
+from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
 
 
-class HasConstituencyOverlap(HasScore,
-                             AllenConstituencyParser,
-                             ):
+class ConstituencyOverlapSubpopulation(ScoreSubpopulation,
+                                       # AllenConstituencyParser,
+                                       ):
 
     def __init__(self,
                  intervals: List[Tuple[int, int]],
                  *args,
                  **kwargs
                  ):
-        super(HasConstituencyOverlap, self).__init__(
+        super(ConstituencyOverlapSubpopulation, self).__init__(
             intervals=intervals,
             *args,
             **kwargs
@@ -26,15 +26,15 @@ class HasConstituencyOverlap(HasScore,
 
     def score(self,
               batch: Dict[str, List],
-              keys: List[str],
+              columns: List[str],
               *args,
               **kwargs) -> np.ndarray:
         # Require that the number of keys is exactly 2
-        assert len(keys) == 2, "Must specify exactly 2 keys."
+        assert len(columns) == 2, "Must specify exactly 2 keys."
 
         # Retrieve the trees
-        trees = AllenConstituencyParser.retrieve(batch=batch, columns=[[key] for key in keys])
-        trees_0, trees_1 = trees[keys[0]], trees[keys[1]]
+        trees = AllenConstituencyParser.retrieve(batch=batch, columns=[[key] for key in columns])
+        trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
         # Fuzzy match the trees and return the scores
         return np.array([
@@ -46,17 +46,17 @@ class HasConstituencyOverlap(HasScore,
         ])
 
 
-class HasConstituencySubtree(HasScore,
-                             AllenConstituencyParser,
-                             ):
+class ConstituencySubtreeSubpopulation(ScoreSubpopulation,
+                                       AllenConstituencyParser,
+                                       ):
 
     def __init__(self,
                  *args,
                  **kwargs):
-        super(HasConstituencySubtree, self).__init__(
+        super(ConstituencySubtreeSubpopulation, self).__init__(
             intervals=[(1, 1)],
             identifiers=[
-                Identifier(name=self.__class__.__name__)
+                Identifier(_name=self.__class__.__name__)
             ],
             *args,
             **kwargs
@@ -64,15 +64,15 @@ class HasConstituencySubtree(HasScore,
 
     def score(self,
               batch: Dict[str, List],
-              keys: List[str],
+              columns: List[str],
               *args,
               **kwargs) -> np.ndarray:
         # Require that the number of keys is exactly 2
-        assert len(keys) == 2, "Must specify exactly 2 keys."
+        assert len(columns) == 2, "Must specify exactly 2 keys."
 
         # Retrieve the trees
-        trees = AllenConstituencyParser.retrieve(batch=batch, columns=[[key] for key in keys])
-        trees_0, trees_1 = trees[keys[0]], trees[keys[1]]
+        trees = AllenConstituencyParser.retrieve(batch=batch, columns=[[column] for column in columns])
+        trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
         # Convert the trees corresponding to key 0 to NLTK trees
         trees_0 = [Tree.fromstring(tree) for tree in trees_0]
@@ -90,15 +90,15 @@ class HasConstituencySubtree(HasScore,
         ])
 
 
-class HasFuzzyConstituencySubtree(HasScore,
-                                  AllenConstituencyParser,
-                                  ):
+class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation,
+                                            AllenConstituencyParser,
+                                            ):
 
     def __init__(self,
                  intervals: List[Tuple[int, int]],
                  *args,
                  **kwargs):
-        super(HasFuzzyConstituencySubtree, self).__init__(
+        super(FuzzyConstituencySubtreeSubpopulation, self).__init__(
             intervals=intervals,
             *args,
             **kwargs
@@ -106,15 +106,15 @@ class HasFuzzyConstituencySubtree(HasScore,
 
     def score(self,
               batch: Dict[str, List],
-              keys: List[str],
+              columns: List[str],
               *args,
               **kwargs) -> np.ndarray:
         # Require that the number of keys is exactly 2
-        assert len(keys) == 2, "Must specify exactly 2 keys."
+        assert len(columns) == 2, "Must specify exactly 2 keys."
 
         # Retrieve the trees
-        trees = AllenConstituencyParser.retrieve(batch=batch, columns=[[key] for key in keys])
-        trees_0, trees_1 = trees[keys[0]], trees[keys[1]]
+        trees = AllenConstituencyParser.retrieve(batch=batch, columns=[[column] for column in columns])
+        trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
         # Convert the trees corresponding to key 0 to NLTK trees
         trees_0 = [Tree.fromstring(tree) for tree in trees_0]
