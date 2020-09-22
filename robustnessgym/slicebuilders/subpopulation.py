@@ -29,7 +29,7 @@ class Subpopulation(SliceBuilder):
     def apply(self,
               slice_membership: np.ndarray,
               batch: Dict[str, List],
-              keys: List[str],
+              columns: List[str],
               *args,
               **kwargs) -> np.ndarray:
         raise NotImplementedError
@@ -213,7 +213,7 @@ class SubpopulationCollection(Subpopulation):
     def apply(self,
               slice_membership: np.ndarray,
               batch: Dict[str, List],
-              keys: List[str],
+              columns: List[str],
               *args,
               **kwargs) -> np.ndarray:
         # Each Subpopulation will generate slices
@@ -222,7 +222,7 @@ class SubpopulationCollection(Subpopulation):
             slice_membership[:, end_idx - subpopulation.num_slices:end_idx] = subpopulation.apply(
                 slice_membership=slice_membership[:, end_idx - subpopulation.num_slices:end_idx],
                 batch=batch,
-                keys=keys
+                columns=columns
             )
 
         return slice_membership

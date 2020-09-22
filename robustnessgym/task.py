@@ -100,8 +100,8 @@ class Task:
     def classification(self):
         # TODO(karan): improve the schema inference
         # Check that the only output is a ClassLabel output
-        if len(self.output_schema) == 1 and isinstance(self.output_schema.features[self.output_schema.keys()[0]],
-                                                       ClassLabel):
+        if len(self.output_schema) == 1 and \
+                isinstance(self.output_schema.features[self.output_schema.keys()[0]], ClassLabel):
             return True
         return False
 
@@ -112,7 +112,7 @@ class Task:
 class ClassificationMixin:
 
     def __init__(self,
-                 num_classes,
+                 num_classes: int = None,
                  *args,
                  **kwargs):
         super(ClassificationMixin, self).__init__(*args, **kwargs)
@@ -143,7 +143,30 @@ class Sentiment(Task, ClassificationMixin):
             **kwargs,
         )
 
-class BinarySentiment(Snetiment):
+
+class BinarySentiment(Sentiment):
+
+    def __init__(self):
+        super(BinarySentiment, self).__init__(
+            num_classes=2,
+            input_schema=Schema(
+                features=OrderedDict([
+                    ('text', Value(dtype='string')),
+                ]),
+                grounding_candidates={
+                    'text': {'text'},
+                }
+            ),
+            output_schema=Schema(
+                features=OrderedDict([
+                    ('label', ClassLabel(names=['positive', 'negative'])),
+                ]),
+                grounding_candidates={
+                    'label': {'label'},
+                }
+            ),
+            identifier=self.__class__.__name__,
+        )
 
 
 class Summarization(Task, ClassificationMixin):
@@ -254,6 +277,21 @@ class TernaryNaturalLanguageInference(NaturalLanguageInference):
         }
 
 
+class Summarization(Task):
+
+    def __init__(self):
+        super(Summarization, self).__init__(
+            identifier=self.__class__.__name__,
+            input_schema=Tuple[str, str],
+            output_schema=int,
+            metrics=[
+                # blah,
+                # TODO(karan): calibration, other metrics
+            ],
+
+        )
+
+
 class QuestionAnswering(Task):
 
     def __init__(self):
@@ -273,17 +311,3 @@ class QuestionAnswering(Task):
 # (generic task, model) ### QuestionAnswering/NLI
 # (narrow task, model) ### MultiHopQuestionAnswering/BinaryNLI
 # (dataset, model) ### Particular Dataset/QNLI
-
-class Summarization(Task):
-
-    def __init__(self):
-        super(QuestionAnswering, self).__init__(
-            identifier=self.__class__.__name__,
-            input_schema=Tuple[str, str],
-            output_schema=int,
-            metrics=[
-                # blah,
-                # TODO(karan): calibration, other metrics
-            ],
-
-        )

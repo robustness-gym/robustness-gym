@@ -37,7 +37,8 @@ class AhoCorasick:
 
 
 class HasPhrase(Subpopulation,
-                Spacy):
+                # Spacy
+                ):
 
     def __init__(self,
                  phrases=None,
