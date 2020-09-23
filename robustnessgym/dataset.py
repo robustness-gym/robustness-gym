@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import pickle
 from copy import deepcopy
@@ -32,6 +33,20 @@ class InteractionTape:
     def __repr__(self):
         return f"{self.__class__.__name__}(interactions={len(self.history)})"
 
+    def dumps(self):
+        return json.dumps({json.dumps((identifier.dumps(), json_columns)): idx
+                           for (identifier, json_columns), idx in self.history.items()})
+
+    @classmethod
+    def loads(cls, s: str):
+        tape = InteractionTape()
+        history = json.loads(s)
+        history = {tuple(json.loads(json_tuple)): idx for json_tuple, idx in history.items()}
+        tape.history = {(Identifier.loads(identifier), json_columns): idx
+                        for (identifier, json_columns), idx in history.items()}
+
+        return tape
+
     def update(self,
                identifier: Identifier,
                columns: List[str]) -> None:
@@ -45,6 +60,13 @@ class InteractionTape:
         Returns: True if the interaction was added to the tape, False if it was already applied before.
 
         """
+        if isinstance(identifier, str):
+            identifier = Identifier(_name=identifier)
+        elif isinstance(identifier, Identifier):
+            pass
+        else:
+            raise ValueError(f"Parameter `identifier` should be an instance of class Identifier or str, "
+                             f"not {type(identifier)}.")
 
         # Dump the column names to JSON
         json_columns = strings_as_json(strings=columns)
@@ -66,6 +88,9 @@ class InteractionTape:
         Returns:
 
         """
+        if not (isinstance(identifier, str) or isinstance(identifier, Identifier)):
+            raise ValueError(f"Parameter `identifier` should be an instance of class Identifier or str, "
+                             f"not {type(identifier)}.")
 
         # Dump the column names to JSON
         json_columns = strings_as_json(strings=columns)
@@ -88,6 +113,30 @@ class InteractionTapeHierarchyMixin:
             }
         }
 
+    def dumps_interactions(self):
+        return json.dumps({
+            CACHED_OPS: self.interactions[CACHED_OPS].dumps(),
+            SLICEMAKERS: {
+                SUBPOPULATION: self.interactions[SLICEMAKERS][SUBPOPULATION].dumps(),
+                AUGMENTATION: self.interactions[SLICEMAKERS][AUGMENTATION].dumps(),
+                ATTACK: self.interactions[SLICEMAKERS][ATTACK].dumps(),
+            }
+        })
+
+    @classmethod
+    def loads_interactions(cls, s: str) -> InteractionTapeHierarchyMixin:
+        tape_hierarchy = InteractionTapeHierarchyMixin()
+        interactions = json.loads(s)
+        tape_hierarchy.interactions = {
+            CACHED_OPS: InteractionTape.loads(interactions[CACHED_OPS]),
+            SLICEMAKERS: {
+                SUBPOPULATION: InteractionTape.loads(interactions[SLICEMAKERS][SUBPOPULATION]),
+                AUGMENTATION: InteractionTape.loads(interactions[SLICEMAKERS][AUGMENTATION]),
+                ATTACK: InteractionTape.loads(interactions[SLICEMAKERS][ATTACK]),
+            }
+        }
+        return tape_hierarchy
+
     def update_tape(
             self,
             path: List[str],
@@ -109,7 +158,7 @@ class InteractionTapeHierarchyMixin:
         tape = self.fetch_tape(path=path)
 
         # Update it
-        if isinstance(identifiers, Identifier):
+        if isinstance(identifiers, Identifier) or isinstance(identifiers, str):
             return tape.update(identifier=identifiers, columns=columns)
         else:
             return [tape.update(identifier=identifier, columns=columns) for identifier in identifiers]
@@ -135,7 +184,7 @@ class InteractionTapeHierarchyMixin:
         tape = self.fetch_tape(path=path)
 
         # Check it
-        if isinstance(identifiers, Identifier):
+        if isinstance(identifiers, Identifier) or isinstance(identifiers, str):
             return tape.check(identifier=identifiers, columns=columns)
         else:
             return [tape.check(identifier=identifier, columns=columns) for identifier in identifiers]
@@ -300,7 +349,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         Args:
             batch_size: integer batch size
 
-        Returns: 
+        Returns:
 
         """
         for i in range(0, len(self), batch_size):
@@ -384,6 +433,9 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         except:
             return None
 
+    # def save_to_disk(self, dataset_path: str):
+    #     return super(Dataset, self).save_to_disk(dataset_path)
+
     def save(self, path: str) -> None:
         # Make all the directories to the path
         os.makedirs(path, exist_ok=True)
@@ -429,3 +481,16 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             tz.merge_with(tz.concat,
                           *[dataset[:] for dataset in datasets])
         )
+
+    def __getstate__(self):
+        state = super(Dataset, self).__getstate__()
+        state["interactions"] = self.dumps_interactions()
+        print(state)
+        state["identifier"] = state["identifier"].dumps()
+        return state
+
+    def __setstate__(self, state):
+        state = dict(state)
+        state["interactions"] = self.loads_interactions(state["interactions"]).interactions
+        state["identifier"] = Identifier.loads(state["identifier"])
+        super(Dataset, self).__setstate__(state)

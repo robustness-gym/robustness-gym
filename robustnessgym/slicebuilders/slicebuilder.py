@@ -237,7 +237,7 @@ class SliceBuilder(PicklerMixin):
         # Batch the dataset, and process each batch
         all_batches, all_sliced_batches, all_slice_memberships = zip(
             *[self.process_batch(
-                batch=tz.merge_with(tz.identity, *batch),
+                batch=batch,
                 columns=columns,
                 mask=mask,
                 store_compressed=store_compressed,
@@ -245,7 +245,7 @@ class SliceBuilder(PicklerMixin):
                 *args,
                 **kwargs
             )
-                for batch in tz.partition_all(batch_size, dataset)]
+                for batch in dataset.batch(batch_size)]
         )
 
         # TODO(karan): want this instead of above but .map() must return either a None type or dict, not tuple

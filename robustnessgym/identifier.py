@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import json
 from typing import Callable, Union, List
 
 
@@ -16,6 +18,8 @@ class Identifier:
         for param, value in self.parameters.items():
             if isinstance(value, Callable):
                 self.parameters[param] = ".".join([str(value.__module__), str(value.__name__)])
+            else:
+                self.parameters[param] = str(value)
 
     @property
     def name(self):
@@ -52,3 +56,12 @@ class Identifier:
 
     def __eq__(self, other):
         return str(self) == str(other)
+
+    def dumps(self):
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def loads(cls, s: str):
+        identifier = Identifier(_name='')
+        identifier.__dict__ = json.loads(s)
+        return identifier
