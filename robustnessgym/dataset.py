@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import pickle
 from copy import deepcopy
+from functools import partial
 from typing import *
 
 import cytoolz as tz
@@ -290,6 +291,20 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         """
         return cls.from_batch(tz.merge_with(tz.concat, *batches),
                               identifier)
+
+    def batch(self,
+              batch_size: int = 32):
+        """
+        Batch the dataset.
+
+        Args:
+            batch_size: integer batch size
+
+        Returns: 
+
+        """
+        for i in range(0, len(self), batch_size):
+            yield self[i: i + batch_size]
 
     def map(self,
             function: Optional[Callable] = None,

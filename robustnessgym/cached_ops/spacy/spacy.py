@@ -6,6 +6,7 @@ import spacy
 from spacy.tokens import Doc
 
 from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
+from robustnessgym.dataset import BatchOrDataset
 
 
 class Spacy(SingleColumnCachedOperation):
@@ -67,6 +68,12 @@ class Spacy(SingleColumnCachedOperation):
                 nc.add_to_pipe(self.nlp)
             except ImportError:
                 print("Can't import neuralcoref.")
+
+    def __call__(self,
+                 batch_or_dataset: BatchOrDataset,
+                 columns: List[str],
+                 batch_size: int = 8192) -> BatchOrDataset:
+        return super().__call__(batch_or_dataset, columns, batch_size)
 
     @property
     def nlp(self):

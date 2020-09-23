@@ -493,7 +493,8 @@ class CachedOperation(Operation):
 
     def __call__(self,
                  batch_or_dataset: BatchOrDataset,
-                 columns: List[str]) -> BatchOrDataset:
+                 columns: List[str],
+                 batch_size: int = 32) -> BatchOrDataset:
 
         if isinstance(batch_or_dataset, Dataset):
 
@@ -509,6 +510,7 @@ class CachedOperation(Operation):
             dataset = self.process_dataset(
                 dataset=batch_or_dataset,
                 columns=columns,
+                batch_size=batch_size,
             )
 
             # Update the InteractionTape with the applied CachedOperation
@@ -535,7 +537,8 @@ class SingleColumnCachedOperation(CachedOperation):
 
     def __call__(self,
                  batch_or_dataset: BatchOrDataset,
-                 columns: List[str]) -> BatchOrDataset:
+                 columns: List[str],
+                 batch_size: int = 32) -> BatchOrDataset:
         """
         Apply independently to each column.
 
@@ -551,6 +554,7 @@ class SingleColumnCachedOperation(CachedOperation):
             batch_or_dataset = super(SingleColumnCachedOperation, self).__call__(
                 batch_or_dataset=batch_or_dataset,
                 columns=[column],
+                batch_size=batch_size,
             )
 
         return batch_or_dataset
