@@ -2,52 +2,10 @@ from collections import OrderedDict
 from typing import *
 
 import cytoolz as tz
-from nlp.features import ClassLabel, Value, FeatureType
+from datasets.features import ClassLabel, Value, Sequence
 
 from robustnessgym.dataset import Dataset
-
-
-class Space:
-
-    def __init__(self):
-        pass
-
-
-class Schema:
-
-    def __init__(self,
-                 features: OrderedDict,
-                 grounding_candidates: Dict[str, Collection]):
-        self.features = features
-        self.grounding_candidates = grounding_candidates
-        self.reversed_grounding_candidates = {v: k for k, values in self.grounding_candidates.items() for v in values}
-
-    def ground(self, features: Dict[str, FeatureType]):
-        # Figure out the (reversed) grounding: map columns in the dataset to keys in the schema
-        reversed_grounding = tz.keyfilter(lambda k: k in features, self.reversed_grounding_candidates)
-
-        # Construct the grounding by reversing
-        grounding = {v: k for k, v in reversed_grounding.items()}
-
-        # Assert that the grounding covers the entire schema
-        assert len(self.features) == len(grounding), "Grounding failed."
-
-        # Assert that the grounded schema has the right types
-        # TODO(karan): if not, add code to automatically rejig the dataset in map_fn
-        for key in self.features:
-            assert self.features[key] == features[grounding[key]]
-
-        return grounding, reversed_grounding
-
-    def __repr__(self):
-        features = "\n\t".join([f"{k}: {v}" for k, v in self.features.items()])
-        return f"Schema(\n\t{features}\n)"
-
-    def __len__(self):
-        return len(self.features)
-
-    def keys(self):
-        return list(self.features.keys())
+from robustnessgym.tasks.schema import Schema
 
 
 class Task:
@@ -55,9 +13,9 @@ class Task:
 
     def __init__(self,
                  identifier,
-                 input_schema,
-                 output_schema,
-                 metrics,
+                 input_schema: Schema,
+                 output_schema: Schema,
+                 metrics: List[str],
                  *args,
                  **kwargs
                  ):
@@ -69,6 +27,10 @@ class Task:
     @classmethod
     def lookup(cls, dataset: str):
         return cls.dataset_to_task[dataset]
+
+    @classmethod
+    def list_datasets(cls):
+        return []
 
     # @classmethod
     # def from_identifier(cls, identifier):
@@ -109,18 +71,18 @@ class Task:
         return f"task: {self.identifier}\n\nInput{str(self.input_schema)}\n\nOutput{str(self.output_schema)}"
 
 
-class ClassificationMixin:
+# class ClassificationMixin:
+#
+#     def __init__(self,
+#                  num_classes: int = None,
+#                  *args,
+#                  **kwargs):
+#         super(ClassificationMixin, self).__init__(*args, **kwargs)
+#
+#         self.output_schema = None
 
-    def __init__(self,
-                 num_classes: int = None,
-                 *args,
-                 **kwargs):
-        super(ClassificationMixin, self).__init__(*args, **kwargs)
 
-        self.output_schema = None
-
-
-class Sentiment(Task, ClassificationMixin):
+class Sentiment(Task):
 
     def __init__(self,
                  identifier,
@@ -168,33 +130,48 @@ class BinarySentiment(Sentiment):
             identifier=self.__class__.__name__,
         )
 
+    @classmethod
+    def list_datasets(cls):
+        return [
+            'imdb',
+        ]
 
-class Summarization(Task, ClassificationMixin):
 
-    def __init__(self,
-                 identifier,
-                 input_schema,
-                 output_schema,
-                 *args,
-                 **kwargs):
+class Summarization(Task):
+
+    def __init__(self):
         super(Summarization, self).__init__(
-            identifier=identifier,
-            input_schema=input_schema,
-            output_schema=output_schema,
+            identifier=self.__class__.__name__,
+            input_schema=Schema(
+                features=OrderedDict([
+                    ('text', Value(dtype='string'))
+                ]),
+                grounding_candidates={
+                    'text': {'article'},
+                }
+            ),
+            output_schema=Schema(
+                features=OrderedDict([
+                    ('summary', Value(dtype='string'))
+                ]),
+                grounding_candidates={
+                    'summary': {'highlights'},
+                }
+            ),
             metrics=[
-                'accuracy',
-                'f1',
-                'class_dist',
-                'pred_dist'
+                # blah,
                 # TODO(karan): calibration, other metrics
             ],
-            *args,
-            **kwargs,
         )
 
+    @classmethod
+    def list_datasets(cls):
+        return [
+            'cnn_dailymail',
+        ]
 
-class NaturalLanguageInference(Task,
-                               ClassificationMixin):
+
+class NaturalLanguageInference(Task):
 
     def __init__(self,
                  identifier,
@@ -244,6 +221,12 @@ class BinaryNaturalLanguageInference(NaturalLanguageInference):
             identifier=self.__class__.__name__,
         )
 
+    @classmethod
+    def list_datasets(cls):
+        return [
+
+        ]
+
 
 class TernaryNaturalLanguageInference(NaturalLanguageInference):
 
@@ -277,34 +260,100 @@ class TernaryNaturalLanguageInference(NaturalLanguageInference):
         }
 
 
-class Summarization(Task):
-
-    def __init__(self):
-        super(Summarization, self).__init__(
-            identifier=self.__class__.__name__,
-            input_schema=Tuple[str, str],
-            output_schema=int,
-            metrics=[
-                # blah,
-                # TODO(karan): calibration, other metrics
-            ],
-
-        )
-
-
 class QuestionAnswering(Task):
 
-    def __init__(self):
+    def __init__(self,
+                 identifier,
+                 input_schema,
+                 output_schema,
+                 *args,
+                 **kwargs):
         super(QuestionAnswering, self).__init__(
-            identifier=self.__class__.__name__,
-            input_schema=Tuple[str, str],
-            output_schema=int,
+            identifier=identifier,
+            input_schema=input_schema,
+            output_schema=output_schema,
             metrics=[
-                # blah,
+                'em',
+                'f1',
                 # TODO(karan): calibration, other metrics
             ],
-
+            *args,
+            **kwargs,
         )
+
+
+class ExtractiveQuestionAnswering(Task):
+
+    def __init__(self):
+        super(ExtractiveQuestionAnswering, self).__init__(
+            input_schema=Schema(
+                features=OrderedDict([
+                    ('context', Value(dtype='string')),
+                    ('question', Value(dtype='string')),
+                ]),
+                grounding_candidates={
+                    'context': {'context'},
+                    'question': {'question'},
+                },
+            ),
+            output_schema=Schema(
+                features=OrderedDict([
+                    ('answers', Sequence(
+                        feature={'text': Value(dtype='string', id=None),
+                                 'answer_start': Value(dtype='int32', id=None)},
+                        length=-1)),
+                ]),
+                grounding_candidates={
+                    'answers': {
+                        'answers',
+                    },
+                }
+            ),
+            metrics=[
+                'em',
+                'f1',
+            ],
+            identifier=self.__class__.__name__,
+        )
+
+# class ExtractiveQuestionAnswering(Task):
+#
+#     def __init__(self):
+#         super(ExtractiveQuestionAnswering, self).__init__(
+#             input_schema=Schema(
+#                 features=OrderedDict([
+#                     ('context', Value(dtype='string')),
+#                     ('question', Value(dtype='string')),
+#                 ]),
+#                 grounding_candidates={
+#                     'context': {'context'},
+#                     'question': {'question'},
+#                 },
+#             ),
+#             output_schema=Schema(
+#                 features=OrderedDict([
+#                     ('answer', Sequence(Value(dtype='string'), length=-1)),
+#                     ('start', Sequence(Value(dtype='int64'), length=-1)),
+#                     ('end', Sequence(Value(dtype='int64'), length=-1)),
+#                 ]),
+#                 grounding_candidates={
+#                     'answer': {
+#                         ('answers', 'text'),
+#                     },
+#                     'start': {
+#                         ('answers', 'answer_start')
+#                     },
+#                     'end': {
+#                         lambda answer, start: [idx + len(answer) for idx in start],
+#                     },
+#                 }
+#             ),
+#             metrics=[
+#                 'em',
+#                 'f1',
+#             ],
+#             identifier=self.__class__.__name__,
+#         )
 
 # Evaluation Hierarchy
 # --------------------

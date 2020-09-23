@@ -2,8 +2,14 @@ import tarfile
 import urllib.request
 from typing import List, Dict
 
-from bootleg.annotator import Annotator
-from bootleg.utils.parser_utils import get_full_config
+try:
+    from bootleg.annotator import Annotator
+    from bootleg.utils.parser_utils import get_full_config
+except ImportError:
+    _bootleg_available = False
+else:
+    _bootleg_available = True
+
 from torch import cuda
 
 from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
@@ -19,6 +25,10 @@ class Bootleg(SingleColumnCachedOperation):
                  device: str = None,
                  *args,
                  **kwargs):
+
+        if not _bootleg_available:
+            # TODO(karan): add instructions to install bootleg
+            raise ImportError("Bootleg not available for import. Please install Bootleg.")
 
         super(Bootleg, self).__init__(
             threshold=threshold,

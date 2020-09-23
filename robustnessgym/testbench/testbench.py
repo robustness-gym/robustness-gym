@@ -1,13 +1,11 @@
 from typing import *
 
-import cytoolz as tz
-import numpy as np
 import pandas as pd
 
 from robustnessgym.model import Model
 from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
 from robustnessgym.slice import Slice
-from robustnessgym.task import Task
+from robustnessgym.tasks.task import Task
 
 
 # TODO(karan): make the TestBench hashable

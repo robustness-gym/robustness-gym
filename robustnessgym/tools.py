@@ -2,6 +2,7 @@ import hashlib
 import inspect
 import progressbar
 import json
+import yaml
 from functools import partial
 from typing import Mapping, Sequence, List
 
@@ -80,3 +81,79 @@ class DownloadProgressBar():
             self.pbar.update(downloaded)
         else:
             self.pbar.finish()
+
+
+def prettyprint(s: str) -> None:
+    """
+    Prettyprint with YAML.
+
+    Args:
+        s: string
+
+    """
+    if hasattr(s, '__dict__'):
+        print(yaml.dump(s.__dict__))
+    elif isinstance(s, dict):
+        print(yaml.dump(s))
+    else:
+        print(s)
+
+
+def get_all_leaf_paths(coll):
+    """
+    Returns a list of paths to all leaf nodes in a nested dict.
+    Paths can travel through lists and the index is inserted into the path.
+    """
+    if isinstance(coll, Mapping):
+        return list(tz.concat(map(lambda t: list(map(lambda p: [t[0]] + p,
+                                                     get_all_leaf_paths(t[1])
+                                                     )),
+                                  coll.items()))
+                    )
+
+    elif isinstance(coll, list):
+        return list(tz.concat(map(lambda t: list(map(lambda p: [t[0]] + p,
+                                                     get_all_leaf_paths(t[1])
+                                                     )),
+                                  enumerate(coll)))
+                    )
+    else:
+        return [[]]
+
+
+def get_all_paths(coll, prefix_path=(), stop_at=None, stop_below=None):
+    """
+    Given a collection, by default returns paths to all the leaf nodes.
+    Use stop_at to truncate paths at the given key.
+    Use stop_below to truncate paths one level below the given key.
+    """
+    assert stop_at is None or stop_below is None, 'Only one of stop_at or stop_below can be used.'
+    if stop_below is not None and stop_below in str(tz.last(tz.take(len(prefix_path) - 1, prefix_path))):
+        return [[]]
+    if stop_at is not None and stop_at in str(tz.last(prefix_path)):
+        return [[]]
+    if isinstance(coll, Mapping) or isinstance(coll, list):
+        if isinstance(coll, Mapping):
+            items = coll.items()
+        else:
+            items = enumerate(coll)
+
+        return list(tz.concat(map(lambda t: list(map(lambda p: [t[0]] + p,
+                                                     get_all_paths(t[1],
+                                                                   prefix_path=list(prefix_path) + [t[0]],
+                                                                   stop_at=stop_at,
+                                                                   stop_below=stop_below)
+                                                     )),
+                                  items))
+                    )
+    else:
+        return [[]]
+
+
+def get_only_paths(coll, pred, prefix_path=(), stop_at=None, stop_below=None):
+    """
+    Get all paths that satisfy the predicate fn pred.
+    First gets all paths and then filters them based on pred.
+    """
+    all_paths = get_all_paths(coll, prefix_path=prefix_path, stop_at=stop_at, stop_below=stop_below)
+    return list(filter(pred, all_paths))

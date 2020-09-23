@@ -1,4 +1,4 @@
-from robustnessgym.task import *
+from robustnessgym.tasks.task import *
 
 dataset_to_task = {
     # Natural Language Inference

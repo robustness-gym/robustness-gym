@@ -6,4 +6,4 @@ ATTACK = 'attack'
 AUGMENTATION = 'augmentation'
 CURATION = 'curation'
 
-USE_NLP = True
+USE_NLP = False

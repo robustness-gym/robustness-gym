@@ -5,7 +5,7 @@ import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
 from transformers import *
 
-from robustnessgym.task import Task
+from robustnessgym.tasks.task import Task
 from robustnessgym.dataset import Dataset
 
 

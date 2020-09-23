@@ -101,11 +101,19 @@ from .slicebuilders.augmentation import Augmentation
 from .slicebuilders.curator import Curator
 from .slicebuilders.subpopulation import Subpopulation
 from .storage import PicklerMixin
-from .task import (
+from robustnessgym.tasks.task import (
     Task,
     NaturalLanguageInference,
     BinaryNaturalLanguageInference,
     TernaryNaturalLanguageInference,
+
+    Summarization,
+
+    Sentiment,
+    BinarySentiment,
+
+    QuestionAnswering,
+    ExtractiveQuestionAnswering,
 )
 from .tools import (
     recmerge,
