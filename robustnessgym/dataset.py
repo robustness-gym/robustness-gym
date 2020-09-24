@@ -484,12 +484,22 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     def __getstate__(self):
         state = super(Dataset, self).__getstate__()
-        state["interactions"] = self.dumps_interactions()
-        state["identifier"] = state["identifier"].dumps()
+        if "interactions" in state:
+            state["interactions"] = self.dumps_interactions()
+        if "identifier" in state:
+            state["identifier"] = state["identifier"].dumps()
         return state
 
     def __setstate__(self, state):
         state = dict(state)
-        state["interactions"] = self.loads_interactions(state["interactions"]).interactions
-        state["identifier"] = Identifier.loads(state["identifier"])
+        if "interactions" in state:
+            state["interactions"] = self.loads_interactions(state["interactions"]).interactions
+        if "identifier" in state:
+            state["identifier"] = Identifier.loads(state["identifier"])
         super(Dataset, self).__setstate__(state)
+
+    @classmethod
+    def load_from_disk(cls, dataset_path: str) -> Dataset:
+        dataset = datasets.Dataset.load_from_disk(dataset_path)
+        dataset.__class__ = cls
+        return dataset
