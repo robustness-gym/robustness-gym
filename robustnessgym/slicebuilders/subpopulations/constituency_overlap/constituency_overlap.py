@@ -47,7 +47,7 @@ class ConstituencyOverlapSubpopulation(ScoreSubpopulation,
 
 
 class ConstituencySubtreeSubpopulation(ScoreSubpopulation,
-                                       AllenConstituencyParser,
+                                       # AllenConstituencyParser,
                                        ):
 
     def __init__(self,
@@ -91,7 +91,7 @@ class ConstituencySubtreeSubpopulation(ScoreSubpopulation,
 
 
 class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation,
-                                            AllenConstituencyParser,
+                                            # AllenConstituencyParser,
                                             ):
 
     def __init__(self,
