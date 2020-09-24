@@ -499,7 +499,23 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         super(Dataset, self).__setstate__(state)
 
     @classmethod
-    def load_from_disk(cls, dataset_path: str) -> Dataset:
-        dataset = datasets.Dataset.load_from_disk(dataset_path)
-        dataset.__class__ = cls
+    def load_from_disk(cls,
+                       dataset_path: str) -> Dataset:
+        """
+        Load the dataset from a dataset directory
+
+        Args:
+            dataset_path (``str``): path of the dataset directory where the dataset will be loaded from
+        """
+        with open(os.path.join(dataset_path, "state.json"), "r") as state_file:
+            state = json.load(state_file)
+        with open(os.path.join(dataset_path, "dataset_info.json"), "r") as dataset_info_file:
+            dataset_info = json.load(dataset_info_file)
+        state["_info"] = json.dumps(dataset_info)
+        dataset = cls.from_dict({})
+        state = {k: state[k] for k in dataset.__dict__.keys()}  # in case we add new fields
+        # Change path to absolute path
+        for data_file in state.get("_data_files", []) + state.get("_indices_data_files", []):
+            data_file["filename"] = os.path.join(dataset_path, data_file["filename"])
+        dataset.__setstate__(state)
         return dataset
