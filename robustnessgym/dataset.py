@@ -212,8 +212,8 @@ BatchOrDataset = Union[Batch, 'Dataset']
 class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     def __init__(self,
-                 identifier: Union[Identifier, str],
                  *args,
+                 identifier: Identifier = None,
                  **kwargs):
 
         if len(args) == 1 and isinstance(args[0], datasets.Dataset):
@@ -225,7 +225,11 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         # Call the superclass constructor
         InteractionTapeHierarchyMixin.__init__(self)
 
-        self.identifier = identifier
+        self.identifier = Identifier(
+            _name=self.info.builder_name,
+            split=str(self.split),
+            version=self.version
+        ) if not identifier else identifier
 
         # Keep track of the original dataset keys
         self.original_keys = list(self.features.keys())
@@ -293,18 +297,20 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         if isinstance(dataset, dict):
             return dict(map(
                 lambda t: (t[0],
-                           cls(Identifier(
-                               _name=t[1].info.builder_name,
-                               split=str(t[1].split),
-                               version=t[1].version
+                           cls(t[1],
+                               identifier=Identifier(
+                                   _name=t[1].info.builder_name,
+                                   split=str(t[1].split),
+                                   version=t[1].version),
+                               )
                            ),
-                               t[1])),
                 dataset.items())
             )
         else:
-            return cls(Identifier(_name=dataset.info.builder_name,
-                                  split=str(dataset.split),
-                                  version=dataset.version), dataset)
+            return cls(dataset,
+                       identifier=Identifier(_name=dataset.info.builder_name,
+                                             split=str(dataset.split),
+                                             version=dataset.version))
 
     @classmethod
     def from_json(cls,

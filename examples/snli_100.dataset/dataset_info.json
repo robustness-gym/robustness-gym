@@ -1,0 +1,108 @@
+{
+  "builder_name": "snli",
+  "citation": "@inproceedings{snli:emnlp2015,\n\tAuthor = {Bowman, Samuel R. and Angeli, Gabor and Potts, Christopher, and Manning, Christopher D.},\n\tBooktitle = {Proceedings of the 2015 Conference on Empirical Methods in Natural Language Processing (EMNLP)},\n\tPublisher = {Association for Computational Linguistics},\n\tTitle = {A large annotated corpus for learning natural language inference},\n\tYear = {2015}\n}\n",
+  "config_name": "plain_text",
+  "dataset_size": 68691466,
+  "description": "The SNLI corpus (version 1.0) is a collection of 570k human-written English\nsentence pairs manually labeled for balanced classification with the labels\nentailment, contradiction, and neutral, supporting the task of natural language\ninference (NLI), also known as recognizing textual entailment (RTE).\n",
+  "download_checksums": {},
+  "download_size": 94550081,
+  "features": {
+    "cache": {
+      "AllenConstituencyParser()": {
+        "hypothesis": {
+          "_type": "Value",
+          "dtype": "string",
+          "id": null
+        },
+        "premise": {
+          "_type": "Value",
+          "dtype": "string",
+          "id": null
+        }
+      },
+      "AllenSemanticRoleLabeler()": {
+        "hypothesis": {
+          "_type": "Value",
+          "dtype": "string",
+          "id": null
+        },
+        "premise": {
+          "_type": "Value",
+          "dtype": "string",
+          "id": null
+        }
+      },
+      "Spacy(lang=en_core_web_sm, neuralcoref=False)": {
+        "hypothesis": {
+          "_type": "Value",
+          "dtype": "string",
+          "id": null
+        },
+        "premise": {
+          "_type": "Value",
+          "dtype": "string",
+          "id": null
+        }
+      }
+    },
+    "hypothesis": {
+      "_type": "Value",
+      "dtype": "string",
+      "id": null
+    },
+    "index": {
+      "_type": "Value",
+      "dtype": "string",
+      "id": null
+    },
+    "label": {
+      "_type": "ClassLabel",
+      "id": null,
+      "names": [
+        "entailment",
+        "neutral",
+        "contradiction"
+      ],
+      "names_file": null,
+      "num_classes": 3
+    },
+    "premise": {
+      "_type": "Value",
+      "dtype": "string",
+      "id": null
+    }
+  },
+  "homepage": "https://nlp.stanford.edu/projects/snli/",
+  "license": "",
+  "post_processed": null,
+  "post_processing_size": null,
+  "size_in_bytes": 163241547,
+  "splits": {
+    "test": {
+      "dataset_name": "snli",
+      "name": "test",
+      "num_bytes": 1263912,
+      "num_examples": 10000
+    },
+    "train": {
+      "dataset_name": "snli",
+      "name": "train",
+      "num_bytes": 66159510,
+      "num_examples": 550152
+    },
+    "validation": {
+      "dataset_name": "snli",
+      "name": "validation",
+      "num_bytes": 1268044,
+      "num_examples": 10000
+    }
+  },
+  "supervised_keys": null,
+  "version": {
+    "description": "New split API (https://tensorflow.org/datasets/splits)",
+    "major": 1,
+    "minor": 0,
+    "patch": 0,
+    "version_str": "1.0.0"
+  }
+}
