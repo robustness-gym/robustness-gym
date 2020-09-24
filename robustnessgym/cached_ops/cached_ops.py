@@ -618,7 +618,7 @@ def stow(dataset: Dataset,
         """
         for cached_op, list_of_columns in cached_ops.items():
             for columns in list_of_columns:
-                batch = cached_op.process_batch(batch, columns=columns)
+                batch = cached_op(batch, columns=columns)
 
         return batch
 

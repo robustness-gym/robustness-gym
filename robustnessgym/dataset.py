@@ -485,7 +485,6 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
     def __getstate__(self):
         state = super(Dataset, self).__getstate__()
         state["interactions"] = self.dumps_interactions()
-        print(state)
         state["identifier"] = state["identifier"].dumps()
         return state
 
