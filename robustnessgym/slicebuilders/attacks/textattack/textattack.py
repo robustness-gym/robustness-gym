@@ -5,10 +5,11 @@ import cytoolz as tz
 import numpy as np
 import textattack.attack_recipes as attack_recipes
 from textattack.attack_recipes import AttackRecipe
-from textattack.models.wrappers import ModelWrapper
+from textattack.models.wrappers import ModelWrapper, HuggingFaceModelWrapper
 
 from robustnessgym.identifier import Identifier
 from robustnessgym.slicebuilders.attack import Attack
+from robustnessgym.model import Model
 
 
 class TextAttack(Attack):
@@ -25,6 +26,17 @@ class TextAttack(Attack):
         )
 
         self.attack = attack
+
+    @classmethod
+    def recipes(cls):
+        recipes = []
+        for possible_recipe_name in dir(attack_recipes):
+            possible_recipe = getattr(attack_recipes, possible_recipe_name)
+            if hasattr(possible_recipe, 'mro'):
+                for _cls in possible_recipe.mro():
+                    if _cls == AttackRecipe and possible_recipe != AttackRecipe:
+                        recipes.append(possible_recipe_name)
+        return recipes
 
     def apply(self,
               skeleton_batches: List[Dict[str, List]],
@@ -67,3 +79,8 @@ class TextAttack(Attack):
                     recipe: str,
                     model: ModelWrapper):
         return cls(attack=getattr(attack_recipes, recipe).build(model=model))
+
+    @classmethod
+    def wrap_huggingface_model(cls,
+                               model: Model) -> ModelWrapper:
+        return HuggingFaceModelWrapper(model=model.model, tokenizer=model.tokenizer)

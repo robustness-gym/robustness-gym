@@ -1,12 +1,14 @@
 import json
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Union
 
 import cytoolz as tz
 import numpy as np
+from tqdm import tqdm
 
+from robustnessgym.dataset import Dataset
 from robustnessgym.constants import *
 from robustnessgym.identifier import Identifier
-from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
+from robustnessgym.slicebuilders.slicebuilder import SliceBuilder, SliceBuilderCollection
 
 
 class Subpopulation(SliceBuilder):
@@ -200,15 +202,53 @@ class Subpopulation(SliceBuilder):
 class SubpopulationCollection(Subpopulation):
 
     def __init__(self,
-                 subpopulations: List[Subpopulation],
+                 subpopulations: List[SliceBuilder],
                  *args,
                  **kwargs):
         super(SubpopulationCollection, self).__init__(
             identifiers=list(tz.concat([subpopulation.identifiers for subpopulation in subpopulations])),
+            *args,
+            **kwargs
         )
+
+        # TODO(karan): some subpopulations aren't compatible with each other (e.g. single column vs. multi column):
+        #  add some smarter logic here to handle this
 
         # Store the subpopulations
         self.subpopulations = subpopulations
+
+    def __call__(self,
+                 batch_or_dataset: Union[Dict[str, List], Dataset],
+                 columns: List[str],
+                 mask: List[int] = None,
+                 store_compressed: bool = None,
+                 store: bool = None,
+                 *args,
+                 **kwargs):
+
+        if mask:
+            raise NotImplementedError("Mask not supported for SubpopulationCollection yet.")
+
+        slices = []
+        slice_membership = []
+        # Apply each slicebuilder in sequence
+        for i, slicebuilder in tqdm(enumerate(self.subpopulations)):
+            # Apply the slicebuilder
+            batch_or_dataset, slices_i, slice_membership_i = slicebuilder(batch_or_dataset=batch_or_dataset,
+                                                                          columns=columns,
+                                                                          mask=mask,
+                                                                          store_compressed=store_compressed,
+                                                                          store=store,
+                                                                          *args,
+                                                                          **kwargs)
+
+            # Add in the slices and slice membership
+            slices.extend(slices_i)
+            slice_membership.append(slice_membership_i)
+
+        slice_membership = np.concatenate(slice_membership, axis=1)
+
+        return batch_or_dataset, slices, slice_membership
 
     def apply(self,
               slice_membership: np.ndarray,

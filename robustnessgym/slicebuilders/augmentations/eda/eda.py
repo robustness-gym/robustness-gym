@@ -10,27 +10,24 @@ from robustnessgym.slicebuilders.augmentations.eda._eda import eda
 class EasyDataAugmentation(Augmentation):
 
     def __init__(self,
-                 num_aug=1,
+                 num_transformed=1,
                  alpha_sr=0.1,
                  alpha_ri=0.1,
                  alpha_rs=0.1,
                  p_rd=0.1):
 
         super(EasyDataAugmentation, self).__init__(
-            identifiers=[
-                Identifier(
-                    _name=f"{self.__class__.__name__}-{i + 1}",
-                    alpha_sr=alpha_sr,
-                    alpha_ri=alpha_ri,
-                    alpha_rs=alpha_rs,
-                    p_rd=p_rd,
-                )
-                for i in range(num_aug)
-            ]
+            identifiers=Identifier.range(
+                n=num_transformed,
+                _name=self.__class__.__name__,
+                alpha_sr=alpha_sr,
+                alpha_ri=alpha_ri,
+                alpha_rs=alpha_rs,
+                p_rd=p_rd,
+            )
         )
 
         # Set the parameters
-        self.num_aug = num_aug
         self.alpha_sr = alpha_sr
         self.alpha_ri = alpha_ri
         self.alpha_rs = alpha_rs

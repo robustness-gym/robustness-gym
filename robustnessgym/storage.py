@@ -1,10 +1,10 @@
 import dill as pickle
 
 
-class PicklerMixin:
+class StorageMixin:
 
     def __init__(self, *args, **kwargs):
-        super(PicklerMixin, self).__init__(*args, **kwargs)
+        super(StorageMixin, self).__init__(*args, **kwargs)
 
     def save(self, path: str) -> None:
         """

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import os
 import pathlib
 from functools import partial
 from itertools import compress
@@ -7,17 +9,18 @@ from typing import *
 
 import cytoolz as tz
 import numpy as np
+from tqdm import tqdm
 
 from robustnessgym.cached_ops.cached_ops import CachedOperation
 from robustnessgym.constants import *
 from robustnessgym.dataset import Dataset, Batch
 from robustnessgym.identifier import Identifier
 from robustnessgym.slice import Slice
-from robustnessgym.storage import PicklerMixin
+from robustnessgym.storage import StorageMixin
 from robustnessgym.tools import recmerge
 
 
-class SliceBuilder(PicklerMixin):
+class SliceBuilder(StorageMixin):
     """
     Base class for builders that output slices.
     """
@@ -29,6 +32,7 @@ class SliceBuilder(PicklerMixin):
     logdir.mkdir(parents=True, exist_ok=True)
 
     CATEGORIES = [
+        GENERIC,
         SUBPOPULATION,
         ATTACK,
         AUGMENTATION,
@@ -120,6 +124,9 @@ class SliceBuilder(PicklerMixin):
         else:
             raise NotImplementedError
 
+    def __repr__(self):
+        return f"{self.category}[{self.__class__.__name__}(num_slices={self.num_slices})]"
+
     @property
     def num_slices(self):
         return len(self.identifiers)
@@ -185,17 +192,39 @@ class SliceBuilder(PicklerMixin):
                         store: bool = True,
                         *args,
                         **kwargs) -> Dataset:
-        return dataset.map(
-            partial(self.prepare_batch,
-                    columns=columns,
-                    mask=mask,
-                    store_compressed=store_compressed,
-                    store=store,
-                    *args,
-                    **kwargs),
-            batched=True,
-            batch_size=batch_size,
-        )
+        try:
+            return dataset.map(
+                partial(self.prepare_batch,
+                        columns=columns,
+                        mask=mask,
+                        store_compressed=store_compressed,
+                        store=store,
+                        *args,
+                        **kwargs),
+                batched=True,
+                batch_size=batch_size,
+            )
+        except TypeError:
+            # Batch the dataset, and process each batch
+            all_batches = [self.prepare_batch(
+                batch=batch,
+                columns=columns,
+                mask=mask,
+                store_compressed=store_compressed,
+                store=store,
+                *args,
+                **kwargs
+            )
+                for batch in dataset.batch(batch_size)
+            ]
+
+            # Update the dataset efficiently by reusing all_batches
+            return dataset.map(
+                lambda examples, indices: all_batches[indices[0] // batch_size],
+                batched=True,
+                batch_size=batch_size,
+                with_indices=True
+            )
 
     def process_dataset(self,
                         dataset: Dataset,
@@ -261,8 +290,11 @@ class SliceBuilder(PicklerMixin):
             with_indices=True
         )
 
-        # Create the dataset slices
-        slices = [Slice.from_batches(slice_batches) for slice_batches in zip(*all_sliced_batches)]
+        # Suppress verbose output
+        with open(os.devnull, 'w') as devnull:
+            with contextlib.redirect_stdout(devnull):
+                # Create the dataset slices
+                slices = [Slice.from_batches(slice_batches) for slice_batches in zip(*all_sliced_batches)]
 
         # TODO(karan): make this more systematic
         for i, sl in enumerate(slices):
@@ -333,3 +365,56 @@ class SliceBuilder(PicklerMixin):
         contains the subset of examples in 'batch' that lies in that slice.
         """
         return [tz.valmap(lambda v: list(compress(v, s)), batch) for s in slice_membership.T]
+
+
+class SliceBuilderCollection(SliceBuilder):
+
+    def __init__(self,
+                 slicebuilders: List[SliceBuilder],
+                 *args,
+                 **kwargs):
+        super(SliceBuilderCollection, self).__init__(
+            category=GENERIC,
+            identifiers=list(tz.concat([slicebuilder.identifiers for slicebuilder in slicebuilders])),
+            *args,
+            **kwargs
+        )
+
+        # TODO(karan): some slicebuilders aren't compatible with each other (e.g. single column vs. multi column):
+        #  add some smarter logic here to handle this
+
+        # Store the subpopulations
+        self.slicebuilders = slicebuilders
+
+    def __call__(self,
+                 batch_or_dataset: Union[Dict[str, List], Dataset],
+                 columns: List[str],
+                 mask: List[int] = None,
+                 store_compressed: bool = None,
+                 store: bool = None,
+                 *args,
+                 **kwargs):
+
+        if mask:
+            raise NotImplementedError("Mask not supported for SliceBuilderCollection yet.")
+
+        slices = []
+        slice_membership = []
+        # Apply each slicebuilder in sequence
+        for i, slicebuilder in tqdm(enumerate(self.slicebuilders)):
+            # Apply the slicebuilder
+            batch_or_dataset, slices_i, slice_membership_i = slicebuilder(batch_or_dataset=batch_or_dataset,
+                                                                          columns=columns,
+                                                                          mask=mask,
+                                                                          store_compressed=store_compressed,
+                                                                          store=store,
+                                                                          *args,
+                                                                          **kwargs)
+
+            # Add in the slices and slice membership
+            slices.extend(slices_i)
+            slice_membership.append(slice_membership_i)
+
+        slice_membership = np.concatenate(slice_membership, axis=1)
+
+        return batch_or_dataset, slices, slice_membership

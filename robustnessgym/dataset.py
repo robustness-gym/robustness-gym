@@ -334,7 +334,10 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
         TODO(karan): disable preprocessing in this case
         """
-        return cls(identifier, table(batch))
+        return cls(
+            table(batch),
+            identifier=identifier
+        )
 
     @classmethod
     def from_batches(cls,
@@ -344,8 +347,10 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         """
         Convert a list of batches to a dataset.
         """
-        return cls.from_batch(tz.merge_with(tz.concat, *batches),
-                              identifier)
+        return cls.from_batch(
+            tz.merge_with(tz.concat, *batches),
+            identifier=identifier,
+        )
 
     def batch(self,
               batch_size: int = 32):
@@ -525,3 +530,16 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             data_file["filename"] = os.path.join(dataset_path, data_file["filename"])
         dataset.__setstate__(state)
         return dataset
+
+
+def transpose_batch(batch: Batch):
+    """
+    Transpose a batch of data from a dict of lists to a list of dicts.
+
+    Args:
+        batch: batch of data which is a dictionary mapping columns to lists
+
+    Returns: list of dicts, each dict corresponding to a single example
+
+    """
+    return [dict(zip(batch, t)) for t in zip(*batch.values())]

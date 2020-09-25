@@ -13,17 +13,6 @@ class ConstituencyOverlapSubpopulation(ScoreSubpopulation,
                                        # AllenConstituencyParser,
                                        ):
 
-    def __init__(self,
-                 intervals: List[Tuple[int, int]],
-                 *args,
-                 **kwargs
-                 ):
-        super(ConstituencyOverlapSubpopulation, self).__init__(
-            intervals=intervals,
-            *args,
-            **kwargs
-        )
-
     def score(self,
               batch: Dict[str, List],
               columns: List[str],
@@ -93,16 +82,6 @@ class ConstituencySubtreeSubpopulation(ScoreSubpopulation,
 class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation,
                                             # AllenConstituencyParser,
                                             ):
-
-    def __init__(self,
-                 intervals: List[Tuple[int, int]],
-                 *args,
-                 **kwargs):
-        super(FuzzyConstituencySubtreeSubpopulation, self).__init__(
-            intervals=intervals,
-            *args,
-            **kwargs
-        )
 
     def score(self,
               batch: Dict[str, List],

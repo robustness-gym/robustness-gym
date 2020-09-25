@@ -15,20 +15,22 @@ class NlpAug(SingleColumnAugmentation):
                  identifiers: List[Identifier] = None,
                  *args,
                  **kwargs):
+        assert isinstance(pipeline, Pipeline), \
+            "`pipeline` must be an nlpaug Pipeline object. " \
+            "Please use \nfrom nlpaug.flow import Sequential\nrg.NlpAug(pipeline=Sequential(flow=[...]))."
+
         # Superclass call
         super(NlpAug, self).__init__(
             num_transformed=num_transformed,
-            identifiers=[
-                Identifier(
-                    _name=f"{self.__class__.__name__}-{i + 1}",
-                    pipeline=[Identifier(_name=augmenter.name,
-                                         src=augmenter.aug_src,
-                                         action=augmenter.action,
-                                         method=augmenter.method)
-                              for augmenter in pipeline],
-                )
-                for i in range(num_transformed)
-            ] if not identifiers else identifiers,
+            identifiers=Identifier.range(
+                n=num_transformed,
+                _name=self.__class__.__name__,
+                pipeline=[Identifier(_name=augmenter.name,
+                                     src=augmenter.aug_src if hasattr(augmenter, 'aug_src') else None,
+                                     action=augmenter.action,
+                                     method=augmenter.method)
+                          for augmenter in pipeline]
+            ) if not identifiers else identifiers,
             *args,
             **kwargs
         )

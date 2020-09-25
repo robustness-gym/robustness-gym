@@ -29,6 +29,7 @@ from robustnessgym.slicebuilders.augmentations.nlpaug.nlpaug import (
 )
 from robustnessgym.slicebuilders.slicebuilder import (
     SliceBuilder,
+    SliceBuilderCollection,
 )
 from robustnessgym.slicebuilders.subpopulations.constituency_overlap.constituency_overlap import (
     ConstituencyOverlapSubpopulation,
@@ -99,8 +100,11 @@ from .slice import Slice
 from .slicebuilders.attack import Attack
 from .slicebuilders.augmentation import Augmentation
 from .slicebuilders.curator import Curator
-from .slicebuilders.subpopulation import Subpopulation
-from .storage import PicklerMixin
+from .slicebuilders.subpopulation import (
+    Subpopulation,
+    SubpopulationCollection,
+)
+from .storage import StorageMixin
 from robustnessgym.tasks.task import (
     Task,
     NaturalLanguageInference,

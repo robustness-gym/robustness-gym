@@ -25,17 +25,15 @@ class FairseqBacktranslation(SingleColumnAugmentation):
                  tgt2src_temp: float = 1.0,
                  ):
         super(FairseqBacktranslation, self).__init__(
-            identifiers=[
-                Identifier(
-                    _name=f"{self.__class__.__name__}-{i + 1}",
-                    langs=langs,
-                    src2tgt_topk=src2tgt_topk,
-                    src2tgt_temp=src2tgt_temp,
-                    tgt2src_topk=tgt2src_topk,
-                    tgt2src_temp=tgt2src_temp,
-                )
-                for i in range(n_src2tgt * n_tgt2src)
-            ]
+            identifiers=Identifier.range(
+                n=n_src2tgt * n_tgt2src,
+                _name=self.__class__.__name__,
+                langs=langs,
+                src2tgt_topk=src2tgt_topk,
+                src2tgt_temp=src2tgt_temp,
+                tgt2src_topk=tgt2src_topk,
+                tgt2src_temp=tgt2src_temp,
+            )
         )
 
         # Set the parameters
