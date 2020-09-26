@@ -277,6 +277,15 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         return cls(dataset.info.builder_name, dataset)
 
     @classmethod
+    def list_datasets(cls) -> List[str]:
+        """
+        List datasets on Huggingface.
+
+        Returns: list of datasets
+        """
+        return datasets.list_datasets()
+
+    @classmethod
     def load_dataset(cls,
                      *args,
                      **kwargs):

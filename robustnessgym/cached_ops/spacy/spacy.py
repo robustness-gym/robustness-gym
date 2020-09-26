@@ -67,7 +67,11 @@ class Spacy(SingleColumnCachedOperation):
                 import neuralcoref as nc
                 nc.add_to_pipe(self.nlp)
             except ImportError:
-                print("Can't import neuralcoref.")
+                print("Can't import neuralcoref. Please install neuralcoref using:\n"
+                      "git clone https://github.com/huggingface/neuralcoref.git\n"
+                      "cd neuralcoref\n"
+                      "pip install -r requirements.txt\n"
+                      "pip install -e .")
 
     def __call__(self,
                  batch_or_dataset: BatchOrDataset,
