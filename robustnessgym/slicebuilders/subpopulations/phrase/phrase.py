@@ -199,5 +199,67 @@ class HasAllPhrases(Subpopulation):
         return cls(phrases=phrases)
 
 
-class HasArticle(HasAnyPhrase):
-    pass
+class HasIndefiniteArticle(HasAnyPhrase):
+
+    def __init__(self):
+        super(HasIndefiniteArticle, self).__init__(
+            phrases=['a', 'an'],
+            identifier=Identifier(_name=self.__class__.__name__)
+        )
+
+
+class HasDefiniteArticle(HasAnyPhrase):
+    def __init__(self):
+        super(HasDefiniteArticle, self).__init__(
+            phrases=['the'],
+            identifier=Identifier(_name=self.__class__.__name__)
+        )
+
+
+class HasTemporalPreposition(HasAnyPhrase):
+
+    def __init__(self):
+        super(HasTemporalPreposition, self).__init__(
+            phrases=['after', 'before', 'past'],
+            identifier=Identifier(_name=self.__class__.__name__),
+        )
+
+
+class HasPosessivePreposition(HasAnyPhrase):
+
+    def __init__(self):
+        super(HasPosessivePreposition, self).__init__(
+            phrases=['inside of', 'with', 'within'],
+            identifier=Identifier(_name=self.__class__.__name__)
+        )
+
+
+class HasComparison(HasAnyPhrase):
+
+    def __init__(self):
+        super(HasComparison, self).__init__(
+            phrases=['more', 'less', 'better', 'worse', 'bigger', 'smaller'],
+            identifier=Identifier(_name=self.__class__.__name__),
+        )
+
+
+class HasQuantifier(HasAnyPhrase):
+
+    def __init__(self):
+        super(HasQuantifier, self).__init__(
+            phrases=['all', 'some', 'none'],
+            identifier=Identifier(_name=self.__class__.__name__)
+        )
+
+
+class HasNegation(HasAnyPhrase):
+
+    def __init__(self):
+        super(HasNegation, self).__init__(
+            phrases=[
+                'no', 'not', 'none', 'noone ', 'nobody', 'nothing', 'neither', 'nowhere', 'never', 'hardly',
+                'scarcely', 'barely', 'doesnt', 'isnt', 'wasnt', 'shouldnt', 'wouldnt', 'couldnt', 'wont', 'cant',
+                'dont',
+            ],
+            identifier=Identifier(_name=self.__class__.__name__),
+        )
