@@ -585,6 +585,7 @@ class ScoreOperation(CachedOperation):
 
 def stow(dataset: Dataset,
          cached_ops: Dict[CachedOperation, List[List[str]]],
+         batch_size: int = 32,
          load_from_cache_file: bool = True):
     """
     Apply a list of cached operations in sequence.
@@ -637,13 +638,25 @@ def stow(dataset: Dataset,
     )
 
     # Map the cached operations over the dataset
-    dataset = dataset.map(
-        _map_fn,
-        batched=True,
-        batch_size=32,
-        cache_file_name='cache-' + str(abs(val)) + '.arrow',
-        load_from_cache_file=load_from_cache_file
-    )
+    try:
+        dataset = dataset.map(
+            _map_fn,
+            batched=True,
+            batch_size=32,
+            cache_file_name='cache-' + str(abs(val)) + '.arrow',
+            load_from_cache_file=load_from_cache_file
+        )
+    except TypeError:
+        # Batch the dataset, and process each batch
+        all_batches = [_map_fn(batch=batch) for batch in dataset.batch(batch_size)]
+
+        # Update the dataset efficiently by reusing all_batches
+        dataset = dataset.map(
+            lambda examples, indices: all_batches[indices[0] // batch_size],
+            batched=True,
+            batch_size=batch_size,
+            with_indices=True,
+        )
 
     # Update the Dataset history
     for cached_op, list_of_columns in cached_ops.items():

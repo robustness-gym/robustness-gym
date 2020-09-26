@@ -5,6 +5,7 @@ import os
 import pathlib
 from functools import partial
 from itertools import compress
+from pickle import PicklingError
 from typing import *
 
 import cytoolz as tz
@@ -204,7 +205,7 @@ class SliceBuilder(StorageMixin):
                 batched=True,
                 batch_size=batch_size,
             )
-        except TypeError:
+        except TypeError or PicklingError:
             # Batch the dataset, and process each batch
             all_batches = [self.prepare_batch(
                 batch=batch,

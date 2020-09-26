@@ -116,12 +116,12 @@ class BinarySentiment(Sentiment):
                     ('text', Value(dtype='string')),
                 ]),
                 grounding_candidates={
-                    'text': {'text'},
+                    'text': {'text', 'sentence'},
                 }
             ),
             output_schema=Schema(
                 features=OrderedDict([
-                    ('label', ClassLabel(names=['positive', 'negative'])),
+                    ('label', ClassLabel(names=['negative', 'positive'])),
                 ]),
                 grounding_candidates={
                     'label': {'label'},
