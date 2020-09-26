@@ -15,7 +15,6 @@ pandas==1.0.3
 nlp
 datasets
 textblob
-torch
 plotly==4.9.0
 torch==1.5.0
 pyahocorasick==1.4.0
