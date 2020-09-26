@@ -613,50 +613,54 @@ def stow(dataset: Dataset,
             # Remove the op entirely
             cached_ops.pop(cached_op)
 
-    def _map_fn(batch: Batch):
-        """
-        Consolidate the application of the CachedOperations passed to stow into a single mappable function.
-        """
-        for cached_op, list_of_columns in cached_ops.items():
-            for columns in list_of_columns:
-                batch = cached_op(batch, columns=columns)
-
-        return batch
-
-    # Compute the hash value
-    val = 0
     for cached_op, list_of_columns in cached_ops.items():
         for columns in list_of_columns:
-            val ^= cached_op.get_cache_hash(columns=columns)
+            dataset = cached_op(dataset, columns=columns, batch_size=batch_size)
 
-    # Combine with the hash for the dataset on which the cached ops are applied
-    val ^= persistent_hash(
-        # TODO(karan): move this to Dataset
-        "-".join(
-            "-".join(str(k) + "-" + str(v) for k, v in f.items()) for f in dataset._data_files
-        )
-    )
-
-    # Map the cached operations over the dataset
-    try:
-        dataset = dataset.map(
-            _map_fn,
-            batched=True,
-            batch_size=32,
-            cache_file_name='cache-' + str(abs(val)) + '.arrow',
-            load_from_cache_file=load_from_cache_file
-        )
-    except TypeError:
-        # Batch the dataset, and process each batch
-        all_batches = [_map_fn(batch=batch) for batch in dataset.batch(batch_size)]
-
-        # Update the dataset efficiently by reusing all_batches
-        dataset = dataset.map(
-            lambda examples, indices: all_batches[indices[0] // batch_size],
-            batched=True,
-            batch_size=batch_size,
-            with_indices=True,
-        )
+    # def _map_fn(batch: Batch):
+    #     """
+    #     Consolidate the application of the CachedOperations passed to stow into a single mappable function.
+    #     """
+    #     for cached_op, list_of_columns in cached_ops.items():
+    #         for columns in list_of_columns:
+    #             batch = cached_op(batch, columns=columns)
+    #
+    #     return batch
+    #
+    # # Compute the hash value
+    # val = 0
+    # for cached_op, list_of_columns in cached_ops.items():
+    #     for columns in list_of_columns:
+    #         val ^= cached_op.get_cache_hash(columns=columns)
+    #
+    # # Combine with the hash for the dataset on which the cached ops are applied
+    # val ^= persistent_hash(
+    #     # TODO(karan): move this to Dataset
+    #     "-".join(
+    #         "-".join(str(k) + "-" + str(v) for k, v in f.items()) for f in dataset._data_files
+    #     )
+    # )
+    #
+    # # Map the cached operations over the dataset
+    # try:
+    #     dataset = dataset.map(
+    #         _map_fn,
+    #         batched=True,
+    #         batch_size=32,
+    #         cache_file_name='cache-' + str(abs(val)) + '.arrow',
+    #         load_from_cache_file=load_from_cache_file
+    #     )
+    # except TypeError:
+    #     # Batch the dataset, and process each batch
+    #     all_batches = [_map_fn(batch=batch) for batch in dataset.batch(batch_size)]
+    #
+    #     # Update the dataset efficiently by reusing all_batches
+    #     dataset = dataset.map(
+    #         lambda examples, indices: all_batches[indices[0] // batch_size],
+    #         batched=True,
+    #         batch_size=batch_size,
+    #         with_indices=True,
+    #     )
 
     # Update the Dataset history
     for cached_op, list_of_columns in cached_ops.items():
