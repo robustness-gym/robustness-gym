@@ -1,8 +1,17 @@
 from typing import List, Dict, Tuple
+
 import numpy as np
+
+from robustnessgym.dataset import transpose_batch
 from robustnessgym.identifier import Identifier
 from robustnessgym.slicebuilders.attack import Attack
-from morpheus import MorpheusHuggingfaceNLI, MorpheusHuggingfaceQA
+
+try:
+    from morpheus import MorpheusHuggingfaceNLI, MorpheusHuggingfaceQA
+except ImportError:
+    _morpheus_available = False
+else:
+    _morpus_available = True
 
 
 class Morpheus(Attack):
@@ -12,6 +21,10 @@ class Morpheus(Attack):
             model: str,
             constrain_pos: bool = True
     ):
+
+        if not _morpheus_available:
+            raise ImportError("Please install morpheus.")
+
         super().__init__(
             identifiers=[Identifier(
                 self.__class__.__name__,
@@ -19,6 +32,8 @@ class Morpheus(Attack):
                 model=model,
             )],
         )
+
+        self.constrain_pos = constrain_pos
 
         self.dataset = dataset.lower()
         if self.dataset == 'mnli':
@@ -28,7 +43,6 @@ class Morpheus(Attack):
             self.attack = MorpheusHuggingfaceQA(model, squad2=is_squad2)
         else:
             raise NotImplementedError
-
 
     def apply(self,
               skeleton_batches: List[Dict[str, List]],
@@ -70,19 +84,18 @@ class Morpheus(Attack):
         return skeleton_batches, slice_membership
 
     # No type hint since the values can be ints or strings: Dict[str,]
-    def prepare_question_dict(self, example, question_col):
+    @classmethod
+    def prepare_question_dict(cls,
+                              example,
+                              question_col):
         question_dict = {'question': example[question_col]}
-        question_dict['answers'] = [{'answer_start':i[0],'text': i[1]}
-                              for i in zip(example['answers']['answer_start'],
-                                           example['answers']['text'])
-                              ]
+        question_dict['answers'] = [{'answer_start': i[0], 'text': i[1]}
+                                    for i in zip(example['answers']['answer_start'],
+                                                 example['answers']['text'])
+                                    ]
         question_dict['is_impossible'] = len(example['answers']['text']) == 0
         return question_dict
 
     def get_NLI_text_label(self, label: int) -> str:
         hf_labels = ["entailment", "neutral", "contradiction"]
         return hf_labels[label]
-
-    @staticmethod
-    def transpose_batch(batch: Dict[str, List]):
-        return [dict(zip(batch, t)) for t in zip(*batch.values())]
