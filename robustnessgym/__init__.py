@@ -79,6 +79,13 @@ from robustnessgym.slicebuilders.subpopulations.phrase.phrase import (
     HasPhrase,
     HasAnyPhrase,
     HasAllPhrases,
+    HasNegation,
+    HasTemporalPreposition,
+    HasComparison,
+    HasQuantifier,
+    HasDefiniteArticle,
+    HasIndefiniteArticle,
+    HasPosessivePreposition,
 )
 from robustnessgym.slicebuilders.subpopulations.phrase.wordlists import (
     HasCategoryPhrase
