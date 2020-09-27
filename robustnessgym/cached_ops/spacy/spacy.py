@@ -3,6 +3,7 @@ from typing import List
 
 import cytoolz as tz
 import spacy
+import torch
 from spacy.tokens import Doc
 
 from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
@@ -26,7 +27,10 @@ class Spacy(SingleColumnCachedOperation):
 
         # Set the device
         if device and (device == 'gpu' or device.startswith('cuda')):
-            spacy.prefer_gpu()
+            spacy.prefer_gpu(gpu_id=0 if ":" not in device else int(device.split(":")[1]))
+            # Spacy sets the default torch float Tensor to torch.cuda.FloatTensor, which causes other
+            # GPU cachedops to crash.
+            torch.set_default_tensor_type("torch.FloatTensor")
 
         # Load up the Spacy module
         self._nlp = nlp
@@ -89,7 +93,6 @@ class Spacy(SingleColumnCachedOperation):
 
     @classmethod
     def encode(cls, obj: Doc) -> str:
-
         # JSON dump the Doc
         doc_json = obj.to_json()
 
@@ -115,8 +118,16 @@ class Spacy(SingleColumnCachedOperation):
                             column_batch: List,
                             *args,
                             **kwargs) -> List:
+        # Adjust the default Tensor type: this is instantaneous
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+
         # Apply Spacy's pipe method to process the examples
-        return list(self.nlp.pipe(column_batch))
+        docs = list(self.nlp.pipe(column_batch))
+
+        # Reset the default Tensor type: this is instantaneous
+        torch.set_default_tensor_type("torch.FloatTensor")
+
+        return docs
 
     @classmethod
     def tokens(cls,
