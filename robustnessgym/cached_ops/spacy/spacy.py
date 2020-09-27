@@ -25,7 +25,7 @@ class Spacy(SingleColumnCachedOperation):
         self._prebuilt = True
 
         # Set the device
-        if device == 'gpu' or device.startswith('cuda'):
+        if device and (device == 'gpu' or device.startswith('cuda')):
             spacy.prefer_gpu()
 
         # Load up the Spacy module
