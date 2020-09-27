@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict
+from typing import List
 
 import cytoolz as tz
 import spacy
@@ -15,6 +15,7 @@ class Spacy(SingleColumnCachedOperation):
                  lang: str = 'en_core_web_sm',
                  nlp: spacy.language.Language = None,
                  neuralcoref: bool = False,
+                 device: str = None,
                  *args,
                  **kwargs):
 
@@ -23,8 +24,11 @@ class Spacy(SingleColumnCachedOperation):
         self.neuralcoref = neuralcoref
         self._prebuilt = True
 
+        # Set the device
+        if device == 'gpu' or device.startswith('cuda'):
+            spacy.prefer_gpu()
+
         # Load up the Spacy module
-        spacy.prefer_gpu()
         self._nlp = nlp
         if not nlp:
             self._nlp = self._load_spacy(lang=lang)

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List
 
 import torch
 from allennlp.predictors import Predictor

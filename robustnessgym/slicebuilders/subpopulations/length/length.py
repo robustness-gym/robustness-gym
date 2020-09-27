@@ -12,7 +12,8 @@ from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopul
 
 
 class LengthSubpopulation(ScoreSubpopulation,
-                          Spacy):
+                          # Spacy
+                          ):
 
     def __init__(self,
                  intervals: List[Tuple[int, int]],
