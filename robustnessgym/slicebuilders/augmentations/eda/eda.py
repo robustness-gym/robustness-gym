@@ -62,7 +62,7 @@ class EasyDataAugmentation(Augmentation):
                                           alpha_ri=self.alpha_ri,
                                           alpha_rs=self.alpha_rs,
                                           p_rd=self.p_rd,
-                                          num_aug=self.num_aug)[:-1]
+                                          num_aug=self.num_transformed)[:-1]
 
                     # Store the augmented text in the augmented batches
                     for j, augmented_text in enumerate(augmented_texts):

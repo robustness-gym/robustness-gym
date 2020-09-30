@@ -205,7 +205,7 @@ class SliceBuilder(StorageMixin):
                 batched=True,
                 batch_size=batch_size,
             )
-        except:# TypeError or PicklingError or AttributeError:
+        except:  # TypeError or PicklingError or AttributeError:
             # Batch the dataset, and process each batch
             all_batches = [self.prepare_batch(
                 batch=batch,
@@ -386,6 +386,10 @@ class SliceBuilderCollection(SliceBuilder):
 
         # Store the subpopulations
         self.slicebuilders = slicebuilders
+
+    def __repr__(self):
+        # TODO(karan): format this nicely
+        return f"{self.__class__.__name__}({[str(slicebuilder) for slicebuilder in self.slicebuilders]})]"
 
     def __call__(self,
                  batch_or_dataset: Union[Dict[str, List], Dataset],
