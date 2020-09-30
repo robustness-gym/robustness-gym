@@ -205,7 +205,7 @@ class SliceBuilder(StorageMixin):
                 batched=True,
                 batch_size=batch_size,
             )
-        except TypeError or PicklingError:
+        except:# TypeError or PicklingError or AttributeError:
             # Batch the dataset, and process each batch
             all_batches = [self.prepare_batch(
                 batch=batch,

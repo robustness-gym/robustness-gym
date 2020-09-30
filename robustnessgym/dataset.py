@@ -328,7 +328,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         """
         Load a dataset from a JSON file on disk, where each line of the json file consists of a single example.
         """
-        return cls(identifier, jsonarrow.read_json(json_path))
+        return cls(jsonarrow.read_json(json_path),
+                   identifier=identifier)
 
     @classmethod
     def from_slice(cls):
