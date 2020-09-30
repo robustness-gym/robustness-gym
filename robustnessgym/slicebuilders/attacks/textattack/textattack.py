@@ -66,8 +66,9 @@ class TextAttack(Attack):
                     # TODO(karan): support num_attacked_texts > 1
                     skeleton_batches[0][key][i] = val
 
-                # Fill the perturbed output
-                skeleton_batches[0][columns[-1]][i] = output.perturbed_result.output
+                # # Fill the perturbed output: *this was incorrect, removing this statement*
+                # # TODO(karan): delete this snippet
+                # skeleton_batches[0][columns[-1]][i] = output.perturbed_result.output
             else:
                 # Unable to attack the example: set its slice membership to zero
                 slice_membership[i, 0] = 0
