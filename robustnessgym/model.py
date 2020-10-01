@@ -164,13 +164,13 @@ class HuggingfaceModel(Model):
         # TODO(karan): these are still on GPU, do metric computation on GPU then move to CPU
         # TODO(karan): incrementally compute metrics?
         if 'logits' in self.outputs:
-            output_dict['logits'] = logits
+            output_dict['logits'] = logits.to('cpu')
 
         if 'probs' in self.outputs:
-            output_dict['probs'] = torch.nn.functional.softmax(logits, dim=-1)
+            output_dict['probs'] = torch.nn.functional.softmax(logits, dim=-1).to('cpu')
 
         if 'pred' in self.outputs:
-            output_dict['pred'] = logits.argmax(dim=-1)
+            output_dict['pred'] = logits.argmax(dim=-1).to('cpu')
 
         return output_dict
 
