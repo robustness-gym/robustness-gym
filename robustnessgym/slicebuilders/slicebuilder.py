@@ -18,7 +18,7 @@ from robustnessgym.dataset import Dataset, Batch
 from robustnessgym.identifier import Identifier
 from robustnessgym.slice import Slice
 from robustnessgym.storage import StorageMixin
-from robustnessgym.tools import recmerge
+from robustnessgym.tools import recmerge, strings_as_json
 
 
 class SliceBuilder(StorageMixin):
@@ -366,6 +366,51 @@ class SliceBuilder(StorageMixin):
         contains the subset of examples in 'batch' that lies in that slice.
         """
         return [tz.valmap(lambda v: list(compress(v, s)), batch) for s in slice_membership.T]
+
+    @classmethod
+    def retrieve(cls,
+                 batch: Batch,
+                 columns: Union[List[str], List[List[str]]],
+                 proc_fns: Union[str, Callable, List[Union[str, Callable]]] = None,
+                 identifier: Union[str, Identifier] = None,
+                 reapply: bool = False,
+                 **kwargs,
+                 ) -> Optional[Union[Batch, List[Batch]]]:
+        if not reapply:
+            if 'slices' not in batch:
+                return None
+
+            # Infer the most relevant key to retrieve if an identifier is not specified
+            if not identifier:
+                for ident_key in batch['slices'][0].keys():
+                    # Pick the first key that matches the cls name
+                    if ident_key.startswith(cls.__name__):
+                        identifier = ident_key
+                        break
+
+            try:
+                if isinstance(columns[0], str):
+                    retrieval = {
+                        strings_as_json(columns): [
+                            cls.decode(cache[str(identifier)][strings_as_json(columns)]) for cache in batch['cache']
+                        ]
+                    }
+                else:
+                    retrieval = {
+                        strings_as_json(cols_): [
+                            cls.decode(cache[str(identifier)][strings_as_json(cols_)]) for cache in batch['cache']
+                        ]
+                        for cols_ in columns
+                    }
+            except KeyError:
+                raise ValueError('Could not retrieve information for all keys.')
+
+            # Check if the retrieved information needs to be processed
+            if not proc_fns:
+                return retrieval
+            pass
+        else:
+            pass
 
 
 class SliceBuilderCollection(SliceBuilder):

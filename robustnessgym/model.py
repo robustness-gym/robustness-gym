@@ -14,12 +14,15 @@ class Model:
     def __init__(self,
                  identifier: str,
                  task: Task,
-                 evaluation_fn=None):
+                 model=None,
+                 evaluation_fn=None,
+                 device: str = None):
 
         # TODO(karan): improve this wrapper around models
         # TODO(karan): add some human-readble identifier to this as optional
         self.identifier = identifier
         self.task = task
+        self.model = model
 
         if evaluation_fn is not None:
             self.evaluate = evaluation_fn
@@ -31,6 +34,14 @@ class Model:
             # 'embeddings',
             # TODO(karan): other information from the model e.g. embeddings which aren't task related?
         }
+
+        if not device:
+            self.device = 'cpu'
+            if torch.cuda.is_available():
+                self.device = 'cuda:0'
+
+    def to(self, device: str):
+        return self.model.to(device)
 
     def __call__(self,
                  dataset: Dataset,
@@ -114,11 +125,13 @@ class HuggingfaceModel(Model):
                  identifier: str,
                  task: Task,
                  model: Optional[AutoModel] = None,
-                 tokenizer: Optional[AutoTokenizer] = None):
+                 tokenizer: Optional[AutoTokenizer] = None,
+                 device: str = None):
 
         super(HuggingfaceModel, self).__init__(
             identifier=identifier,
             task=task,
+            device=device,
         )
 
         self.tokenizer = tokenizer
@@ -133,6 +146,9 @@ class HuggingfaceModel(Model):
                 self.model = AutoModelForSequenceClassification.from_pretrained(self.identifier)
             else:
                 raise NotImplementedError
+
+        # Move the model to device
+        self.to(self.device)
 
     def forward(self, input_batch: Dict) -> Dict:
         # Create the required outputs
@@ -163,7 +179,10 @@ class HuggingfaceModel(Model):
                      keys: Collection[str],
                      **kwargs):
         # TODO(karan): Automatically writing this encoder for a variety of tasks
-        return self.tokenizer(*[batch[key] for key in keys], truncation=True, padding=True, **kwargs)
+        return self.tokenizer(*[batch[key] for key in keys],
+                              truncation=True,
+                              padding=True,
+                              **kwargs)
 
     def predict_batch(self,
                       batch: Dict[str, List],
@@ -174,7 +193,7 @@ class HuggingfaceModel(Model):
                                         keys=input_keys)
 
         # Convert the batch to torch.Tensor
-        input_batch = tz.valmap(lambda v: torch.tensor(v), input_batch)
+        input_batch = tz.valmap(lambda v: torch.tensor(v).to(device=self.device), input_batch)
 
         # Apply the model to the batch
         return self.forward(input_batch)
@@ -226,8 +245,8 @@ class HuggingfaceModel(Model):
 
         # Consolidate the predictions and targets
         # TODO(karan): Need to store predictions and outputs from the model
-        predictions = tz.merge_with(lambda v: torch.cat(v), *predictions)
-        targets = tz.merge_with(lambda v: torch.cat(v), *targets)
+        predictions = tz.merge_with(lambda v: torch.cat(v).to('cpu'), *predictions)
+        targets = tz.merge_with(lambda v: torch.cat(v).to('cpu'), *targets)
 
         # Compute the metrics
         # TODO(karan): generalize this code to support metric computation for any task
