@@ -156,7 +156,8 @@ class HuggingfaceModel(Model):
 
         # Run the model on the input_batch
         # TODO(karan): allow outputs to generically contain side information (embeddings, attention, etc.)
-        outputs = self.model(**input_batch)
+        with torch.no_grad():
+            outputs = self.model(**input_batch)
 
         # The logits are at the 0th index
         logits = outputs[0]
