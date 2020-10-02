@@ -210,6 +210,7 @@ class HuggingfaceModel(Model):
 
         # Reset the dataset format
         dataset.reset_format()
+        dataset.set_format(columns=input_keys + output_keys)
 
         # TODO(karan): check that the Dataset conforms to the task definition
         # TODO(karan): figure out how the output_keys will be used by the metrics
@@ -276,5 +277,8 @@ class HuggingfaceModel(Model):
                 # Calculate predicted class distribution
                 evaluation_dict[metric] = lightning_metrics.to_onehot(predictions['pred'],
                                                                       num_classes).double().mean(axis=0).tolist()
+
+        # Reset the data format
+        dataset.reset_format()
 
         return evaluation_dict
