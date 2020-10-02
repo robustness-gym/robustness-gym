@@ -209,7 +209,7 @@ class TestBench:
             return
 
         if schema_type == 'task':
-            self.slices = [self.task.remap_schema(slice) for slice in self.slices]
+            self.slices = {self.task.remap_schema(slice) for slice in self.slices}
             self.schema_type = schema_type
         elif schema_type == 'default':
             # TODO(karan): undo the schema standardization
