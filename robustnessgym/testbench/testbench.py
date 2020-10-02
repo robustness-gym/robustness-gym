@@ -32,13 +32,34 @@ class TestBench:
 
         self.dataset_id = dataset_id
 
+    @property
+    def version(self):
+        """
+        The test bench version.
+
+        Returns: version
+
+        """
+        return '1.0.0'
+
     @classmethod
     def for_dataset(
             cls,
             dataset: str,
             task: Optional[Union[str, Task]] = None,
-            version: str = None,
-    ):
+            version: str = None):
+        """
+        Create a test bench for a dataset.
+
+        Args:
+            dataset:
+            task:
+            version:
+
+        Returns:
+
+        """
+
         # Infer the task from the dataset
         inferred_task = Task.lookup(dataset=dataset)()
 
@@ -64,15 +85,9 @@ class TestBench:
             slices=[],
         )
 
-    @property
-    def version(self):
-        """
-        The test bench version.
-
-        Returns: version
-
-        """
-        return '1.0.0'
+    def add_slices(self, slices: List[Slice]):
+        for sl in slices:
+            self.slices.append(sl)
 
     def evaluate(self,
                  model: Model,
@@ -106,7 +121,8 @@ class TestBench:
         #     "model(..) must return a list of dictionaries. Each dictionary should map metric names to values."
 
         # Store the model_metrics
-        self.metrics[model.identifier] = {slice.identifier: None for slice in self.slices}
+        if model.identifier not in self.metrics:
+            self.metrics[model.identifier] = {}
 
         # Run the model on all the slices
         # TODO(karan): For slices that are subpopulations, the same example can be in multiple slices
