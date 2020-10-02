@@ -148,12 +148,10 @@ class TestBench:
         """
         Generate a report for a model.
         """
-        if model.identifier not in self.metrics:
-            # TODO(karan): ask the model to return side-information (probs, logits, embeddings)
-            self.evaluate(model=model, batch_size=batch_size, coerce_fn=coerce_fn)
 
         # Grab the metrics
-        model_metrics = self.metrics[model.identifier]
+        # TODO(karan): ask the model to return side-information (probs, logits, embeddings)
+        model_metrics = self.evaluate(model=model, batch_size=batch_size, coerce_fn=coerce_fn)
 
         # Create a consolidated "report"
         category_to_index = {category: i for i, category in enumerate(SliceBuilder.CATEGORIES)}
