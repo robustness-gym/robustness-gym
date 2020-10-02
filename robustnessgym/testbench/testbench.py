@@ -5,6 +5,7 @@ import pandas as pd
 from robustnessgym.model import Model
 from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
 from robustnessgym.slice import Slice
+from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 from robustnessgym.tasks.task import Task
 
 
@@ -126,13 +127,8 @@ class TestBench:
 
         # Create a consolidated "report"
         # TODO(karan): these should be constants somewhere in Curator
-        categories = [
-            'subpopulation',
-            'augmentation',
-            'attack',
-            'curated',
-        ]
-        category_to_index = {category: i for i, category in enumerate(categories)}
+
+        category_to_index = {category: i for i, category in enumerate(SliceBuilder.CATEGORIES)}
 
         df = pd.DataFrame()
         data = []
@@ -140,7 +136,7 @@ class TestBench:
             row = {
                 'category_order': category_to_index[slice.category],
                 'category': slice.category,
-                'slice_name': slice.identifier,
+                'slice_name': str(slice.identifier),
                 'Size': len(slice)
             }
             slice_metrics = model_metrics[slice.identifier]
