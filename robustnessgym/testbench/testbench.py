@@ -1,6 +1,7 @@
 from typing import *
 
 import pandas as pd
+from tqdm import tqdm
 
 from robustnessgym.model import Model
 from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
@@ -65,6 +66,12 @@ class TestBench:
 
     @property
     def version(self):
+        """
+        The test bench version.
+
+        Returns: version
+
+        """
         return '1.0.0'
 
     def evaluate(self,
@@ -72,6 +79,15 @@ class TestBench:
                  batch_size: int = 32,
                  coerce_fn: Callable = None) -> Dict:
         """
+        Evaluate a model using the test bench.
+
+        Args:
+            model: model to evaluate
+            batch_size: batch size for inference
+            coerce_fn: function to coerce the model's outputs. Useful if the model's outputs cannot directly be compared
+            to the targets.
+
+        Returns: dict mapping slice identifiers to evaluation metrics.
 
         """
 
@@ -89,26 +105,24 @@ class TestBench:
         # assert isinstance(output, Sequence) and isinstance(output[0], Mapping), \
         #     "model(..) must return a list of dictionaries. Each dictionary should map metric names to values."
 
+        # Store the model_metrics
+        self.metrics[model.identifier] = {slice.identifier: None for slice in self.slices}
+
         # Run the model on all the slices
         # TODO(karan): For slices that are subpopulations, the same example can be in multiple slices
         #  and will be run through the model multiple times. Create a UnionSlice?
+        for sl in tqdm(self.slices):
+            if sl.identifier not in self.metrics[model.identifier]:
+                # Evaluate on the slice
+                self.metrics[model.identifier][sl.identifier] = model.evaluate(
+                    dataset=sl,
+                    input_columns=self.task.input_schema.keys(),
+                    output_columns=self.task.output_schema.keys(),
+                    batch_size=batch_size,
+                    coerce_fn=coerce_fn
+                )
 
-        model_metrics = {slice.identifier: None for slice in self.slices}
-
-        for slice in self.slices:
-            # Evaluate on the slice
-            model_metrics[slice.identifier] = model.evaluate(
-                dataset=slice,
-                input_keys=self.task.input_schema.keys(),
-                output_keys=self.task.output_schema.keys(),
-                batch_size=batch_size,
-                coerce_fn=coerce_fn
-            )
-
-        # Store the model_metrics
-        self.metrics[model.identifier] = model_metrics
-
-        return model_metrics
+        return self.metrics[model.identifier]
 
     def create_report(self,
                       model: Model,
@@ -126,8 +140,6 @@ class TestBench:
         model_metrics = self.metrics[model.identifier]
 
         # Create a consolidated "report"
-        # TODO(karan): these should be constants somewhere in Curator
-
         category_to_index = {category: i for i, category in enumerate(SliceBuilder.CATEGORIES)}
 
         df = pd.DataFrame()
@@ -170,7 +182,8 @@ class TestBench:
 
         return Report(df, columns, model.identifier, self.dataset_id)
 
-    def set_schema(self, schema_type: str):
+    def set_schema(self,
+                   schema_type: str):
         assert schema_type in {'default', 'task'}
 
         if self.schema_type == schema_type:

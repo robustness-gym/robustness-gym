@@ -45,16 +45,16 @@ class Model:
 
     def __call__(self,
                  dataset: Dataset,
-                 input_keys: List[str],
-                 output_keys: List[str],
+                 input_columns: List[str],
+                 output_columns: List[str],
                  batch_size: int = 32,
                  coerce_fn: Callable = None,
                  *args,
                  **kwargs):
 
         return self.evaluate(dataset,
-                             input_keys,
-                             output_keys,
+                             input_columns,
+                             output_columns,
                              batch_size,
                              coerce_fn,
                              *args,
@@ -89,14 +89,15 @@ class Model:
 
     def evaluate(self,
                  dataset: Dataset,
-                 input_keys: List[str],
-                 output_keys: List[str],
+                 input_columns: List[str],
+                 output_columns: List[str],
                  batch_size: int = 32,
                  coerce_fn: Callable = None):
         raise NotImplementedError
 
     @staticmethod
-    def remap_labels(output_dict: Dict, label_map: List[int]) -> Dict:
+    def remap_labels(output_dict: Dict,
+                     label_map: List[int]) -> Dict:
         """
         Map the output labels of the model.
 
@@ -177,21 +178,21 @@ class HuggingfaceModel(Model):
 
     def encode_batch(self,
                      batch: Dict[str, List],
-                     keys: Collection[str],
+                     columns: Collection[str],
                      **kwargs):
         # TODO(karan): Automatically writing this encoder for a variety of tasks
-        return self.tokenizer(*[batch[key] for key in keys],
+        return self.tokenizer(*[batch[key] for key in columns],
                               truncation=True,
                               padding=True,
                               **kwargs)
 
     def predict_batch(self,
                       batch: Dict[str, List],
-                      input_keys: Collection[str]):
+                      input_columns: Collection[str]):
 
         # Tokenize the batch
         input_batch = self.encode_batch(batch=batch,
-                                        keys=input_keys)
+                                        columns=input_columns)
 
         # Convert the batch to torch.Tensor
         input_batch = tz.valmap(lambda v: torch.tensor(v).to(device=self.device), input_batch)
@@ -201,8 +202,8 @@ class HuggingfaceModel(Model):
 
     def evaluate(self,
                  dataset: Dataset,
-                 input_keys: List[str],
-                 output_keys: List[str],
+                 input_columns: List[str],
+                 output_columns: List[str],
                  batch_size: int = 32,
                  coerce_fn: Callable = None):
 
@@ -210,10 +211,10 @@ class HuggingfaceModel(Model):
 
         # Reset the dataset format
         dataset.reset_format()
-        dataset.set_format(columns=input_keys + output_keys)
+        dataset.set_format(columns=input_columns + output_columns)
 
         # TODO(karan): check that the Dataset conforms to the task definition
-        # TODO(karan): figure out how the output_keys will be used by the metrics
+        # TODO(karan): figure out how the output_columns will be used by the metrics
         pass
 
         predictions = []
@@ -227,14 +228,14 @@ class HuggingfaceModel(Model):
 
             # Predict on the batch
             prediction_dict = self.predict_batch(batch=batch,
-                                                 input_keys=input_keys)
+                                                 input_columns=input_columns)
 
             # Coerce the predictions
             if coerce_fn:
                 prediction_dict = coerce_fn(prediction_dict)
 
             # Grab the raw target key/values
-            target_dict = tz.keyfilter(lambda k: k in output_keys, batch)
+            target_dict = tz.keyfilter(lambda k: k in output_columns, batch)
 
             # TODO(karan): general version for non-classification problems
             # TODO(karan): move this to the right device
@@ -253,8 +254,8 @@ class HuggingfaceModel(Model):
         # Compute the metrics
         # TODO(karan): generalize this code to support metric computation for any task
 
-        # Assumes classification, so the output_keys contains a single key for the label
-        assert len(output_keys) == 1, "Only supports classification."
+        # Assumes classification, so the output_columns contains a single key for the label
+        assert len(output_columns) == 1, "Only supports classification."
         labels = targets[list(targets.keys())[0]]
 
         num_classes = self.task.output_schema.features[list(self.task.output_schema.keys())[0]].num_classes
@@ -265,18 +266,33 @@ class HuggingfaceModel(Model):
         for metric in self.task.metrics:
             if metric == 'accuracy':
                 # Calculate the accuracy
-                evaluation_dict[metric] = lightning_metrics.accuracy(predictions['pred'], labels).item()
+                evaluation_dict[metric] = lightning_metrics.accuracy(
+                    pred=predictions['pred'].to(self.device),
+                    target=labels.to(self.device),
+                    num_classes=num_classes
+                ).item().cpu()
+
             elif metric == 'f1':
                 # Calculate the f1
-                evaluation_dict[metric] = lightning_metrics.f1_score(predictions['pred'], labels).item()
+                evaluation_dict[metric] = lightning_metrics.f1_score(
+                    pred=predictions['pred'].to(self.device),
+                    target=labels.to(self.device),
+                    num_classes=num_classes
+                ).item().cpu()
+
             elif metric == 'class_dist':
                 # Calculate class distribution
-                evaluation_dict[metric] = lightning_metrics.to_onehot(labels,
-                                                                      num_classes).double().mean(axis=0).tolist()
+                evaluation_dict[metric] = lightning_metrics.to_onehot(
+                    tensor=labels,
+                    num_classes=num_classes
+                ).double().mean(dim=0).tolist()
+
             elif metric == 'pred_dist':
                 # Calculate predicted class distribution
-                evaluation_dict[metric] = lightning_metrics.to_onehot(predictions['pred'],
-                                                                      num_classes).double().mean(axis=0).tolist()
+                evaluation_dict[metric] = lightning_metrics.to_onehot(
+                    tensor=predictions['pred'],
+                    num_classes=num_classes
+                ).double().mean(dim=0).tolist()
 
         # Reset the data format
         dataset.reset_format()
