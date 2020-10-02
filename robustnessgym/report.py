@@ -1,6 +1,8 @@
+from __future__ import annotations
 import functools
 import itertools
 import shutil
+import dill
 from collections import defaultdict
 from pathlib import Path
 from typing import List
@@ -41,6 +43,15 @@ class Report:
         self.columns = columns
         self.model_name = model_name
         self.dataset_name = dataset_name
+
+    @classmethod
+    def load(cls, path: str) -> Report:
+        obj = dill.load(path)
+        assert isinstance(obj, Report), f"dill loaded an instance of {type(obj)}, must load {cls.__name__}."
+        return obj
+
+    def save(self, path: str):
+        return dill.dump(self, path)
 
     def figures(self, show_title=False):
 

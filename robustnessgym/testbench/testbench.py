@@ -16,7 +16,7 @@ class TestBench:
     def __init__(self,
                  identifier: str,
                  task: Task,
-                 slices: List[Slice],
+                 slices: Collection[Slice],
                  dataset_id: str = None):
 
         # An identifier for the TestBench
@@ -24,7 +24,8 @@ class TestBench:
 
         self.task = task
 
-        self.slices = slices
+        self.slices = set(slices)
+        self.slice_identifiers = {sl.identifier for sl in self.slices}
 
         self.metrics = {}
 
@@ -85,9 +86,13 @@ class TestBench:
             slices=[],
         )
 
-    def add_slices(self, slices: List[Slice]):
+    def add_slices(self,
+                   slices: List[Slice]):
+        # Only add slices that aren't already present in the testbench
         for sl in slices:
-            self.slices.append(sl)
+            if sl.identifier not in self.slice_identifiers:
+                self.slices.add(sl)
+                self.slice_identifiers.add(sl.identifier)
 
     def evaluate(self,
                  model: Model,
