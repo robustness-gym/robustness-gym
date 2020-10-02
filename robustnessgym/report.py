@@ -46,12 +46,12 @@ class Report:
 
     @classmethod
     def load(cls, path: str) -> Report:
-        obj = dill.load(path)
+        obj = dill.load(open(path, 'rb'))
         assert isinstance(obj, Report), f"dill loaded an instance of {type(obj)}, must load {cls.__name__}."
         return obj
 
     def save(self, path: str):
-        return dill.dump(self, path)
+        return dill.dump(self, open(path, 'wb'))
 
     def figures(self, show_title=False):
 
