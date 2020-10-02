@@ -270,7 +270,7 @@ class HuggingfaceModel(Model):
                     pred=predictions['pred'].to(self.device),
                     target=labels.to(self.device),
                     num_classes=num_classes
-                ).item().cpu()
+                ).item()
 
             elif metric == 'f1':
                 # Calculate the f1
@@ -278,7 +278,7 @@ class HuggingfaceModel(Model):
                     pred=predictions['pred'].to(self.device),
                     target=labels.to(self.device),
                     num_classes=num_classes
-                ).item().cpu()
+                ).item()
 
             elif metric == 'class_dist':
                 # Calculate class distribution
