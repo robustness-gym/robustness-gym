@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from robustnessgym.dataset import Dataset
-
+from robustnessgym.constants import CURATION
 
 class Slice(Dataset):
 
@@ -27,7 +27,7 @@ class Slice(Dataset):
         self.lineage = None
 
         # Set the category of the slice: defaults to 'curated'
-        self.category = 'curated'
+        self.category = CURATION
 
     @classmethod
     def from_dataset(cls,

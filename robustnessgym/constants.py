@@ -5,6 +5,6 @@ GENERIC = 'slicebuilder'
 SUBPOPULATION = 'subpopulation'
 ATTACK = 'attack'
 AUGMENTATION = 'augmentation'
-CURATION = 'curation'
+CURATION = 'curated'
 
 USE_NLP = False
