@@ -7,6 +7,7 @@ import dill
 import pandas as pd
 from tqdm import tqdm
 
+from robustnessgym import Identifier
 from robustnessgym.model import Model
 from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
 from robustnessgym.slice import Slice
@@ -236,14 +237,14 @@ class TestBench:
              path: str):
 
         # Path to the save directory
-        savedir = pathlib.Path(path)
+        savedir = pathlib.Path(path) / f'{self.identifier}'
 
         # Create a directory inside savedir for the slices
         (savedir / 'slices').mkdir(parents=True, exist_ok=True)
 
         # Save all the slices
-        for sl in self.slices:
-            sl.save_to_disk(str(savedir / 'slices'))
+        for sl in tqdm(self.slices):
+            sl.save_to_disk(str(savedir / 'slices' / sl.identifier))
 
         # Save metrics
         dill.dump(self.metrics, open(str(savedir / 'metrics.dill'), 'wb'))
@@ -256,6 +257,21 @@ class TestBench:
         },
             open(str(savedir / 'metadata.dill'), 'wb')
         )
+
+    @classmethod
+    def available(cls,
+                  path: str) -> List[str]:
+
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Loop over the folders
+        testbench_identifiers = []
+        for maybe_testbench in savedir.glob('*'):
+            if maybe_testbench.is_dir() and (maybe_testbench / 'metadata.dill').exists():
+                testbench_identifiers.append(maybe_testbench.name)
+
+        return testbench_identifiers
 
     @classmethod
     def load(cls,
@@ -297,7 +313,8 @@ class TestBench:
         # Pull the TestBench
         return self.pull(identifier)
 
-    def pull(self, identifier: str):
+    def pull(self,
+             identifier: str):
         pass
 
     def publish(self):
