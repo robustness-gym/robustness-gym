@@ -280,10 +280,12 @@ class TestBench:
         savedir = pathlib.Path(path)
 
         # Load all the slices
-        slices = [
-            Slice.load_from_disk(str(sl_path))
-            for sl_path in tqdm(list((savedir / 'slices').glob('*'))) if sl_path.is_dir()
-        ]
+        slices = []
+        for sl_path in tqdm(list((savedir / 'slices').glob('*'))):
+            try:
+                slices.append(Slice.load_from_disk(str(sl_path)))
+            except FileNotFoundError:
+                continue
 
         # Load metrics
         metrics = dill.load(open(str(savedir / 'metrics.dill'), 'rb'))
