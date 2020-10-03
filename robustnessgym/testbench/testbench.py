@@ -244,7 +244,7 @@ class TestBench:
 
         # Save all the slices
         for sl in tqdm(self.slices):
-            sl.save_to_disk(str(savedir / 'slices' / sl.identifier))
+            sl.save_to_disk(str(savedir / 'slices' / str(sl.identifier)))
 
         # Save metrics
         dill.dump(self.metrics, open(str(savedir / 'metrics.dill'), 'wb'))
