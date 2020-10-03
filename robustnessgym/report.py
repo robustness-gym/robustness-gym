@@ -1,12 +1,15 @@
 from __future__ import annotations
+
 import functools
 import itertools
 import shutil
-import dill
 from collections import defaultdict
+from functools import partial
 from pathlib import Path
 from typing import List
 
+import dill
+import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
@@ -38,11 +41,21 @@ class NumericColumn(ReportColumn):
 
 class Report:
 
-    def __init__(self, data, columns, model_name, dataset_name):
+    def __init__(self,
+                 data: pd.DataFrame,
+                 columns: List,
+                 model_name,
+                 dataset_name):
         self.data = data
         self.columns = columns
         self.model_name = model_name
         self.dataset_name = dataset_name
+
+    def round(self):
+        # Round everything
+        self.data = self.data.round(3)
+        self.data.class_dist = self.data.class_dist.apply(partial(np.round, decimals=3))
+        self.data.pred_dist = self.data.pred_dist.apply(partial(np.round, decimals=3))
 
     @classmethod
     def load(cls, path: str) -> Report:
