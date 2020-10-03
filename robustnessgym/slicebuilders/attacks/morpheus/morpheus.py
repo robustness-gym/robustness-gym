@@ -7,7 +7,7 @@ from robustnessgym.identifier import Identifier
 from robustnessgym.slicebuilders.attack import Attack
 
 try:
-    from morpheus import MorpheusHuggingfaceNLI, MorpheusHuggingfaceQA
+    from morpheus import MorpheusHuggingfaceNLI, MorpheusHuggingfaceQA, MorpheusHuggingfaceSummarization
 except ImportError:
     _morpheus_available = False
 else:
@@ -19,7 +19,8 @@ class Morpheus(Attack):
             self,
             dataset: str,
             model: str,
-            constrain_pos: bool = True
+            constrain_pos: bool = True,
+            **kwargs
     ):
 
         if not _morpheus_available:
@@ -41,6 +42,12 @@ class Morpheus(Attack):
         elif 'squad' in self.dataset:
             is_squad2 = '2' in self.dataset
             self.attack = MorpheusHuggingfaceQA(model, squad2=is_squad2)
+        elif self.dataset == 'cnn_dailymail' or self.dataset == 'xsum':
+            rouge_type = kwargs.get('rouge_type', 'rougeL')
+            max_input_tokens = kwargs.get('max_input_tokens', 1024)
+            self.attack = MorpheusHuggingfaceQA(model,
+                                                rouge_type=rouge_type,
+                                                max_input_tokens=max_input_tokens)
         else:
             raise NotImplementedError
 
@@ -77,6 +84,16 @@ class Morpheus(Attack):
                                                                    constrain_pos=self.constrain_pos)
                 if predicted_answer not in example['answers']['text']:
                     skeleton_batches[0][question_col][i] = new_question
+                else:
+                    slice_membership[i, 0] = 0
+            elif self.dataset == 'cnn_dailymail' or self.dataset == 'xsum':
+                # Assume column order is [article_col, summary_col]
+                article_col, summary_col = columns
+                new_article, predicted_summary, _ = self.attack.morph(example[article_col],
+                                                                      example[summary_col],
+                                                                      constrain_pos=self.constrain_pos)
+                if predicted_summary != example[summary_col]:
+                    skeleton_batches[0][article_col][i] = new_article
                 else:
                     slice_membership[i, 0] = 0
             else:
