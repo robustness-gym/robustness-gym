@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+import pathlib
 from typing import *
 
+import dill
 import pandas as pd
 from tqdm import tqdm
 
@@ -22,13 +26,17 @@ class TestBench:
         # An identifier for the TestBench
         self.identifier = identifier
 
+        # Set the task
         self.task = task
 
+        # Set the collection of slices
         self.slices = set(slices)
         self.slice_identifiers = {sl.identifier for sl in self.slices}
 
+        # The testbench internally tracks metrics
         self.metrics = {}
 
+        # The schema tells the testbench which columns to extract from the slices for evaluation
         self.schema_type = 'default'
 
         self.dataset_id = dataset_id
@@ -87,7 +95,16 @@ class TestBench:
         )
 
     def add_slices(self,
-                   slices: List[Slice]):
+                   slices: Collection[Slice]):
+        """
+        Add slices to the testbench.
+
+        Args:
+            slices: collection of Slice objects
+
+        Returns:
+
+        """
         # Only add slices that aren't already present in the testbench
         for sl in slices:
             if sl.identifier not in self.slice_identifiers:
@@ -215,11 +232,63 @@ class TestBench:
             # TODO(karan): undo the schema standardization
             raise NotImplementedError
 
-    def save(self, path):
-        pass
+    def save(self,
+             path: str):
 
-    def load(self, path):
-        pass
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Create a directory inside savedir for the slices
+        (savedir / 'slices').mkdir(parents=True, exist_ok=True)
+
+        # Save all the slices
+        for sl in self.slices:
+            sl.save_to_disk(str(savedir / 'slices'))
+
+        # Save metrics
+        dill.dump(self.metrics, open(str(savedir / 'metrics.dill'), 'wb'))
+
+        # Save metadata
+        dill.dump({
+            'task': self.task,
+            'identifier': self.identifier,
+            'dataset_id': self.dataset_id,
+        },
+            open(str(savedir / 'metadata.dill'), 'wb')
+        )
+
+    @classmethod
+    def load(cls,
+             path: str) -> TestBench:
+
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Load all the slices
+        slices = [
+            Slice.load_from_disk(str(sl_path))
+            for sl_path in (savedir / 'slices').glob('*')
+        ]
+
+        # Load metrics
+        metrics = dill.load(open(str(savedir / 'metrics.dill'), 'rb'))
+
+        # Load metadata
+        metadata = dill.load(
+            open(str(savedir / 'metadata.dill'), 'rb')
+        )
+
+        # Create the testbench
+        testbench = cls(
+            identifier=metadata['identifier'],
+            task=metadata['task'],
+            slices=slices,
+        )
+
+        # Set previously stored metrics
+        testbench.metrics = metrics
+
+        return testbench
 
     def make(self,
              identifier: str):
