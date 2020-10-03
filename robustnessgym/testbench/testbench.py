@@ -7,7 +7,6 @@ import dill
 import pandas as pd
 from tqdm import tqdm
 
-from robustnessgym import Identifier
 from robustnessgym.model import Model
 from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
 from robustnessgym.slice import Slice
