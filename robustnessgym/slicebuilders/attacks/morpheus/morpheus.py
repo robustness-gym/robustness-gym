@@ -11,7 +11,7 @@ try:
 except ImportError:
     _morpheus_available = False
 else:
-    _morpus_available = True
+    _morpheus_available = True
 
 
 class Morpheus(Attack):
