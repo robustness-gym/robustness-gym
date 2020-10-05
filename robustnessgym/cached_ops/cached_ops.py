@@ -422,9 +422,12 @@ class CachedOperation(Operation):
             cache_file_name=
             # The cache file name is a XOR of the interaction history and the current operation
             # FIXME(karan): this is repeated
-            'cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
-                               dataset.hash_interactions() ^
-                               persistent_hash(str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow',
+            str(
+                dataset.logdir /
+                ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                    dataset.hash_interactions() ^
+                                    persistent_hash(
+                                        str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow')),
 
         )
 
@@ -483,9 +486,11 @@ class CachedOperation(Operation):
             batch_size=batch_size,
             cache_file_name=
             # The cache file name is a XOR of the interaction history and the current operation
-            'cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
-                               dataset.hash_interactions() ^
-                               persistent_hash(str(self.identifier) + str(strings_as_json(columns))))) + '.arrow',
+            str(dataset.logdir /
+                ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                    dataset.hash_interactions() ^
+                                    persistent_hash(
+                                        str(self.identifier) + str(strings_as_json(columns))))) + '.arrow')),
             # self.get_cache_file_name(columns=columns),
         )
 

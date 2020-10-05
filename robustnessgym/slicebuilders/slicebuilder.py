@@ -225,7 +225,7 @@ class SliceBuilder(StorageMixin):
                 batched=True,
                 batch_size=batch_size,
                 load_from_cache_file=False,
-                cache_file_name='cache-' + str(abs(val)) + '-prep.arrow',
+                cache_file_name=str(dataset.logdir / ('cache-' + str(abs(val)) + '-prep.arrow')),
             )
         except:  # TypeError or PicklingError or AttributeError:
             # Batch the dataset, and process each batch
@@ -248,7 +248,7 @@ class SliceBuilder(StorageMixin):
                 batch_size=batch_size,
                 with_indices=True,
                 load_from_cache_file=False,
-                cache_file_name='cache-' + str(abs(val)) + '-prep.arrow',
+                cache_file_name=str(dataset.logdir / ('cache-' + str(abs(val)) + '-prep.arrow')),
             )
 
     def process_dataset(self,
@@ -322,7 +322,7 @@ class SliceBuilder(StorageMixin):
             load_from_cache_file=False,
             cache_file_name=
             # The cache file name is a XOR of the interaction history and the current operation
-            'cache-' + str(abs(val)) + '.arrow',
+            str(dataset.logdir / ('cache-' + str(abs(val)) + '.arrow')),
         )
 
         # Create a single slice label matrix
@@ -546,7 +546,7 @@ def create_slice(args):
         with_indices=True,
         input_columns=['index'],
         batch_size=batch_size,
-        cache_file_name='cache-' + str(abs(slice_cache_hash)) + '-filter.arrow'
+        cache_file_name=str(dataset.logdir / ('cache-' + str(abs(slice_cache_hash)) + '-filter.arrow'))
     )
 
     slice_batch = tz.merge_with(tz.compose(list, tz.concat), slice_batches)
@@ -561,7 +561,7 @@ def create_slice(args):
             batch_size=batch_size,
             with_indices=True,
             remove_columns=sl.column_names,
-            cache_file_name='cache-' + str(abs(slice_cache_hash)) + '.arrow',
+            cache_file_name=str(dataset.logdir / ('cache-' + str(abs(slice_cache_hash)) + '.arrow')),
         )
 
     return sl

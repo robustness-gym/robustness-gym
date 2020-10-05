@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 import pickle
 from copy import deepcopy
 from functools import partial
@@ -224,6 +225,11 @@ BatchOrDataset = Union[Batch, 'Dataset']
 
 
 class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
+    # Path to a log directory
+    logdir: pathlib.Path = pathlib.Path.home() / 'robustnessgym/datasets/'
+
+    # Create a directory
+    logdir.mkdir(parents=True, exist_ok=True)
 
     def __init__(self,
                  *args,
@@ -246,12 +252,16 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         ) if not identifier else identifier
 
         # Keep track of the original dataset keys
-        self.original_keys = list(self.features.keys())
-        self.num_slices = 0
+        self.original_columns = list(self.features.keys())
 
         # Add an index to the dataset
         dataset = self.map(self.add_index, with_indices=True)
         self.__dict__.update(dataset.__dict__)
+
+        # TODO(karan): fix the identifier settings for Dataset
+        if self.identifier is not None and not str(self.identifier).startswith('None'):
+            self.logdir /= str(self.identifier)
+            self.logdir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def add_index(example, index):
@@ -260,9 +270,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         return example
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(features: {self.features}, " \
-               f"num_rows: {self.num_rows}, " \
-               f"num_slices: {self.num_slices})"
+        return f"{self.__class__.__name__}(num_rows: {self.num_rows}, " \
+               f"interactions: {self.interactions})"
 
     @classmethod
     def uncached_batch(cls,
