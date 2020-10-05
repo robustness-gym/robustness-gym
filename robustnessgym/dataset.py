@@ -543,7 +543,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         if "identifier" in state:
             state["identifier"] = Identifier.loads(state["identifier"])
         if "logdir" in state:
-            state["logdir"] = pathlib.Path.home() / 'robustnessgym/datasets/' / str(state['identifier'])
+            state["logdir"] = (pathlib.Path.home() / f"robustnessgym/datasets/{str(state['identifier'])}")
         super(Dataset, self).__setstate__(state)
 
     @classmethod
@@ -566,6 +566,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         for data_file in state.get("_data_files", []) + state.get("_indices_data_files", []):
             data_file["filename"] = os.path.join(dataset_path, data_file["filename"])
         dataset.__setstate__(state)
+        dataset.logdir = (pathlib.Path.home() / f"robustnessgym/datasets/{str(dataset.identifier)}")
         return dataset
 
 
