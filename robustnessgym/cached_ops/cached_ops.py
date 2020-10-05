@@ -419,6 +419,13 @@ class CachedOperation(Operation):
             partial(self.prepare_batch, columns=columns),
             batched=True,
             batch_size=batch_size,
+            cache_file_name=
+            # The cache file name is a XOR of the interaction history and the current operation
+            # FIXME(karan): this is repeated
+            'cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                               dataset.hash_interactions() ^
+                               persistent_hash(str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow',
+
         )
 
     def apply(self,
@@ -474,7 +481,12 @@ class CachedOperation(Operation):
             partial(self.process_batch, columns=columns),
             batched=True,
             batch_size=batch_size,
-            cache_file_name=self.get_cache_file_name(columns=columns)
+            cache_file_name=
+            # The cache file name is a XOR of the interaction history and the current operation
+            'cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                               dataset.hash_interactions() ^
+                               persistent_hash(str(self.identifier) + str(strings_as_json(columns))))) + '.arrow',
+            # self.get_cache_file_name(columns=columns),
         )
 
     def construct_updates(self,

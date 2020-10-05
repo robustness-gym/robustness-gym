@@ -12,7 +12,7 @@ class Identifier:
                  **kwargs):
 
         self._name = _name
-        self._index = str(_index) if _index else _index
+        self._index = str(_index) if _index is not None else None
         self._parameters = kwargs
 
         for param, value in self.parameters.items():
@@ -39,17 +39,21 @@ class Identifier:
               _name: str,
               **kwargs) -> List[Identifier]:
 
-        return [cls(
-            _name=_name,
-            _index=i,
-            **kwargs) for i in range(n)
+        if n > 1:
+            return [cls(
+                _name=_name,
+                _index=i,
+                **kwargs) for i in range(1, n + 1)
+            ]
+        return [
+            cls(_name=_name, **kwargs)
         ]
 
     def __repr__(self):
         params = ", ".join([f"{k}={v}" for k, v in self.parameters.items()])
-        if self.index:
-            return f"{self.name}-{self.index}({params})"
-        return f"{self.name}({params})"
+        if self.index is not None:
+            return f"{self.name}-{self.index}({params})" if len(params) > 0 else f"{self.name}-{self.index}"
+        return f"{self.name}({params})" if len(params) > 0 else f"{self.name}"
 
     def __hash__(self):
         return hash(str(self))

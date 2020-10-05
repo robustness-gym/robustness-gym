@@ -3,9 +3,11 @@ from typing import List, Dict, Tuple, Optional, Union
 
 import cytoolz as tz
 import numpy as np
+from multiprocess.pool import Pool
 from tqdm import tqdm
 
 from robustnessgym.dataset import Dataset
+from robustnessgym.tools import recmerge
 from robustnessgym.constants import *
 from robustnessgym.identifier import Identifier
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder, SliceBuilderCollection
@@ -223,29 +225,92 @@ class SubpopulationCollection(Subpopulation):
                  mask: List[int] = None,
                  store_compressed: bool = None,
                  store: bool = None,
+                 num_proc: int = None,
                  *args,
                  **kwargs):
 
         if mask:
             raise NotImplementedError("Mask not supported for SubpopulationCollection yet.")
 
-        slices = []
-        slice_membership = []
-        # Apply each slicebuilder in sequence
-        for i, slicebuilder in tqdm(enumerate(self.subpopulations)):
-            # Apply the slicebuilder
-            batch_or_dataset, slices_i, slice_membership_i = slicebuilder(batch_or_dataset=batch_or_dataset,
-                                                                          columns=columns,
-                                                                          mask=mask,
-                                                                          store_compressed=store_compressed,
-                                                                          store=store,
-                                                                          *args,
-                                                                          **kwargs)
+        if not num_proc or num_proc == 1:
+            slices = []
+            slice_membership = []
+            # Apply each slicebuilder in sequence
+            for i, slicebuilder in tqdm(enumerate(self.subpopulations)):
+                # Apply the slicebuilder
+                batch_or_dataset, slices_i, slice_membership_i = slicebuilder(
+                    batch_or_dataset=batch_or_dataset,
+                    columns=columns,
+                    mask=mask,
+                    store_compressed=store_compressed,
+                    store=store,
+                    *args,
+                    **kwargs,
+                )
 
-            # Add in the slices and slice membership
-            slices.extend(slices_i)
-            slice_membership.append(slice_membership_i)
+                # Add in the slices and slice membership
+                slices.extend(slices_i)
+                slice_membership.append(slice_membership_i)
 
+        else:
+            # TODO(karan): cleanup, make mp.Pool support simpler across the library
+            with Pool(num_proc) as pool:
+                batches_or_datasets, slices, slice_membership = zip(
+                    *pool.map(
+                        lambda sb: sb(
+                            batch_or_dataset=batch_or_dataset,
+                            columns=columns,
+                            mask=mask,
+                            store_compressed=store_compressed,
+                            store=store,
+                            *args,
+                            **kwargs
+                        ),
+                        [slicebuilder for slicebuilder in self.subpopulations]
+                    )
+                )
+
+                # Combine all the slices
+                slices = list(tz.concat(slices))
+
+            def _store_updates(batch, indices):
+
+                # Each Subpopulation will generate slices
+                for i, subpopulation in enumerate(self.subpopulations):
+                    updates = subpopulation.construct_updates(
+                        slice_membership=slice_membership[i][indices],
+                        columns=columns,
+                        mask=mask,
+                        # TODO(karan): this option should be set correctly
+                        compress=True,
+                    )
+
+                    batch = subpopulation.store(
+                        batch=batch,
+                        updates=updates,
+                    )
+
+                return batch
+
+            if isinstance(batch_or_dataset, Dataset):
+                batch_or_dataset = batch_or_dataset.map(
+                    _store_updates,
+                    with_indices=True,
+                    batched=True,
+                )
+
+                for subpopulation in self.subpopulations:
+                    # Update the Dataset's history
+                    batch_or_dataset.update_tape(
+                        path=[SLICEMAKERS, subpopulation.category],
+                        identifiers=subpopulation.identifiers,
+                        columns=columns,
+                    )
+
+            else:
+                batch_or_dataset = recmerge(*batches_or_datasets, merge_sequences=True)
+
+        # Combine all the slice membership matrices
         slice_membership = np.concatenate(slice_membership, axis=1)
 
         return batch_or_dataset, slices, slice_membership

@@ -1,16 +1,25 @@
 from __future__ import annotations
+import tqdm
 
+
+def nop(it, *a, **k):
+    return it
+
+
+tqdm.tqdm = nop
 import contextlib
 import os
 import pathlib
+import time
 from functools import partial
 from itertools import compress
+from multiprocess.pool import Pool
 from pickle import PicklingError
 from typing import *
 
 import cytoolz as tz
 import numpy as np
-from tqdm import tqdm
+# from tqdm import tqdm
 
 from robustnessgym.cached_ops.cached_ops import CachedOperation
 from robustnessgym.constants import *
@@ -18,7 +27,7 @@ from robustnessgym.dataset import Dataset, Batch
 from robustnessgym.identifier import Identifier
 from robustnessgym.slice import Slice
 from robustnessgym.storage import StorageMixin
-from robustnessgym.tools import recmerge, strings_as_json
+from robustnessgym.tools import recmerge, strings_as_json, persistent_hash
 
 
 class SliceBuilder(StorageMixin):
@@ -73,6 +82,7 @@ class SliceBuilder(StorageMixin):
                  mask: List[int] = None,
                  store_compressed: bool = None,
                  store: bool = None,
+                 num_proc: int = None,
                  *args,
                  **kwargs):
 
@@ -93,11 +103,13 @@ class SliceBuilder(StorageMixin):
                 ) if not mask else mask,
                 store_compressed=True if store_compressed is None else store_compressed,
                 store=True if store is None else store,
+                num_proc=num_proc,
                 *args,
                 **kwargs
             )
 
             # Update the Dataset's history
+            # TODO(karan): use mask to figure out what is actually applied
             dataset.update_tape(
                 path=[SLICEMAKERS, self.category],
                 identifiers=self.identifiers,
@@ -193,6 +205,14 @@ class SliceBuilder(StorageMixin):
                         store: bool = True,
                         *args,
                         **kwargs) -> Dataset:
+
+        # Compute the hash for this operation
+        # FIXME(karan): this is repeated inside process_dataset
+        val = persistent_hash(str(dataset.identifier)) ^ dataset.hash_interactions()
+        for i, identifier in enumerate(self.identifiers):
+            if not mask[i]:
+                val ^= persistent_hash(str(identifier) + str(strings_as_json(columns)))
+
         try:
             return dataset.map(
                 partial(self.prepare_batch,
@@ -204,6 +224,8 @@ class SliceBuilder(StorageMixin):
                         **kwargs),
                 batched=True,
                 batch_size=batch_size,
+                load_from_cache_file=False,
+                cache_file_name='cache-' + str(abs(val)) + '-prep.arrow',
             )
         except:  # TypeError or PicklingError or AttributeError:
             # Batch the dataset, and process each batch
@@ -224,7 +246,9 @@ class SliceBuilder(StorageMixin):
                 lambda examples, indices: all_batches[indices[0] // batch_size],
                 batched=True,
                 batch_size=batch_size,
-                with_indices=True
+                with_indices=True,
+                load_from_cache_file=False,
+                cache_file_name='cache-' + str(abs(val)) + '-prep.arrow',
             )
 
     def process_dataset(self,
@@ -234,6 +258,7 @@ class SliceBuilder(StorageMixin):
                         mask: List[int] = None,
                         store_compressed: bool = True,
                         store: bool = True,
+                        num_proc: int = None,
                         *args,
                         **kwargs) -> Tuple[Dataset, List[Slice], np.ndarray]:
         """
@@ -246,6 +271,7 @@ class SliceBuilder(StorageMixin):
             mask: boolean or integer mask array, mask[i] = True means that the ith slice will be masked out
             store_compressed: whether to store in a compressed format
             store: whether to store the results along with the example in Dataset
+            num_proc: num processes for multiprocessing
             *args: optional additional arguments
             **kwargs: optional additional keyword arguments
 
@@ -264,9 +290,11 @@ class SliceBuilder(StorageMixin):
             **kwargs
         )
 
-        # Batch the dataset, and process each batch
-        all_batches, all_sliced_batches, all_slice_memberships = zip(
-            *[self.process_batch(
+        all_sliced_batches = []
+        all_slice_memberships = []
+
+        def _map_fn(batch):
+            batch, sliced_batches, slice_membership = self.process_batch(
                 batch=batch,
                 columns=columns,
                 mask=mask,
@@ -275,36 +303,68 @@ class SliceBuilder(StorageMixin):
                 *args,
                 **kwargs
             )
-                for batch in dataset.batch(batch_size)]
-        )
+            all_sliced_batches.append(sliced_batches)
+            all_slice_memberships.append(slice_membership)
+            return batch
 
-        # TODO(karan): want this instead of above but .map() must return either a None type or dict, not tuple
-        # all_batches, all_sliced_batches, all_slice_memberships = \
-        #     zip(*dataset.map(lambda examples: self.process_batch(batch=examples, columns=columns),
-        #                      batched=True, batch_size=batch_size))
+        # Map the SliceBuilder over the dataset
+        val = persistent_hash(str(dataset.identifier)) ^ dataset.hash_interactions()
+        for i, identifier in enumerate(self.identifiers):
+            if not mask[i]:
+                val ^= persistent_hash(str(identifier) + str(strings_as_json(columns)))
 
-        # Update the dataset efficiently by reusing all_batches
         dataset = dataset.map(
-            lambda examples, indices: all_batches[indices[0] // batch_size],
+            _map_fn,
             batched=True,
             batch_size=batch_size,
-            with_indices=True
+            # FIXME(karan): enable this by adding logic for generating all_sliced_batches and all_slice_memberships
+            #  when loading from cache file
+            load_from_cache_file=False,
+            cache_file_name=
+            # The cache file name is a XOR of the interaction history and the current operation
+            'cache-' + str(abs(val)) + '.arrow',
         )
-
-        # Suppress verbose output
-        with open(os.devnull, 'w') as devnull:
-            with contextlib.redirect_stdout(devnull):
-                # Create the dataset slices
-                slices = [Slice.from_batches(slice_batches) for slice_batches in zip(*all_sliced_batches)]
-
-        # TODO(karan): make this more systematic
-        for i, sl in enumerate(slices):
-            # TODO(karan): fix the combination of identifiers
-            sl.identifier = str(dataset.identifier) + '-' + str(self.identifiers[i])
-            sl.info.features = dataset.features
 
         # Create a single slice label matrix
         slice_membership = np.concatenate(all_slice_memberships, axis=0)
+
+        print(' ')
+
+        slice_cache_hashes = []
+        for identifier in self.identifiers:
+            slice_cache_hashes.append(val ^ persistent_hash(str(identifier)))
+
+        if not num_proc or num_proc == 1:
+            # Construct slices
+            slices = []
+            for i, slice_batches in enumerate(zip(*all_sliced_batches)):
+                slices.append(create_slice((dataset, slice_membership, slice_batches, i, batch_size,
+                                            slice_cache_hashes[i])))
+        else:
+            # Parallelized slice construction
+            with Pool(num_proc) as pool:
+                slices = pool.map(
+                    create_slice,
+                    [(dataset, slice_membership, slice_batches, i, batch_size, slice_cache_hashes[i])
+                     for i, slice_batches in enumerate(zip(*all_sliced_batches))]
+                )
+
+        # TODO(karan): make this more systematic
+        for i, sl in enumerate(slices):
+            # # Set the Slice features
+            # sl.info.features = dataset.features
+
+            # Set the Slice category using the SliceBuilder's category
+            sl.category = self.category
+
+            # Create the lineage
+            sl.lineage = [
+                (str(Dataset.__name__), dataset.identifier),
+                (str(self.category.capitalize()), self.identifiers[i])
+            ]
+            if isinstance(dataset, Slice):
+                # Prepend the Slice's lineage instead, if the dataset was a slice
+                sl.lineage = dataset.lineage + (str(self.category.capitalize()), self.identifiers[i])
 
         return dataset, slices, slice_membership
 
@@ -451,7 +511,7 @@ class SliceBuilderCollection(SliceBuilder):
         slices = []
         slice_membership = []
         # Apply each slicebuilder in sequence
-        for i, slicebuilder in tqdm(enumerate(self.slicebuilders)):
+        for i, slicebuilder in tqdm.tqdm(enumerate(self.slicebuilders)):
             # Apply the slicebuilder
             batch_or_dataset, slices_i, slice_membership_i = slicebuilder(batch_or_dataset=batch_or_dataset,
                                                                           columns=columns,
@@ -468,3 +528,40 @@ class SliceBuilderCollection(SliceBuilder):
         slice_membership = np.concatenate(slice_membership, axis=1)
 
         return batch_or_dataset, slices, slice_membership
+
+
+def create_slice(args):
+    # Unpack args
+    dataset, slice_membership, slice_batches, i, batch_size, slice_cache_hash = args
+
+    # Create a new empty slice
+    sl = Slice.from_dict({})
+
+    # Create a Slice "copy" of the Dataset
+    sl.__dict__.update(dataset.__dict__)
+
+    # Filter
+    sl = sl.filter(
+        lambda example, idx: bool(slice_membership[idx, i]),
+        with_indices=True,
+        input_columns=['index'],
+        batch_size=batch_size,
+        cache_file_name='cache-' + str(abs(slice_cache_hash)) + '-filter.arrow'
+    )
+
+    slice_batch = tz.merge_with(tz.compose(list, tz.concat), slice_batches)
+
+    # FIXME(karan): interaction tape history is wrong here, esp with augmenation/attacks
+
+    # Map
+    if len(sl):
+        sl = sl.map(
+            lambda batch, indices: tz.valmap(lambda v: v[indices[0]: indices[0] + batch_size], slice_batch),
+            batched=True,
+            batch_size=batch_size,
+            with_indices=True,
+            remove_columns=sl.column_names,
+            cache_file_name='cache-' + str(abs(slice_cache_hash)) + '.arrow',
+        )
+
+    return sl

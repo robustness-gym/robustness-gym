@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from robustnessgym.constants import *
 from robustnessgym.identifier import Identifier
-from robustnessgym.tools import strings_as_json
+from robustnessgym.tools import strings_as_json, persistent_hash
 
 if USE_NLP:
     import nlp as datasets
@@ -33,6 +33,12 @@ class InteractionTape:
     def __repr__(self):
         return f"{self.__class__.__name__}(interactions={len(self.history)})"
 
+    def __hash__(self):
+        val = 0
+        for (identifier, json_columns) in self.history:
+            val ^= persistent_hash(str(identifier) + str(json_columns))
+        return val
+
     def dumps(self):
         return json.dumps({json.dumps((identifier.dumps(), json_columns)): idx
                            for (identifier, json_columns), idx in self.history.items()})
@@ -48,7 +54,7 @@ class InteractionTape:
         return tape
 
     def update(self,
-               identifier: Identifier,
+               identifier: Union[str, Identifier],
                columns: List[str]) -> None:
         """
         Update the interaction tape with information about an interaction.
@@ -77,7 +83,7 @@ class InteractionTape:
             self.history[(identifier, json_columns)] = len(self.history)
 
     def check(self,
-              identifier: Identifier,
+              identifier: Union[str, Identifier],
               columns: List[str]) -> bool:
         """
 
@@ -112,6 +118,15 @@ class InteractionTapeHierarchyMixin:
                 ATTACK: InteractionTape(),
             }
         }
+
+    def hash_interactions(self):
+        v = 0
+        for path in [[CACHED_OPS],
+                     [SLICEMAKERS, SUBPOPULATION],
+                     [SLICEMAKERS, AUGMENTATION],
+                     [SLICEMAKERS, ATTACK]]:
+            v ^= self.fetch_tape(path=path).__hash__()
+        return v
 
     def dumps_interactions(self):
         return json.dumps({
@@ -191,8 +206,7 @@ class InteractionTapeHierarchyMixin:
 
     def fetch_tape(
             self,
-            path: List[str]
-    ):
+            path: List[str]) -> InteractionTape:
         """
         Fetch an InteractionTape.
 
