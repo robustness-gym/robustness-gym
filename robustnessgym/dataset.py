@@ -532,6 +532,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             state["interactions"] = self.dumps_interactions()
         if "identifier" in state:
             state["identifier"] = state["identifier"].dumps()
+        if "logdir" in state:
+            state["logdir"] = ""
         return state
 
     def __setstate__(self, state):
@@ -540,6 +542,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             state["interactions"] = self.loads_interactions(state["interactions"]).interactions
         if "identifier" in state:
             state["identifier"] = Identifier.loads(state["identifier"])
+        if "logdir" in state:
+            state["logdir"] = pathlib.Path.home() / 'robustnessgym/datasets/' / str(state['identifier'])
         super(Dataset, self).__setstate__(state)
 
     @classmethod
