@@ -91,7 +91,7 @@ class Report:
                                    subplot_titles=[col.name.replace('_', ' ').title() for col in self.columns],
                                    horizontal_spacing=col_spacing,
                                    vertical_spacing=category_padding / height,
-                                   row_width=list(reversed(category_sizes)),
+                                   row_width=list(category_sizes),
                                    column_width=col_widths
                                    )
 
