@@ -1,8 +1,8 @@
 allennlp==1.0.0
 transformers==3.0.2
-cytoolz==0.10.1
+cytoolz==0.11.0
 pyarrow==0.17.1
-pytorch_lightning==0.8.1
+pytorch_lightning==0.9.0
 allennlp_models==1.0.0
 funcy==1.14
 spacy
@@ -30,3 +30,4 @@ hydra-core
 cython
 fastBPE
 nlpaug
+kaleido
