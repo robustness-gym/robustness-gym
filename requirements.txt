@@ -28,3 +28,5 @@ python-Levenshtein
 omegaconf
 hydra-core
 cython
+fastBPE
+nlpaug
