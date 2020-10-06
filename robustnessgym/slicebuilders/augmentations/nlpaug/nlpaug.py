@@ -50,5 +50,8 @@ class NlpAug(SingleColumnAugmentation):
             n=self.num_transformed,
         )
 
+        if self.num_transformed == 1:
+            augmented_texts = [augmented_texts]
+
         # Transpose the list of lists from [4 x 32] to [32 x 4] and return
         return list(map(list, zip(*augmented_texts)))
