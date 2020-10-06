@@ -1,12 +1,11 @@
 from __future__ import annotations
 import tqdm
 
-
-def nop(it, *a, **k):
-    return it
-
-
-tqdm.tqdm = nop
+# def nop(it, *a, **k):
+#     return it
+#
+#
+# tqdm.tqdm = nop
 import contextlib
 import os
 import pathlib
