@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from json import JSONDecodeError
+
 from robustnessgym.identifier import Identifier
 from robustnessgym.dataset import Dataset
 from robustnessgym.constants import CURATION
@@ -36,7 +39,17 @@ class Slice(Dataset):
         if self._identifier:
             return self._identifier
         if self.lineage:
-            self._identifier = Identifier(_name=" -> ".join([str(entry[1]) for entry in self.lineage]))
+            short_lineage = []
+            for entry in self.lineage:
+                if len(entry) == 3:
+                    try:
+                        columns = json.loads(entry[2])
+                    except JSONDecodeError:
+                        columns = entry[2]
+                    short_lineage.append(str(entry[1]) + " @ " + str(columns))
+                else:
+                    short_lineage.append(str(entry[1]))
+            self._identifier = Identifier(_name=" -> ".join(short_lineage))
             return self._identifier
         return None
 

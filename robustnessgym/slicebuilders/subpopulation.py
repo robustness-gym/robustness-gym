@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Tuple, Optional, Union
+from typing import List, Dict, Tuple, Optional, Union, Sequence
 
 import cytoolz as tz
 import numpy as np
@@ -204,9 +204,10 @@ class Subpopulation(SliceBuilder):
 class SubpopulationCollection(Subpopulation):
 
     def __init__(self,
-                 subpopulations: List[SliceBuilder],
+                 subpopulations: Sequence[Subpopulation],
                  *args,
                  **kwargs):
+
         super(SubpopulationCollection, self).__init__(
             identifiers=list(tz.concat([subpopulation.identifiers for subpopulation in subpopulations])),
             *args,

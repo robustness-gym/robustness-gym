@@ -378,6 +378,7 @@ class SliceBuilder(StorageMixin):
                 )
 
         # TODO(karan): make this more systematic
+        # TODO(karan): fix bug when slicing a Slice
         for i, sl in enumerate(slices):
             # # Set the Slice features
             # sl.info.features = dataset.features
@@ -388,11 +389,12 @@ class SliceBuilder(StorageMixin):
             # Create the lineage
             sl.lineage = [
                 (str(Dataset.__name__), dataset.identifier),
-                (str(self.category.capitalize()), self.identifiers[i])
+                (str(self.category.capitalize()), self.identifiers[i], strings_as_json(columns))
             ]
             if isinstance(dataset, Slice):
                 # Prepend the Slice's lineage instead, if the dataset was a slice
-                sl.lineage = dataset.lineage + (str(self.category.capitalize()), self.identifiers[i])
+                sl.lineage = dataset.lineage + \
+                             [(str(self.category.capitalize()), self.identifiers[i], strings_as_json(columns))]
 
         return dataset, slices, slice_membership
 
@@ -567,6 +569,7 @@ def create_slice(args):
 
     # Create a Slice "copy" of the Dataset
     sl.__dict__.update(dataset.__dict__)
+    sl._identifier = None
 
     # Filter
     sl = sl.filter(
