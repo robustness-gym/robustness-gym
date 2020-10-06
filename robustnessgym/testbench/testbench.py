@@ -94,6 +94,48 @@ class TestBench:
             slices=[],
         )
 
+    def _human_readable_identifiers(self):
+        # Temporary function to generate human readable names
+        groups = {}
+        for ident in self.slice_identifiers:
+            builder_ident = str(ident).split(" -> ")[-1]
+            builder_ident, cols = builder_ident.split(" @ ")
+            name = builder_ident.split("(")[0]
+            if name not in groups:
+                groups[name] = set()
+            groups[name].add((builder_ident, cols))
+
+        group_info = {}
+        for key, group in groups.items():
+            if len(group) == 1:
+                group_info[key] = 'name'
+            else:
+                only_single_column = len(set([t[1] for t in group])) == 1
+                if only_single_column:
+                    group_info[key] = 'builder_ident'
+                else:
+                    group_info[key] = 'full'
+
+        ident_mapping = {}
+        for ident in self.slice_identifiers:
+            builder_ident = str(ident).split(" -> ")[-1]
+            builder_ident, cols = builder_ident.split(" @ ")
+            name = builder_ident.split("(")[0]
+
+            if group_info[name] == 'name':
+                new_ident = name
+            elif group_info[name] == 'builder_ident':
+                new_ident = builder_ident
+            elif group_info[name] == 'full':
+                new_ident = str(ident).split(" -> ")[-1]
+
+            if new_ident.startswith('NlpAug'):
+                new_ident = new_ident.split("NlpAug(pipeline=[")[1].split("])")[0]
+
+            ident_mapping[ident] = new_ident
+
+        self.ident_mapping = ident_mapping
+
     def add_slices(self,
                    slices: Collection[Slice]):
         """
@@ -178,13 +220,16 @@ class TestBench:
         # Create a consolidated "report"
         category_to_index = {category: i for i, category in enumerate(SliceBuilder.CATEGORIES)}
 
+        # TODO(karan): make this more general
+        self._human_readable_identifiers()
+
         df = pd.DataFrame()
         data = []
         for slice in self.slices:
             row = {
                 'category_order': category_to_index[slice.category],
                 'category': slice.category,
-                'slice_name': str(slice.identifier),
+                'slice_name': self.ident_mapping[slice.identifier],  # str(slice.identifier),
                 'Size': len(slice)
             }
             slice_metrics = model_metrics[slice.identifier]
