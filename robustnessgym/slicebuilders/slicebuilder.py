@@ -290,40 +290,68 @@ class SliceBuilder(StorageMixin):
             **kwargs
         )
 
-        all_sliced_batches = []
-        all_slice_memberships = []
-
-        def _map_fn(batch):
-            batch, sliced_batches, slice_membership = self.process_batch(
-                batch=batch,
-                columns=columns,
-                mask=mask,
-                store_compressed=store_compressed,
-                store=store,
-                *args,
-                **kwargs
-            )
-            all_sliced_batches.append(sliced_batches)
-            all_slice_memberships.append(slice_membership)
-            return batch
-
-        # Map the SliceBuilder over the dataset
+        # Compute a hash
         val = persistent_hash(str(dataset.identifier)) ^ dataset.hash_interactions()
         for i, identifier in enumerate(self.identifiers):
             if not mask[i]:
                 val ^= persistent_hash(str(identifier) + str(strings_as_json(columns)))
 
-        dataset = dataset.map(
-            _map_fn,
-            batched=True,
-            batch_size=batch_size,
-            # FIXME(karan): enable this by adding logic for generating all_sliced_batches and all_slice_memberships
-            #  when loading from cache file
-            load_from_cache_file=False,
-            cache_file_name=
-            # The cache file name is a XOR of the interaction history and the current operation
-            str(dataset.logdir / ('cache-' + str(abs(val)) + '.arrow')),
-        )
+        try:
+            # Map the SliceBuilder over the dataset
+            all_sliced_batches = []
+            all_slice_memberships = []
+
+            def _map_fn(batch):
+                batch, sliced_batches, slice_membership = self.process_batch(
+                    batch=batch,
+                    columns=columns,
+                    mask=mask,
+                    store_compressed=store_compressed,
+                    store=store,
+                    *args,
+                    **kwargs
+                )
+                all_sliced_batches.append(sliced_batches)
+                all_slice_memberships.append(slice_membership)
+                return batch
+
+            dataset = dataset.map(
+                _map_fn,
+                batched=True,
+                batch_size=batch_size,
+                # FIXME(karan): enable this by adding logic for generating all_sliced_batches and all_slice_memberships
+                #  when loading from cache file
+                load_from_cache_file=False,
+                cache_file_name=
+                # The cache file name is a XOR of the interaction history and the current operation
+                str(dataset.logdir / ('cache-' + str(abs(val)) + '.arrow')),
+            )
+        except:
+            # Batch the dataset, and process each batch
+            all_batches, all_sliced_batches, all_slice_memberships = zip(
+                *[self.process_batch(
+                    batch=batch,
+                    columns=columns,
+                    mask=mask,
+                    store_compressed=store_compressed,
+                    store=store,
+                    *args,
+                    **kwargs
+                )
+                    for batch in dataset.batch(batch_size)]
+            )
+
+            # Update the dataset efficiently by reusing all_batches
+            dataset = dataset.map(
+                lambda examples, indices: all_batches[indices[0] // batch_size],
+                batched=True,
+                batch_size=batch_size,
+                with_indices=True,
+                load_from_cache_file=False,
+                cache_file_name=
+                # The cache file name is a XOR of the interaction history and the current operation
+                str(dataset.logdir / ('cache-' + str(abs(val)) + '.arrow')),
+            )
 
         # Create a single slice label matrix
         slice_membership = np.concatenate(all_slice_memberships, axis=0)
