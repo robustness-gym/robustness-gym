@@ -311,6 +311,7 @@ class CachedOperation(Operation):
             if not identifier:
                 for ident_key in batch['cache'][0].keys():
                     # Pick the first key that matches the cls name
+                    # FIXME(karan): this is not well defined when CachedOperations are instantiated directly
                     if ident_key.startswith(cls.__name__):
                         identifier = ident_key
                         break
