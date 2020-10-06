@@ -41,6 +41,7 @@ class Model:
                 self.device = 'cuda:0'
 
     def to(self, device: str):
+        self.device = device
         return self.model.to(device)
 
     def __call__(self,
