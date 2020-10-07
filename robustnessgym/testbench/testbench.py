@@ -306,8 +306,8 @@ class TestBench:
         # Save all the slices
         pbar = tqdm(self.slices)
         for sl in pbar:
-            pbar.set_description(f"Saving slice {sl.identifier[:100]}...")
-            sl.save_to_disk(str(savedir / 'slices' / persistent_hash(str(sl.identifier))))
+            pbar.set_description(f"Saving slice {str(sl.identifier)[:100]}...")
+            sl.save_to_disk(str(savedir / 'slices' / str(persistent_hash(str(sl.identifier)))))
 
         # Save metrics
         dill.dump(self.metrics, open(str(savedir / 'metrics.dill'), 'wb'))
