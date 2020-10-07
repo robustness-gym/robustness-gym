@@ -505,17 +505,17 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     def __getstate__(self):
         state = super(Dataset, self).__getstate__()
-        if "interactions" in state:
+        if "interactions" in state and not isinstance(state['interactions'], str):
             state["interactions"] = self.dumps_interactions()
-        if "identifier" in state:
+        if "identifier" in state and not isinstance(state['identifier'], str):
             state["identifier"] = state["identifier"].dumps()
         return state
 
     def __setstate__(self, state):
         state = dict(state)
-        if "interactions" in state:
+        if "interactions" in state and isinstance(state['interactions'], str):
             state["interactions"] = self.loads_interactions(state["interactions"]).interactions
-        if "identifier" in state:
+        if "identifier" in state and isinstance(state['identifier'], str):
             state["identifier"] = Identifier.loads(state["identifier"])
         super(Dataset, self).__setstate__(state)
 
