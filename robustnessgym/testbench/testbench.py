@@ -12,6 +12,7 @@ from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistri
 from robustnessgym.slice import Slice
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 from robustnessgym.tasks.task import Task
+from robustnessgym.tools import persistent_hash
 
 
 # TODO(karan): make the TestBench hashable
@@ -278,7 +279,23 @@ class TestBench:
             raise NotImplementedError
 
     def save(self,
-             path: str):
+             path: str) -> None:
+        """
+        Save the current testbench to disk. This will save all slices in the testbench to disk, as well as metrics
+        and other metadata associated with this testbench.
+
+        Args:
+            path: string path to the save directory
+
+        Returns: None
+
+        >>> testbench = TestBench(identifier='my-testbench', task=TernaryNaturalLanguageInference())
+        # Save to the current directory
+        >>> testbench.save('.')
+        # Load back the testbench
+        >>> testbench = TestBench.load('my-testbench')
+
+        """
 
         # Path to the save directory
         savedir = pathlib.Path(path) / f'{self.identifier}'
@@ -287,8 +304,10 @@ class TestBench:
         (savedir / 'slices').mkdir(parents=True, exist_ok=True)
 
         # Save all the slices
-        for sl in tqdm(self.slices):
-            sl.save_to_disk(str(savedir / 'slices' / str(sl.identifier)))
+        pbar = tqdm(self.slices)
+        for sl in pbar:
+            pbar.set_description(f"Saving slice {sl.identifier[:100]}...")
+            sl.save_to_disk(str(savedir / 'slices' / persistent_hash(str(sl.identifier))))
 
         # Save metrics
         dill.dump(self.metrics, open(str(savedir / 'metrics.dill'), 'wb'))
@@ -305,6 +324,15 @@ class TestBench:
     @classmethod
     def available(cls,
                   path: str) -> List[str]:
+        """
+        Check the list of available testbenches in a directory.
+
+        Args:
+            path: string path to a directory. The testbenches available inside this directory will be returned.
+
+        Returns: list of available testbenches
+
+        """
 
         # Path to the save directory
         savedir = pathlib.Path(path)
@@ -320,6 +348,15 @@ class TestBench:
     @classmethod
     def load(cls,
              path: str) -> TestBench:
+        """
+        Load a testbench from disk.
+
+        Args:
+            path: string path to the testbench directory
+
+        Returns:
+
+        """
 
         # Path to the save directory
         savedir = pathlib.Path(path)

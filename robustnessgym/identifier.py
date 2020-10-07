@@ -1,10 +1,18 @@
+"""
+Identifiers for objects in Robustness Gym.
+"""
 from __future__ import annotations
 
 import json
 from typing import Callable, Union, List
 
+from robustnessgym.tools import persistent_hash
+
 
 class Identifier:
+    """
+    Class for creating identifiers for objects in Robustness Gym.
+    """
 
     def __init__(self,
                  _name: str,
@@ -56,7 +64,7 @@ class Identifier:
         return f"{self.name}({params})" if len(params) > 0 else f"{self.name}"
 
     def __hash__(self):
-        return hash(str(self))
+        return persistent_hash(str(self))
 
     def __eq__(self, other):
         return str(self) == str(other)

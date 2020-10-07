@@ -416,6 +416,7 @@ class CachedOperation(Operation):
         """
 
         # Apply preparation to the dataset
+        # TODO(karan): put this in a try except block
         return dataset.map(
             partial(self.prepare_batch, columns=columns),
             batched=True,
@@ -429,7 +430,6 @@ class CachedOperation(Operation):
                                     dataset.hash_interactions() ^
                                     persistent_hash(
                                         str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow')),
-
         )
 
     def apply(self,
