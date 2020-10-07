@@ -535,7 +535,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         if "_identifier" in state:
             state["_identifier"] = state["_identifier"].dumps()
         if "lineage" in state:
-            state["lineage"] = [t[:1] + (t[1].dumps(),) + (t[2:] if len(t) > 2 else ()) for t in state['lineage']]
+            state["lineage"] = [tuple(t[:1]) + (t[1].dumps(),) + (tuple(t[2:]) if len(t) > 2 else ())
+                                for t in state['lineage']]
         if "logdir" in state:
             state["logdir"] = ""
         return state
@@ -553,12 +554,9 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
                 pass
         if "lineage" in state:
             try:
-                print(state['lineage'])
-                state["lineage"] = [t[:1] + (Identifier.loads(t[1]),) + (t[2:] if len(t) > 2 else ())
+                state["lineage"] = [tuple(t[:1]) + (Identifier.loads(t[1]),) + (tuple(t[2:]) if len(t) > 2 else ())
                                     for t in state['lineage']]
-                print(state['lineage'])
             except:
-                print("Error")
                 pass
         if "logdir" in state:
             state["logdir"] = (pathlib.Path.home() / f"robustnessgym/datasets/{str(state['identifier'])}")
