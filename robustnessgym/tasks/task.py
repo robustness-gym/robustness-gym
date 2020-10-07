@@ -147,7 +147,7 @@ class Summarization(Task):
                     ('text', Value(dtype='string'))
                 ]),
                 grounding_candidates={
-                    'text': {'article'},
+                    'text': {'article', 'document'},
                 }
             ),
             output_schema=Schema(
@@ -155,12 +155,15 @@ class Summarization(Task):
                     ('summary', Value(dtype='string'))
                 ]),
                 grounding_candidates={
-                    'summary': {'highlights'},
+                    'summary': {'highlights', 'summary'},
                 }
             ),
             metrics=[
                 # blah,
                 # TODO(karan): calibration, other metrics
+                'rouge1',
+                'rouge2',
+                'rougeL'
             ],
         )
 
