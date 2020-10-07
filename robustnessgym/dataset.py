@@ -532,7 +532,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             state["interactions"] = self.dumps_interactions()
         if "identifier" in state and isinstance(state['identifier'], Identifier):
             state["identifier"] = state["identifier"].dumps()
-        if "_identifier" in state and isinstance(state['identifier'], Identifier):
+        if "_identifier" in state and isinstance(state['_identifier'], Identifier):
             state["_identifier"] = state["_identifier"].dumps()
         if "lineage" in state:
             state["lineage"] = [tuple(t[:1]) + (t[1].dumps(),) + (tuple(t[2:]) if len(t) > 2 else ())
