@@ -1,5 +1,9 @@
+from __future__ import annotations
+
+import pathlib
 from typing import *
 
+import dill
 import pandas as pd
 from tqdm import tqdm
 
@@ -8,6 +12,7 @@ from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistri
 from robustnessgym.slice import Slice
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 from robustnessgym.tasks.task import Task
+from robustnessgym.tools import persistent_hash
 
 
 # TODO(karan): make the TestBench hashable
@@ -22,13 +27,17 @@ class TestBench:
         # An identifier for the TestBench
         self.identifier = identifier
 
+        # Set the task
         self.task = task
 
+        # Set the collection of slices
         self.slices = set(slices)
         self.slice_identifiers = {sl.identifier for sl in self.slices}
 
+        # The testbench internally tracks metrics
         self.metrics = {}
 
+        # The schema tells the testbench which columns to extract from the slices for evaluation
         self.schema_type = 'default'
 
         self.dataset_id = dataset_id
@@ -86,8 +95,59 @@ class TestBench:
             slices=[],
         )
 
+    def _human_readable_identifiers(self):
+        # Temporary function to generate human readable names
+        groups = {}
+        for ident in self.slice_identifiers:
+            builder_ident = str(ident).split(" -> ")[-1]
+            builder_ident, cols = builder_ident.split(" @ ")
+            name = builder_ident.split("(")[0]
+            if name not in groups:
+                groups[name] = set()
+            groups[name].add((builder_ident, cols))
+
+        group_info = {}
+        for key, group in groups.items():
+            if len(group) == 1:
+                group_info[key] = 'name'
+            else:
+                only_single_column = len(set([t[1] for t in group])) == 1
+                if only_single_column:
+                    group_info[key] = 'builder_ident'
+                else:
+                    group_info[key] = 'full'
+
+        ident_mapping = {}
+        for ident in self.slice_identifiers:
+            builder_ident = str(ident).split(" -> ")[-1]
+            builder_ident, cols = builder_ident.split(" @ ")
+            name = builder_ident.split("(")[0]
+
+            if group_info[name] == 'name':
+                new_ident = name
+            elif group_info[name] == 'builder_ident':
+                new_ident = builder_ident
+            elif group_info[name] == 'full':
+                new_ident = str(ident).split(" -> ")[-1]
+
+            if new_ident.startswith('NlpAug'):
+                new_ident = new_ident.split("NlpAug(pipeline=[")[1].split("])")[0]
+
+            ident_mapping[ident] = new_ident
+
+        self.ident_mapping = ident_mapping
+
     def add_slices(self,
-                   slices: List[Slice]):
+                   slices: Collection[Slice]):
+        """
+        Add slices to the testbench.
+
+        Args:
+            slices: collection of Slice objects
+
+        Returns:
+
+        """
         # Only add slices that aren't already present in the testbench
         for sl in slices:
             if sl.identifier not in self.slice_identifiers:
@@ -161,13 +221,16 @@ class TestBench:
         # Create a consolidated "report"
         category_to_index = {category: i for i, category in enumerate(SliceBuilder.CATEGORIES)}
 
+        # TODO(karan): make this more general
+        self._human_readable_identifiers()
+
         df = pd.DataFrame()
         data = []
         for slice in self.slices:
             row = {
                 'category_order': category_to_index[slice.category],
                 'category': slice.category,
-                'slice_name': str(slice.identifier),
+                'slice_name': self.ident_mapping[slice.identifier],  # str(slice.identifier),
                 'Size': len(slice)
             }
             slice_metrics = model_metrics[slice.identifier]
@@ -215,11 +278,116 @@ class TestBench:
             # TODO(karan): undo the schema standardization
             raise NotImplementedError
 
-    def save(self, path):
-        pass
+    def save(self,
+             path: str) -> None:
+        """
+        Save the current testbench to disk. This will save all slices in the testbench to disk, as well as metrics
+        and other metadata associated with this testbench.
 
-    def load(self, path):
-        pass
+        Args:
+            path: string path to the save directory
+
+        Returns: None
+
+        >>> testbench = TestBench(identifier='my-testbench', task=TernaryNaturalLanguageInference())
+        # Save to the current directory
+        >>> testbench.save('.')
+        # Load back the testbench
+        >>> testbench = TestBench.load('my-testbench')
+
+        """
+
+        # Path to the save directory
+        savedir = pathlib.Path(path) / f'{self.identifier}'
+
+        # Create a directory inside savedir for the slices
+        (savedir / 'slices').mkdir(parents=True, exist_ok=True)
+
+        # Save all the slices
+        pbar = tqdm(self.slices)
+        for sl in pbar:
+            pbar.set_description(f"Saving slice {str(sl.identifier)[:100]}...")
+            sl.save_to_disk(str(savedir / 'slices' / str(persistent_hash(str(sl.identifier)))))
+
+        # Save metrics
+        dill.dump(self.metrics, open(str(savedir / 'metrics.dill'), 'wb'))
+
+        # Save metadata
+        dill.dump({
+            'task': self.task,
+            'identifier': self.identifier,
+            'dataset_id': self.dataset_id,
+        },
+            open(str(savedir / 'metadata.dill'), 'wb')
+        )
+
+    @classmethod
+    def available(cls,
+                  path: str) -> List[str]:
+        """
+        Check the list of available testbenches in a directory.
+
+        Args:
+            path: string path to a directory. The testbenches available inside this directory will be returned.
+
+        Returns: list of available testbenches
+
+        """
+
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Loop over the folders
+        testbench_identifiers = []
+        for maybe_testbench in savedir.glob('*'):
+            if maybe_testbench.is_dir() and (maybe_testbench / 'metadata.dill').exists():
+                testbench_identifiers.append(maybe_testbench.name)
+
+        return testbench_identifiers
+
+    @classmethod
+    def load(cls,
+             path: str) -> TestBench:
+        """
+        Load a testbench from disk.
+
+        Args:
+            path: string path to the testbench directory
+
+        Returns:
+
+        """
+
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Load all the slices
+        slices = []
+        for sl_path in tqdm(list((savedir / 'slices').glob('*'))):
+            try:
+                slices.append(Slice.load_from_disk(str(sl_path)))
+            except FileNotFoundError:
+                continue
+
+        # Load metrics
+        metrics = dill.load(open(str(savedir / 'metrics.dill'), 'rb'))
+
+        # Load metadata
+        metadata = dill.load(
+            open(str(savedir / 'metadata.dill'), 'rb')
+        )
+
+        # Create the testbench
+        testbench = cls(
+            identifier=metadata['identifier'],
+            task=metadata['task'],
+            slices=slices,
+        )
+
+        # Set previously stored metrics
+        testbench.metrics = metrics
+
+        return testbench
 
     def make(self,
              identifier: str):
@@ -228,7 +396,8 @@ class TestBench:
         # Pull the TestBench
         return self.pull(identifier)
 
-    def pull(self, identifier: str):
+    def pull(self,
+             identifier: str):
         pass
 
     def publish(self):

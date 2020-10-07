@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 import pickle
 from copy import deepcopy
 from functools import partial
@@ -13,7 +14,7 @@ from tqdm import tqdm
 
 from robustnessgym.constants import *
 from robustnessgym.identifier import Identifier
-from robustnessgym.tools import strings_as_json
+from robustnessgym.tools import strings_as_json, persistent_hash
 
 if USE_NLP:
     import nlp as datasets
@@ -33,6 +34,12 @@ class InteractionTape:
     def __repr__(self):
         return f"{self.__class__.__name__}(interactions={len(self.history)})"
 
+    def __hash__(self):
+        val = 0
+        for (identifier, json_columns) in self.history:
+            val ^= persistent_hash(str(identifier) + str(json_columns))
+        return val
+
     def dumps(self):
         return json.dumps({json.dumps((identifier.dumps(), json_columns)): idx
                            for (identifier, json_columns), idx in self.history.items()})
@@ -48,7 +55,7 @@ class InteractionTape:
         return tape
 
     def update(self,
-               identifier: Identifier,
+               identifier: Union[str, Identifier],
                columns: List[str]) -> None:
         """
         Update the interaction tape with information about an interaction.
@@ -77,7 +84,7 @@ class InteractionTape:
             self.history[(identifier, json_columns)] = len(self.history)
 
     def check(self,
-              identifier: Identifier,
+              identifier: Union[str, Identifier],
               columns: List[str]) -> bool:
         """
 
@@ -112,6 +119,15 @@ class InteractionTapeHierarchyMixin:
                 ATTACK: InteractionTape(),
             }
         }
+
+    def hash_interactions(self):
+        v = 0
+        for path in [[CACHED_OPS],
+                     [SLICEMAKERS, SUBPOPULATION],
+                     [SLICEMAKERS, AUGMENTATION],
+                     [SLICEMAKERS, ATTACK]]:
+            v ^= self.fetch_tape(path=path).__hash__()
+        return v
 
     def dumps_interactions(self):
         return json.dumps({
@@ -191,8 +207,7 @@ class InteractionTapeHierarchyMixin:
 
     def fetch_tape(
             self,
-            path: List[str]
-    ):
+            path: List[str]) -> InteractionTape:
         """
         Fetch an InteractionTape.
 
@@ -210,6 +225,11 @@ BatchOrDataset = Union[Batch, 'Dataset']
 
 
 class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
+    # Path to a log directory
+    logdir: pathlib.Path = pathlib.Path.home() / 'robustnessgym/datasets/'
+
+    # Create a directory
+    logdir.mkdir(parents=True, exist_ok=True)
 
     def __init__(self,
                  *args,
@@ -232,12 +252,16 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         ) if not identifier else identifier
 
         # Keep track of the original dataset keys
-        self.original_keys = list(self.features.keys())
-        self.num_slices = 0
+        self.original_columns = list(self.features.keys())
 
         # Add an index to the dataset
         dataset = self.map(self.add_index, with_indices=True)
         self.__dict__.update(dataset.__dict__)
+
+        # TODO(karan): fix the identifier settings for Dataset
+        if self.identifier is not None and not str(self.identifier).startswith('None'):
+            self.logdir /= str(self.identifier)
+            self.logdir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def add_index(example, index):
@@ -246,9 +270,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         return example
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(features: {self.features}, " \
-               f"num_rows: {self.num_rows}, " \
-               f"num_slices: {self.num_slices})"
+        return f"{self.__class__.__name__}(num_rows: {self.num_rows}, " \
+               f"interactions: {self.interactions})"
 
     @classmethod
     def uncached_batch(cls,
@@ -509,6 +532,13 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             state["interactions"] = self.dumps_interactions()
         if "identifier" in state and not isinstance(state['identifier'], str):
             state["identifier"] = state["identifier"].dumps()
+        if "_identifier" in state:
+            state["_identifier"] = state["_identifier"].dumps()
+        if "lineage" in state:
+            state["lineage"] = [tuple(t[:1]) + (t[1].dumps(),) + (tuple(t[2:]) if len(t) > 2 else ())
+                                for t in state['lineage']]
+        if "logdir" in state:
+            state["logdir"] = ""
         return state
 
     def __setstate__(self, state):
@@ -517,6 +547,19 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             state["interactions"] = self.loads_interactions(state["interactions"]).interactions
         if "identifier" in state and isinstance(state['identifier'], str):
             state["identifier"] = Identifier.loads(state["identifier"])
+        if "_identifier" in state:
+            try:
+                state["_identifier"] = Identifier.loads(state["_identifier"])
+            except:
+                pass
+        if "lineage" in state:
+            try:
+                state["lineage"] = [tuple(t[:1]) + (Identifier.loads(t[1]),) + (tuple(t[2:]) if len(t) > 2 else ())
+                                    for t in state['lineage']]
+            except:
+                pass
+        if "logdir" in state:
+            state["logdir"] = (pathlib.Path.home() / f"robustnessgym/datasets/{str(state['identifier'])}")
         super(Dataset, self).__setstate__(state)
 
     @classmethod
@@ -539,6 +582,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         for data_file in state.get("_data_files", []) + state.get("_indices_data_files", []):
             data_file["filename"] = os.path.join(dataset_path, data_file["filename"])
         dataset.__setstate__(state)
+        dataset.logdir = (pathlib.Path.home() / f"robustnessgym/datasets/{str(dataset.identifier)}")
         return dataset
 
 

@@ -311,6 +311,7 @@ class CachedOperation(Operation):
             if not identifier:
                 for ident_key in batch['cache'][0].keys():
                     # Pick the first key that matches the cls name
+                    # FIXME(karan): this is not well defined when CachedOperations are instantiated directly
                     if ident_key.startswith(cls.__name__):
                         identifier = ident_key
                         break
@@ -415,10 +416,20 @@ class CachedOperation(Operation):
         """
 
         # Apply preparation to the dataset
+        # TODO(karan): put this in a try except block
         return dataset.map(
             partial(self.prepare_batch, columns=columns),
             batched=True,
             batch_size=batch_size,
+            cache_file_name=
+            # The cache file name is a XOR of the interaction history and the current operation
+            # FIXME(karan): this is repeated
+            str(
+                dataset.logdir /
+                ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                    dataset.hash_interactions() ^
+                                    persistent_hash(
+                                        str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow')),
         )
 
     def apply(self,
@@ -474,7 +485,14 @@ class CachedOperation(Operation):
             partial(self.process_batch, columns=columns),
             batched=True,
             batch_size=batch_size,
-            cache_file_name=self.get_cache_file_name(columns=columns)
+            cache_file_name=
+            # The cache file name is a XOR of the interaction history and the current operation
+            str(dataset.logdir /
+                ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                    dataset.hash_interactions() ^
+                                    persistent_hash(
+                                        str(self.identifier) + str(strings_as_json(columns))))) + '.arrow')),
+            # self.get_cache_file_name(columns=columns),
         )
 
     def construct_updates(self,

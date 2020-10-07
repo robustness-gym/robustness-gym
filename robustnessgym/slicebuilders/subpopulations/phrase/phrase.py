@@ -6,6 +6,7 @@ import cytoolz as tz
 import numpy as np
 from ahocorasick import Automaton
 
+from robustnessgym import SliceBuilder
 from robustnessgym.cached_ops.spacy.spacy import Spacy
 from robustnessgym.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
@@ -133,86 +134,192 @@ class HasPhrase(Subpopulation,
         return slice_membership
 
 
+# class HasAnyPhrase(Subpopulation):
+#
+#     def __init__(self,
+#                  phrases: List[str] = None,
+#                  identifier: Identifier = None,
+#                  *args,
+#                  **kwargs):
+#         # Take the union of the phrases
+#         subpopulation = Subpopulation.union(
+#             HasPhrase(phrases=phrases),
+#             identifier=Identifier(
+#                 _name=self.__class__.__name__,
+#                 phrases=set(phrases),
+#             ) if not identifier else identifier
+#         )
+#
+#         super(HasAnyPhrase, self).__init__(
+#             identifiers=subpopulation.identifiers,
+#             apply_fn=subpopulation.apply,
+#             *args,
+#             **kwargs
+#         )
+
+
 class HasAnyPhrase(Subpopulation):
 
     def __init__(self,
-                 phrases=None,
-                 identifier: Identifier = None,
+                 phrase_groups: List[List[str]] = None,
+                 identifiers: List[Identifier] = None,
                  *args,
                  **kwargs):
-        # Take the union of the phrases
-        subpopulation = Subpopulation.union(
-            HasPhrase(phrases=phrases),
-            identifier=Identifier(
-                _name=self.__class__.__name__,
-                phrases=set(phrases),
-            ) if not identifier else identifier
-        )
+
+        # Keep track of the phrase groups
+        self.phrase_groups = phrase_groups
+
+        if identifiers:
+            assert len(identifiers) == len(phrase_groups), "Must have one identifier per phrase group."
+
+        self.subpopulations = []
+        # For every phrase group
+        for i, phrases in enumerate(phrase_groups):
+            # Take the union of the phrases
+            self.subpopulations.append(
+                Subpopulation.union(
+                    HasPhrase(phrases=phrases),
+                    identifier=Identifier(
+                        _name=self.__class__.__name__,
+                        phrases=set(phrases),
+                    ) if not identifiers else identifiers[i]
+                )
+            )
 
         super(HasAnyPhrase, self).__init__(
-            identifiers=subpopulation.identifiers,
-            apply_fn=subpopulation.apply,
+            identifiers=list(tz.concat([subpopulation.identifiers for subpopulation in self.subpopulations])),
             *args,
             **kwargs
         )
 
+    def apply(self,
+              slice_membership: np.ndarray,
+              batch: Dict[str, List],
+              columns: List[str],
+              *args,
+              **kwargs) -> np.ndarray:
+
+        # Run all the subpopulations in sequence to update the slice membership matrix
+        for i, subpopulation in enumerate(self.subpopulations):
+            slice_membership[:, i:i + 1] = subpopulation.apply(
+                slice_membership=slice_membership[:, i:i + 1],
+                batch=batch,
+                columns=columns,
+                *args,
+                **kwargs
+            )
+
+        return slice_membership
+
     @classmethod
-    def from_file(cls, path: str) -> Subpopulation:
-        """
-        Load phrases from a file, one per line.
-        """
-        with open(path) as f:
-            phrases = [line.strip() for line in f.readlines()]
-        return cls(phrases=phrases)
+    def join(cls, *slicebuilders: HasAnyPhrase) -> Sequence[HasAnyPhrase]:
+        # Join all the slicebuilders
+        return [HasAnyPhrase(
+            phrase_groups=[phrases for slicebuilder in slicebuilders for phrases in slicebuilder.phrase_groups],
+            identifiers=[identifier for slicebuilder in slicebuilders for identifier in slicebuilder.identifiers],
+        )]
 
 
 class HasAllPhrases(Subpopulation):
 
     def __init__(self,
-                 phrases=None,
-                 identifier: Identifier = None,
+                 phrase_groups: List[List[str]] = None,
+                 identifiers: List[Identifier] = None,
                  *args,
                  **kwargs):
-        # Take the intersection of the phrases
-        subpopulation = Subpopulation.intersection(
-            HasPhrase(phrases=phrases),
-            identifier=Identifier(
-                _name=self.__class__.__name__,
-                phrases=set(phrases),
-            ) if not identifier else identifier
-        )
+
+        # Keep track of the phrase groups
+        self.phrase_groups = phrase_groups
+
+        if identifiers:
+            assert len(identifiers) == len(phrase_groups), "Must have one identifier per phrase group."
+
+        self.subpopulations = []
+        # For every phrase group
+        for i, phrases in enumerate(phrase_groups):
+            # Take the union of the phrases
+            self.subpopulations.append(
+                Subpopulation.intersection(
+                    HasPhrase(phrases=phrases),
+                    identifier=Identifier(
+                        _name=self.__class__.__name__,
+                        phrases=set(phrases),
+                    ) if not identifiers else identifiers[i]
+                )
+            )
 
         super(HasAllPhrases, self).__init__(
-            identifiers=subpopulation.identifiers,
-            apply_fn=subpopulation.apply,
+            identifiers=list(tz.concat([subpopulation.identifiers for subpopulation in self.subpopulations])),
             *args,
             **kwargs
         )
 
+    def apply(self,
+              slice_membership: np.ndarray,
+              batch: Dict[str, List],
+              columns: List[str],
+              *args,
+              **kwargs) -> np.ndarray:
+
+        # Run all the subpopulations in sequence to update the slice membership matrix
+        for i, subpopulation in enumerate(self.subpopulations):
+            slice_membership[:, i:i + 1] = subpopulation.apply(
+                slice_membership=slice_membership[:, i:i + 1],
+                batch=batch,
+                columns=columns,
+                *args,
+                **kwargs
+            )
+
+        return slice_membership
+
     @classmethod
-    def from_file(cls, path: str) -> Subpopulation:
-        """
-        Load phrases from a file, one per line.
-        """
-        with open(path) as f:
-            phrases = [line.strip() for line in f.readlines()]
-        return cls(phrases=phrases)
+    def join(cls, *slicebuilders: HasAllPhrases) -> Sequence[HasAllPhrases]:
+        # Join all the slicebuilders
+        return [HasAllPhrases(
+            phrase_groups=[phrases for slicebuilder in slicebuilders for phrases in slicebuilder.phrase_groups],
+            identifiers=[identifier for slicebuilder in slicebuilders for identifier in slicebuilder.identifiers],
+        )]
+
+
+# class HasAllPhrases(Subpopulation):
+#
+#     def __init__(self,
+#                  phrases=None,
+#                  identifier: Identifier = None,
+#                  *args,
+#                  **kwargs):
+#         # Take the intersection of the phrases
+#         subpopulation = Subpopulation.intersection(
+#             HasPhrase(phrases=phrases),
+#             identifier=Identifier(
+#                 _name=self.__class__.__name__,
+#                 phrases=set(phrases),
+#             ) if not identifier else identifier,
+#         )
+#
+#         super(HasAllPhrases, self).__init__(
+#             identifiers=subpopulation.identifiers,
+#             apply_fn=subpopulation.apply,
+#             *args,
+#             **kwargs
+#         )
 
 
 class HasIndefiniteArticle(HasAnyPhrase):
 
     def __init__(self):
         super(HasIndefiniteArticle, self).__init__(
-            phrases=['a', 'an'],
-            identifier=Identifier(_name=self.__class__.__name__)
+            phrase_groups=[['a', 'an']],
+            identifiers=[Identifier(_name=self.__class__.__name__)]
         )
 
 
 class HasDefiniteArticle(HasAnyPhrase):
     def __init__(self):
         super(HasDefiniteArticle, self).__init__(
-            phrases=['the'],
-            identifier=Identifier(_name=self.__class__.__name__)
+            phrase_groups=[['the']],
+            identifiers=[Identifier(_name=self.__class__.__name__)]
         )
 
 
@@ -220,8 +327,8 @@ class HasTemporalPreposition(HasAnyPhrase):
 
     def __init__(self):
         super(HasTemporalPreposition, self).__init__(
-            phrases=['after', 'before', 'past'],
-            identifier=Identifier(_name=self.__class__.__name__),
+            phrase_groups=[['after', 'before', 'past']],
+            identifiers=[Identifier(_name=self.__class__.__name__)],
         )
 
 
@@ -229,8 +336,8 @@ class HasPosessivePreposition(HasAnyPhrase):
 
     def __init__(self):
         super(HasPosessivePreposition, self).__init__(
-            phrases=['inside of', 'with', 'within'],
-            identifier=Identifier(_name=self.__class__.__name__)
+            phrase_groups=[['inside of', 'with', 'within']],
+            identifiers=[Identifier(_name=self.__class__.__name__)]
         )
 
 
@@ -238,8 +345,8 @@ class HasComparison(HasAnyPhrase):
 
     def __init__(self):
         super(HasComparison, self).__init__(
-            phrases=['more', 'less', 'better', 'worse', 'bigger', 'smaller'],
-            identifier=Identifier(_name=self.__class__.__name__),
+            phrase_groups=[['more', 'less', 'better', 'worse', 'bigger', 'smaller']],
+            identifiers=[Identifier(_name=self.__class__.__name__)],
         )
 
 
@@ -247,8 +354,8 @@ class HasQuantifier(HasAnyPhrase):
 
     def __init__(self):
         super(HasQuantifier, self).__init__(
-            phrases=['all', 'some', 'none'],
-            identifier=Identifier(_name=self.__class__.__name__)
+            phrase_groups=[['all', 'some', 'none']],
+            identifiers=[Identifier(_name=self.__class__.__name__)],
         )
 
 
@@ -256,10 +363,10 @@ class HasNegation(HasAnyPhrase):
 
     def __init__(self):
         super(HasNegation, self).__init__(
-            phrases=[
+            phrase_groups=[[
                 'no', 'not', 'none', 'noone ', 'nobody', 'nothing', 'neither', 'nowhere', 'never', 'hardly',
                 'scarcely', 'barely', 'doesnt', 'isnt', 'wasnt', 'shouldnt', 'wouldnt', 'couldnt', 'wont', 'cant',
                 'dont',
-            ],
-            identifier=Identifier(_name=self.__class__.__name__),
+            ]],
+            identifiers=[Identifier(_name=self.__class__.__name__)],
         )

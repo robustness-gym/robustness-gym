@@ -36,6 +36,9 @@ from robustnessgym.slicebuilders.subpopulations.constituency_overlap.constituenc
     ConstituencySubtreeSubpopulation,
     FuzzyConstituencySubtreeSubpopulation,
 )
+from robustnessgym.slicebuilders.subpopulations.lexical_overlap.lexical_overlap import (
+    LexicalOverlapSubpopulation,
+)
 from robustnessgym.slicebuilders.subpopulations.length.length import LengthSubpopulation
 from robustnessgym.slicebuilders.subpopulations.ner.entity_frequency import EntityFrequency
 from robustnessgym.slicebuilders.subpopulations.phrase.hans import (

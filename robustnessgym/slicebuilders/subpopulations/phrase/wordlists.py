@@ -2,12 +2,11 @@ import urllib.request
 import zipfile
 
 from robustnessgym.identifier import Identifier
-from robustnessgym.slicebuilders.subpopulation import SubpopulationCollection
 from robustnessgym.slicebuilders.subpopulations.phrase.phrase import HasAnyPhrase
 from robustnessgym.tools import DownloadProgressBar
 
 
-class HasCategoryPhrase(SubpopulationCollection):
+class HasCategoryPhrase(HasAnyPhrase):
 
     def __init__(self):
 
@@ -16,14 +15,15 @@ class HasCategoryPhrase(SubpopulationCollection):
         self.categories_to_words = self._load_all()
 
         super(HasCategoryPhrase, self).__init__(
-            subpopulations=[
-                HasAnyPhrase(
-                    phrases=self.categories_to_words[supercategory][category],
-                    identifier=Identifier(
-                        _name=self.__class__.__name__,
-                        supercategory=supercategory,
-                        category=category
-                    )
+            phrase_groups=[
+                self.categories_to_words[supercategory][category]
+                for (supercategory, category) in self.categories
+            ],
+            identifiers=[
+                Identifier(
+                    _name=self.__class__.__name__,
+                    supercategory=supercategory,
+                    category=category
                 )
                 for (supercategory, category) in self.categories
             ]

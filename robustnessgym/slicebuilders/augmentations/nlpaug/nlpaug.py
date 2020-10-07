@@ -45,10 +45,13 @@ class NlpAug(SingleColumnAugmentation):
     def single_column_apply(self,
                             column_batch: List[str]) -> List[List[str]]:
         # Apply the nlpaug pipeline
-        augmented_texts = self.pipeline.augments(
+        augmented_texts = self.pipeline.augment(
             data=column_batch,
             n=self.num_transformed,
         )
 
-        # Partition to reshape and return
-        return list(tz.partition_all(self.num_transformed, augmented_texts))
+        if self.num_transformed == 1:
+            augmented_texts = [augmented_texts]
+
+        # Transpose the list of lists from [4 x 32] to [32 x 4] and return
+        return list(map(list, zip(*augmented_texts)))
