@@ -19,17 +19,19 @@ class Slice(Dataset):
         if dataset is not None:
             # Create a Slice directly from the Dataset object
             self.__dict__ = dataset.__dict__.copy()
+            self._identifier = dataset.identifier
+            self.lineage = [(str(Dataset.__name__), dataset.identifier)]
         else:
             super(Slice, self).__init__(*args, **kwargs)
 
-        # Set the identifier
-        self._identifier = identifier
+            # Set the identifier
+            self._identifier = identifier
+
+            # A slice has a lineage
+            self.lineage = []
 
         # Always a single slice inside a slice
         self.num_slices = 1
-
-        # A slice has a lineage
-        self.lineage = []
 
         # Set the category of the slice: defaults to 'curated'
         self.category = CURATION
