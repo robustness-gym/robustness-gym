@@ -99,12 +99,13 @@ class TestBench:
         # Temporary function to generate human readable names
         groups = {}
         for ident in self.slice_identifiers:
-            builder_ident = str(ident).split(" -> ")[-1]
-            builder_ident, cols = builder_ident.split(" @ ")
-            name = builder_ident.split("(")[0]
-            if name not in groups:
-                groups[name] = set()
-            groups[name].add((builder_ident, cols))
+            if "->" in str(ident):
+                builder_ident = str(ident).split(" -> ")[-1]
+                builder_ident, cols = builder_ident.split(" @ ")
+                name = builder_ident.split("(")[0]
+                if name not in groups:
+                    groups[name] = set()
+                groups[name].add((builder_ident, cols))
 
         group_info = {}
         for key, group in groups.items():
@@ -119,19 +120,23 @@ class TestBench:
 
         ident_mapping = {}
         for ident in self.slice_identifiers:
-            builder_ident = str(ident).split(" -> ")[-1]
-            builder_ident, cols = builder_ident.split(" @ ")
-            name = builder_ident.split("(")[0]
+            if "->" in str(ident):
+                builder_ident = str(ident).split(" -> ")[-1]
+                builder_ident, cols = builder_ident.split(" @ ")
+                name = builder_ident.split("(")[0]
 
-            if group_info[name] == 'name':
-                new_ident = name
-            elif group_info[name] == 'builder_ident':
-                new_ident = builder_ident
-            elif group_info[name] == 'full':
-                new_ident = str(ident).split(" -> ")[-1]
+                if group_info[name] == 'name':
+                    new_ident = name
+                elif group_info[name] == 'builder_ident':
+                    new_ident = builder_ident
+                elif group_info[name] == 'full':
+                    new_ident = str(ident).split(" -> ")[-1]
 
-            if new_ident.startswith('NlpAug'):
-                new_ident = new_ident.split("NlpAug(pipeline=[")[1].split("])")[0]
+                if new_ident.startswith('NlpAug'):
+                    new_ident = new_ident.split("NlpAug(pipeline=[")[1].split("])")[0]
+
+            else:
+                new_ident = str(ident).split("(")[0]
 
             ident_mapping[ident] = new_ident
 
