@@ -559,7 +559,10 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
             except:
                 pass
         if "logdir" in state:
-            state["logdir"] = (pathlib.Path.home() / f"robustnessgym/datasets/{str(state['identifier'])}")
+            try:
+                state["logdir"] = (pathlib.Path.home() / f"robustnessgym/datasets/{str(state['identifier'])}")
+            except:
+                state["logdir"] = (pathlib.Path.home() / f"robustnessgym/datasets/{str(state['_identifier'])}")
         super(Dataset, self).__setstate__(state)
 
     @classmethod
