@@ -4,8 +4,8 @@ import pathlib
 from typing import *
 
 import dill
-import fuzzywuzzy
 import pandas as pd
+from fuzzywuzzy import process
 from tqdm import tqdm
 
 from robustnessgym.model import Model
@@ -292,9 +292,9 @@ class TestBench:
     def search(self,
                keyword: str,
                limit: int = 3):
-        return [self._slice_table[t[0]] for t in fuzzywuzzy.process.extract(keyword,
-                                                                            self.slice_identifiers,
-                                                                            limit=limit)]
+        return [self._slice_table[t[0]] for t in process.extract(keyword,
+                                                                 self.slice_identifiers,
+                                                                 limit=limit)]
 
     def save(self,
              path: str) -> None:
