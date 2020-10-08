@@ -4,6 +4,7 @@ import pathlib
 from typing import *
 
 import dill
+import fuzzywuzzy
 import pandas as pd
 from tqdm import tqdm
 
@@ -33,6 +34,7 @@ class TestBench:
         # Set the collection of slices
         self.slices = set(slices)
         self.slice_identifiers = {sl.identifier for sl in self.slices}
+        self._slice_table = {sl.identifier: sl for sl in self.slices}
 
         # The testbench internally tracks metrics
         self.metrics = {}
@@ -153,11 +155,15 @@ class TestBench:
         Returns:
 
         """
+        if isinstance(slices, Slice):
+            slices = [slices]
+
         # Only add slices that aren't already present in the testbench
         for sl in slices:
             if sl.identifier not in self.slice_identifiers:
                 self.slices.add(sl)
                 self.slice_identifiers.add(sl.identifier)
+                self._slice_table[sl.identifier] = sl
 
     def evaluate(self,
                  model: Model,
@@ -282,6 +288,13 @@ class TestBench:
         elif schema_type == 'default':
             # TODO(karan): undo the schema standardization
             raise NotImplementedError
+
+    def search(self,
+               keyword: str,
+               limit: int = 3):
+        return [self._slice_table[t[0]] for t in fuzzywuzzy.process.extract(keyword,
+                                                                            self.slice_identifiers,
+                                                                            limit=limit)]
 
     def save(self,
              path: str) -> None:
