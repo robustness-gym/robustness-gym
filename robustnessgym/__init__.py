@@ -114,6 +114,9 @@ from .slicebuilders.subpopulation import (
     Subpopulation,
     SubpopulationCollection,
 )
+from .slicebuilders.subpopulations.score.score import (
+    ScoreSubpopulation,
+)
 from .storage import StorageMixin
 from robustnessgym.tasks.task import (
     Task,

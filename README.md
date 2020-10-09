@@ -33,9 +33,15 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-#### Jupyter Progressbars
+#### Progress bars in Jupyter 
 Enable the following Jupyter extensions to display progress bars properly. 
 ```
 jupyter nbextension enable --py widgetsnbextension
 jupyter labextension install @jupyter-widgets/jupyterlab-manager
+```
+
+#### TextBlob setup
+Download and install the corpora that textblob uses.
+```
+python -m textblob.download_corpora
 ```
