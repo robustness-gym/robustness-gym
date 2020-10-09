@@ -10,7 +10,7 @@ jupyterlab
 numpy==1.17.4
 dill==0.3.1.1
 tqdm==4.41.0
-nltk==3.4.4
+nltk==3.4.5
 pandas==1.0.3
 nlp
 datasets
