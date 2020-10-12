@@ -31,10 +31,11 @@ class TestBench:
         # Set the task
         self.task = task
 
-        # Set the collection of slices
-        self.slices = set(slices)
-        self.slice_identifiers = {sl.identifier for sl in self.slices}
-        self._slice_table = {sl.identifier: sl for sl in self.slices}
+        # Create the collection of slices
+        self.slices = set()
+        self.slice_identifiers = set()
+        self._slice_table = {}
+        self.add_slices(slices)
 
         # The testbench internally tracks metrics
         self.metrics = {}
@@ -158,9 +159,9 @@ class TestBench:
         if isinstance(slices, Slice):
             slices = [slices]
 
-        # Only add slices that aren't already present in the testbench
+        # Only add slices that aren't already present in the testbench and have non-zero length
         for sl in slices:
-            if sl.identifier not in self.slice_identifiers:
+            if sl.identifier not in self.slice_identifiers and len(sl) > 0:
                 self.slices.add(sl)
                 self.slice_identifiers.add(sl.identifier)
                 self._slice_table[sl.identifier] = sl
