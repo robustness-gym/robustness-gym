@@ -27,6 +27,7 @@ progressbar
 python-Levenshtein
 omegaconf
 hydra-core
+streamlit
 cython
 fastBPE
 nlpaug
