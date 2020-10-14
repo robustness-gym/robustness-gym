@@ -31,4 +31,4 @@ cython
 fastBPE
 nlpaug
 kaleido
-rouge_score==0.0.4
+rouge-score==0.0.4
