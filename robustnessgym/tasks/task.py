@@ -163,7 +163,7 @@ class Summarization(Task):
                 # TODO(karan): calibration, other metrics
                 'rouge1',
                 'rouge2',
-                'rougeL'
+                'rougeLsum'
             ],
         )
 

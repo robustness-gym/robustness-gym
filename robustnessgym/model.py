@@ -309,7 +309,7 @@ class HuggingfaceModel(Model):
                     num_classes=num_classes
                 ).item()
 
-            elif metric in ('rouge1', 'rouge2', 'rougeL'):
+            elif metric in ('rouge1', 'rouge2', 'rougeLsum'):
                 scorer = rouge_scorer.RougeScorer([metric], use_stemmer=True)
                 evaluation_dict[metric] = statistics.mean(scorer.score(reference, pred)[metric].fmeasure for \
                                                           reference, pred in zip(labels, predictions['pred']))
