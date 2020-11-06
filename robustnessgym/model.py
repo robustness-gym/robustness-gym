@@ -1,12 +1,14 @@
 import itertools
 import statistics
 from typing import *
+import re
 
 import cytoolz as tz
 import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
 from transformers import *
 from rouge_score import rouge_scorer
+import nltk
 
 from robustnessgym.tasks.task import Task
 from robustnessgym.dataset import Dataset
@@ -310,8 +312,15 @@ class HuggingfaceModel(Model):
                 ).item()
 
             elif metric in ('rouge1', 'rouge2', 'rougeLsum'):
+                if metric == 'rouge1':
+                    metric_name = 'Rouge-1'
+                elif metric == 'rouge2':
+                    metric_name = 'Rouge-2'
+                else:
+                    metric_name = 'Rouge-L'
                 scorer = rouge_scorer.RougeScorer([metric], use_stemmer=True)
-                evaluation_dict[metric] = statistics.mean(scorer.score(reference, pred)[metric].fmeasure for \
+                evaluation_dict[metric_name] = statistics.mean(scorer.score(format_summary(reference),
+                                                                            format_summary(pred))[metric].fmeasure for \
                                                           reference, pred in zip(labels, predictions['pred']))
 
             elif metric == 'class_dist':
@@ -336,3 +345,9 @@ class HuggingfaceModel(Model):
         dataset.reset_format()
 
         return evaluation_dict
+
+
+def format_summary(x: str) -> str:
+    """Format summary text for computing rouge """
+    re.sub("<n>", "", x)  # remove pegasus newline char
+    return "\n".join(nltk.sent_tokenize(x))
