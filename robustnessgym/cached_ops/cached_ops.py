@@ -511,19 +511,44 @@ class CachedOperation(Operation):
             batch_size=batch_size,
         )
 
-        return dataset.map(
-            partial(self.process_batch, columns=columns),
-            batched=True,
-            batch_size=batch_size,
-            cache_file_name=
-            # The cache file name is a XOR of the interaction history and the current operation
-            str(dataset.logdir /
-                ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
-                                    dataset.hash_interactions() ^
-                                    persistent_hash(
-                                        str(self.identifier) + str(strings_as_json(columns))))) + '.arrow')),
-            # self.get_cache_file_name(columns=columns),
-        )
+        try:
+            return dataset.map(
+                partial(self.process_batch, columns=columns),
+                batched=True,
+                batch_size=batch_size,
+                cache_file_name=
+                # The cache file name is a XOR of the interaction history and the current operation
+                str(dataset.logdir /
+                    ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                        dataset.hash_interactions() ^
+                                        persistent_hash(
+                                            str(self.identifier) + str(strings_as_json(columns))))) + '.arrow')),
+                # self.get_cache_file_name(columns=columns),
+            )
+        except:
+            # Batch the dataset, and process each batch
+            all_batches = [
+                self.process_batch(
+                    batch=batch,
+                    columns=columns,
+                )
+                for batch in dataset.batch(batch_size)
+            ]
+
+            return dataset.map(
+                lambda examples, indices: all_batches[indices[0] // batch_size],
+                batched=True,
+                batch_size=batch_size,
+                with_indices=True,
+                load_from_cache_file=False,
+                cache_file_name=
+                # The cache file name is a XOR of the interaction history and the current operation
+                str(dataset.logdir /
+                    ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                        dataset.hash_interactions() ^
+                                        persistent_hash(
+                                            str(self.identifier) + str(strings_as_json(columns))))) + '.arrow')),
+            )
 
     def construct_updates(self,
                           encoded_outputs: List[str],
