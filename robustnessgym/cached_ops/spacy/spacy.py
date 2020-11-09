@@ -153,3 +153,11 @@ class Spacy(SingleColumnCachedOperation):
             token_batch.append(tokens)
 
         return token_batch
+
+    @classmethod
+    def entities(cls,
+                 decoded_batch: List) -> List[List[dict]]:
+        """
+        For each example, returns the list of entity extracted by Spacy for each key.
+        """
+        return [doc_dict['ents'] for doc_dict in decoded_batch]

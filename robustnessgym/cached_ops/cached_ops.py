@@ -229,6 +229,10 @@ class Operation(ABC):
 
 
 class CachedOperation(Operation):
+    """
+    Class to create CachedOperations.
+    """
+
     # Path to a log directory
     logdir: pathlib.Path = pathlib.Path.home() / 'robustnessgym/cachedops/'
 
@@ -239,15 +243,14 @@ class CachedOperation(Operation):
                  apply_fn: Callable = None,
                  identifier: Identifier = None,
                  *args,
-                 **kwargs,
-                 ):
+                 **kwargs):
 
         super(CachedOperation, self).__init__(
             apply_fn=apply_fn,
             identifiers=[identifier] if identifier else None,
             num_outputs=1,
             *args,
-            **kwargs,
+            **kwargs
         )
 
     @property
@@ -416,21 +419,48 @@ class CachedOperation(Operation):
         """
 
         # Apply preparation to the dataset
-        # TODO(karan): put this in a try except block
-        return dataset.map(
-            partial(self.prepare_batch, columns=columns),
-            batched=True,
-            batch_size=batch_size,
-            cache_file_name=
-            # The cache file name is a XOR of the interaction history and the current operation
-            # FIXME(karan): this is repeated
-            str(
-                dataset.logdir /
-                ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
-                                    dataset.hash_interactions() ^
-                                    persistent_hash(
-                                        str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow')),
-        )
+        # TODO(karan): this is similar to the try except block for slicebuilders, refactor
+        try:
+            return dataset.map(
+                partial(self.prepare_batch, columns=columns),
+                batched=True,
+                batch_size=batch_size,
+                cache_file_name=
+                # The cache file name is a XOR of the interaction history and the current operation
+                # FIXME(karan): this is repeated
+                str(
+                    dataset.logdir /
+                    ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                        dataset.hash_interactions() ^
+                                        persistent_hash(
+                                            str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow')),
+            )
+        except: # TypeError or PicklingError or AttributeError:
+            # Batch the dataset, and process each batch
+            all_batches = [
+                self.prepare_batch(
+                    batch=batch,
+                    columns=columns,
+                )
+                for batch in dataset.batch(batch_size)
+            ]
+
+            return dataset.map(
+                lambda examples, indices: all_batches[indices[0] // batch_size],
+                batched=True,
+                batch_size=batch_size,
+                with_indices=True,
+                load_from_cache_file=False,
+                cache_file_name=
+                # The cache file name is a XOR of the interaction history and the current operation
+                # FIXME(karan): this is repeated
+                str(
+                    dataset.logdir /
+                    ('cache-' + str(abs(persistent_hash(str(dataset.identifier)) ^
+                                        dataset.hash_interactions() ^
+                                        persistent_hash(
+                                            str(self.identifier) + str(strings_as_json(columns))))) + '-prep.arrow')),
+            )
 
     def apply(self,
               batch: Batch,
