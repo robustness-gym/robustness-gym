@@ -173,6 +173,7 @@ class Spacy(SingleColumnCachedOperation):
             for doc_dict in decoded_batch
         ]
 
+    @classmethod
     def num_tokens(cls,
                    decoded_batch: List) -> List[int]:
         """

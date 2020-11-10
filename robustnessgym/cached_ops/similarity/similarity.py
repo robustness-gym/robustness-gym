@@ -1,10 +1,11 @@
 from typing import List
 
+import cytoolz as tz
 import numpy as np
 from datasets import load_metric
 from robustnessgym.cached_ops.cached_ops import CachedOperation
 from robustnessgym.cached_ops.spacy.spacy import Spacy
-from robustnessgym.dataset import Batch
+from robustnessgym.dataset import Batch, transpose_batch
 
 
 class SentenceSimilarityMatrix(CachedOperation):
@@ -31,6 +32,47 @@ class SentenceSimilarityMatrix(CachedOperation):
         )
 
         return self.similarity(*[sentences[col] for col in columns])
+
+
+class DocumentSimilarityScore(CachedOperation):
+
+    def __init__(self):
+        super(DocumentSimilarityScore, self).__init__()
+        self.metric = load_metric("rouge")
+
+    def similarity(self,
+                   batch_doc_1: List[str],
+                   batch_doc_2: List[str]):
+        raise NotImplementedError("Must implement a similarity computation.")
+
+    def apply(self, batch, columns, **kwargs):
+        assert len(columns) == 2
+        return self.similarity(*[batch[col] for col in columns])
+
+
+class RougeScore(DocumentSimilarityScore):
+
+    def __init__(self):
+        super(RougeScore, self).__init__()
+        self.metric = load_metric("rouge")
+
+    def similarity(self,
+                   batch_doc_1: List[str],
+                   batch_doc_2: List[str]):
+        # Compute the scores between every pair of documents
+        scores = self.metric.compute(
+            predictions=batch_doc_1,
+            references=batch_doc_2,
+            use_agregator=False
+        )
+
+        # Transpose the batch of scores
+        scores = [
+            tz.valmap(lambda v: {m: getattr(v, m) for m in ['precision', 'recall', 'fmeasure']}, example)
+            for example in transpose_batch(scores)
+        ]
+
+        return scores
 
 
 class RougeMatrix(SentenceSimilarityMatrix):
