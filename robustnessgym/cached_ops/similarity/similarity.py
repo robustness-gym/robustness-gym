@@ -1,0 +1,61 @@
+from typing import List
+
+import numpy as np
+from datasets import load_metric
+from robustnessgym.cached_ops.cached_ops import CachedOperation
+from robustnessgym.cached_ops.spacy.spacy import Spacy
+from robustnessgym.dataset import Batch
+
+
+class SentenceSimilarityMatrix(CachedOperation):
+
+    def __init__(self):
+        super(SentenceSimilarityMatrix, self).__init__()
+
+    def similarity(self,
+                   batch_sentences_1: List[List[str]],
+                   batch_sentences_2: List[List[str]]) -> List:
+        raise NotImplementedError("Must implement a similarity computation.")
+
+    def apply(self,
+              batch: Batch,
+              columns: List[str],
+              **kwargs):
+        assert len(columns) == 2, "Must specify exactly two columns."
+
+        # Retrieve the sentences in the given columns
+        sentences = Spacy.retrieve(
+            batch=batch,
+            columns=[[col] for col in columns],
+            proc_fns=Spacy.sentences,
+        )
+
+        return self.similarity(*[sentences[col] for col in columns])
+
+
+class RougeMatrix(SentenceSimilarityMatrix):
+
+    def __init__(self):
+        super(RougeMatrix, self).__init__()
+        self.metric = load_metric("rouge")
+
+    def similarity(self,
+                   batch_sentences_1: List[List[str]],
+                   batch_sentences_2: List[List[str]]):
+        batch_similarity = []
+        for sents_1, sents_2 in zip(batch_sentences_1, batch_sentences_2):
+            # Compute the scores between every pair of sentences
+            scores = self.metric.compute(predictions=np.repeat(sents_1, len(sents_2)),
+                                         references=sents_2 * len(sents_1),
+                                         use_agregator=False)
+
+            # Organize all the scores into a similarity matrix for each metric
+            similarity_mat = {
+                k: {m: np.array([getattr(e, m) for e in v]).reshape(len(sents_1), len(sents_2)).tolist()
+                    for m in ['precision', 'recall', 'fmeasure']}
+                for k, v in scores.items()
+            }
+
+            batch_similarity.append(similarity_mat)
+
+        return batch_similarity

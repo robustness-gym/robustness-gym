@@ -17,6 +17,10 @@ from robustnessgym.cached_ops.allen.semantic_role_labeler.semantic_role_labeler 
 from robustnessgym.cached_ops.bootleg.bootleg import (
     Bootleg
 )
+from robustnessgym.cached_ops.similarity.similarity import (
+    SentenceSimilarityMatrix,
+    RougeMatrix,
+)
 from robustnessgym.slicebuilders.attacks.textattack.textattack import TextAttack
 from robustnessgym.slicebuilders.augmentations.backtranslation.fairseq import (
     FairseqBacktranslation,
