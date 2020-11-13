@@ -74,7 +74,8 @@ class RougeScore(DocumentSimilarityScore):
 
         return scores
 
-    def select(self,
+    @classmethod
+    def select(cls,
                decoded_batch: List,
                metric: Sequence[str] = ('rouge1', 'fmeasure')):
         if len(metric) == 1:
@@ -112,7 +113,8 @@ class RougeMatrix(SentenceSimilarityMatrix):
 
         return batch_similarity
 
-    def select(self,
+    @classmethod
+    def select(cls,
                decoded_batch: List,
                metric: Sequence[str] = ('rouge1', 'fmeasure')):
         if len(metric) == 1:
