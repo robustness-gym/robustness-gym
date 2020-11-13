@@ -20,6 +20,7 @@ from robustnessgym.cached_ops.bootleg.bootleg import (
 from robustnessgym.cached_ops.similarity.similarity import (
     SentenceSimilarityMatrix,
     RougeMatrix,
+    RougeScore,
 )
 from robustnessgym.slicebuilders.attacks.textattack.textattack import TextAttack
 from robustnessgym.slicebuilders.augmentations.backtranslation.fairseq import (
