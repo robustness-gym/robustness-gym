@@ -104,6 +104,11 @@ from robustnessgym.slicebuilders.subpopulations.phrase.wordlists import (
 from robustnessgym.slicebuilders.subpopulations.similarity.similarity import (
     RougeScoreSubpopulation,
     RougeMatrixScoreSubpopulation,
+    Abstractiveness,
+    Distillation,
+    Ordering,
+    Dispersion,
+    Position,
 )
 from robustnessgym.testbench.testbench import TestBench
 from .cached_ops.cached_ops import (
