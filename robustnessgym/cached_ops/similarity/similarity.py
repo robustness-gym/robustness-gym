@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Sequence
 
 import cytoolz as tz
 import numpy as np
@@ -74,6 +74,16 @@ class RougeScore(DocumentSimilarityScore):
 
         return scores
 
+    def select(self,
+               decoded_batch: List,
+               metric: Sequence[str] = ('rouge1', 'fmeasure')):
+        if len(metric) == 1:
+            return [scores[metric[0]] for scores in decoded_batch]
+        elif len(metric) == 2:
+            return [scores[metric[0]][metric[1]] for scores in decoded_batch]
+        else:
+            raise ValueError(f"metric {metric} must be a sequence of length <= 2.")
+
 
 class RougeMatrix(SentenceSimilarityMatrix):
 
@@ -101,3 +111,13 @@ class RougeMatrix(SentenceSimilarityMatrix):
             batch_similarity.append(similarity_mat)
 
         return batch_similarity
+
+    def select(self,
+               decoded_batch: List,
+               metric: Sequence[str] = ('rouge1', 'fmeasure')):
+        if len(metric) == 1:
+            return [tz.valmap(np.array, matrices[metric[0]]) for matrices in decoded_batch]
+        elif len(metric) == 2:
+            return [np.array(matrices[metric[0]][metric[1]]) for matrices in decoded_batch]
+        else:
+            raise ValueError(f"metric {metric} must be a sequence of length <= 2.")

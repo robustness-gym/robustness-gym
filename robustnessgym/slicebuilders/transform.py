@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple, Optional
 import cytoolz as tz
 import numpy as np
 
-from robustnessgym.dataset import Dataset
+from robustnessgym.dataset import Dataset, Batch
 from robustnessgym.identifier import Identifier
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
@@ -28,22 +28,22 @@ class Transform(SliceBuilder):
         return self.num_slices
 
     def apply(self,
-              skeleton_batches: List[Dict[str, List]],
+              skeleton_batches: List[Batch],
               slice_membership: np.ndarray,
-              batch: Dict[str, List],
+              batch: Batch,
               columns: List[str],
               *args,
-              **kwargs) -> Tuple[List[Dict[str, List]], np.ndarray]:
+              **kwargs) -> Tuple[List[Batch], np.ndarray]:
         raise NotImplementedError
 
     def process_batch(self,
-                      batch: Dict[str, List],
+                      batch: Batch,
                       columns: List[str],
                       mask: List[int] = None,
                       store_compressed: bool = True,
                       store: bool = True,
                       *args,
-                      **kwargs) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+                      **kwargs) -> Tuple[Batch, List[Batch], Optional[np.ndarray]]:
         # Determine the size of the batch
         batch_size = len(batch[list(batch.keys())[0]])
 
@@ -95,7 +95,7 @@ class Transform(SliceBuilder):
         return batch, transformed_batches, slice_membership
 
     def construct_updates(self,
-                          transformed_batches: List[Dict[str, List]],
+                          transformed_batches: List[Batch],
                           slice_membership: np.ndarray,
                           batch_size: int,
                           columns: List[str],

@@ -3,6 +3,7 @@ from typing import List, Callable, Dict, Tuple
 import numpy as np
 
 from robustnessgym.constants import AUGMENTATION
+from robustnessgym.dataset import Batch
 from robustnessgym.identifier import Identifier
 from robustnessgym.slicebuilders.transform import Transform
 
@@ -37,12 +38,12 @@ class SingleColumnAugmentation(Augmentation):
         raise NotImplementedError
 
     def apply(self,
-              skeleton_batches: List[Dict[str, List]],
+              skeleton_batches: List[Batch],
               slice_membership: np.ndarray,
-              batch: Dict[str, List],
+              batch: Batch,
               columns: List[str],
               *args,
-              **kwargs) -> Tuple[List[Dict[str, List]], np.ndarray]:
+              **kwargs) -> Tuple[List[Batch], np.ndarray]:
 
         # Independently apply the augmentation over the columns
         for column in columns:
