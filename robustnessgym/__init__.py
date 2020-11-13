@@ -31,6 +31,9 @@ from robustnessgym.slicebuilders.augmentations.eda.eda import (
 from robustnessgym.slicebuilders.augmentations.nlpaug.nlpaug import (
     NlpAug,
 )
+from robustnessgym.slicebuilders.augmentations.similarity.similarity import (
+    RougeMatrixSentenceAugmentation,
+)
 from robustnessgym.slicebuilders.slicebuilder import (
     SliceBuilder,
     SliceBuilderCollection,
@@ -96,6 +99,10 @@ from robustnessgym.slicebuilders.subpopulations.phrase.phrase import (
 )
 from robustnessgym.slicebuilders.subpopulations.phrase.wordlists import (
     HasCategoryPhrase
+)
+from robustnessgym.slicebuilders.subpopulations.similarity.similarity import (
+    RougeScoreSubpopulation,
+    RougeMatrixScoreSubpopulation,
 )
 from robustnessgym.testbench.testbench import TestBench
 from .cached_ops.cached_ops import (
