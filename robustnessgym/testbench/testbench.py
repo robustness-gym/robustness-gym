@@ -15,6 +15,26 @@ from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 from robustnessgym.tasks.task import Task
 from robustnessgym.tools import persistent_hash
 
+from robustnessgym.constants import GENERIC, SUBPOPULATION, ATTACK, AUGMENTATION, CURATION
+
+TEST = 'test'
+category_to_label= {
+    TEST: 'Test Set',
+    GENERIC: 'Slice',
+    SUBPOPULATION: 'SubPop',
+    ATTACK: 'Attack',
+    AUGMENTATION: 'Augment',
+    CURATION: 'Eval'
+}
+category_to_order = {
+    TEST: 0,
+    SUBPOPULATION: 1,
+    AUGMENTATION: 2,
+    CURATION: 3,
+    ATTACK: 4,
+    GENERIC: 5
+}
+
 
 # TODO(karan): make the TestBench hashable
 class TestBench:
@@ -231,17 +251,15 @@ class TestBench:
         model_metrics = self.evaluate(model=model, batch_size=batch_size, coerce_fn=coerce_fn)
 
         # Create a consolidated "report"
-        category_to_index = {category: i for i, category in enumerate(SliceBuilder.CATEGORIES)}
 
         # TODO(karan): make this more general
         self._human_readable_identifiers()
 
-        df = pd.DataFrame()
         data = []
         for slice in self.slices:
             row = {
-                'category_order': category_to_index[slice.category],
-                'category': slice.category,
+                'category_order': category_to_order[slice.category],
+                'category': category_to_label.get(slice.category, slice.category.capitalize()),
                 'slice_name': self.ident_mapping[slice.identifier],  # str(slice.identifier),
                 'Size': len(slice)
             }
