@@ -16,7 +16,7 @@ import plotly.figure_factory as ff
 import sys
 
 sys.path.append('..')
-from robustness_gym import *
+from robustnessgym import *
 
 st.title("Robustness gym")
 # st.sidebar.image("gym.png",width=100,format='PNG')
