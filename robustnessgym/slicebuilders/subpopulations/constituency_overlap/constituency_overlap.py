@@ -5,7 +5,7 @@ import numpy as np
 from nltk import Tree
 
 from robustnessgym.cached_ops.allen.constituency_parser.constituency_parser import AllenConstituencyParser
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
 
 

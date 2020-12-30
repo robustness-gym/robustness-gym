@@ -7,7 +7,7 @@ import cytoolz as tz
 
 from robustnessgym.cached_ops.spacy.spacy import Spacy
 
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
 
 

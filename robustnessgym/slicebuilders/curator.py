@@ -1,7 +1,7 @@
 from typing import List
 
 from robustnessgym import SliceBuilder, Identifier
-from robustnessgym.constants import CURATION
+from robustnessgym.core.constants import CURATION
 
 
 class Curator(SliceBuilder):

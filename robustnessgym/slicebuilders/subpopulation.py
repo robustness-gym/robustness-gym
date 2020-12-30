@@ -6,11 +6,11 @@ import numpy as np
 from multiprocess.pool import Pool
 from tqdm import tqdm
 
-from robustnessgym.dataset import Dataset
+from robustnessgym.core.dataset import Dataset
 from robustnessgym.tools import recmerge
-from robustnessgym.constants import *
-from robustnessgym.identifier import Identifier
-from robustnessgym.slicebuilders.slicebuilder import SliceBuilder, SliceBuilderCollection
+from robustnessgym.core.constants import *
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
 class Subpopulation(SliceBuilder):
@@ -332,3 +332,5 @@ class SubpopulationCollection(Subpopulation):
             )
 
         return slice_membership
+
+    # TODO(karan): add combinations for collections

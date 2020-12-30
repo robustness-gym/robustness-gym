@@ -2,7 +2,7 @@ from typing import List, Dict, Tuple
 
 import numpy as np
 
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.augmentation import Augmentation
 from robustnessgym.slicebuilders.augmentations.eda._eda import eda
 

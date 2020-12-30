@@ -119,11 +119,10 @@ from .cached_ops.cached_ops import (
 from .cached_ops.custom.strip_text import StripText
 from .cached_ops.spacy.spacy import Spacy
 from .cached_ops.textblob.textblob import TextBlob
-from .dataset import Dataset
-from .identifier import Identifier
+from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.identifier import Identifier
 from .model import Model
-from .report import Report
-from .slice import Slice
+from robustnessgym.core.slice import Slice
 from .slicebuilders.attack import Attack
 from .slicebuilders.augmentation import Augmentation
 from .slicebuilders.curator import Curator
@@ -134,7 +133,6 @@ from .slicebuilders.subpopulation import (
 from .slicebuilders.subpopulations.score.score import (
     ScoreSubpopulation,
 )
-from .storage import StorageMixin
 from robustnessgym.tasks.task import (
     Task,
     NaturalLanguageInference,
@@ -148,10 +146,6 @@ from robustnessgym.tasks.task import (
 
     QuestionAnswering,
     ExtractiveQuestionAnswering,
-)
-from .tools import (
-    recmerge,
-    persistent_hash,
 )
 
 # from .attacks import *

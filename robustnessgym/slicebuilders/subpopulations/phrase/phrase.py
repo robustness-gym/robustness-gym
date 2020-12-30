@@ -6,9 +6,8 @@ import cytoolz as tz
 import numpy as np
 from ahocorasick import Automaton
 
-from robustnessgym import SliceBuilder
 from robustnessgym.cached_ops.spacy.spacy import Spacy
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 

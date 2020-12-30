@@ -2,8 +2,8 @@ from typing import List, Dict, Tuple
 
 import numpy as np
 
-from robustnessgym.dataset import transpose_batch
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.dataset import transpose_batch
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.attack import Attack
 
 try:

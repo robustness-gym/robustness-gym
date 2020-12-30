@@ -7,7 +7,7 @@ import textattack.attack_recipes as attack_recipes
 from textattack.attack_recipes import AttackRecipe
 from textattack.models.wrappers import ModelWrapper, HuggingFaceModelWrapper
 
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.attack import Attack
 from robustnessgym.model import Model
 

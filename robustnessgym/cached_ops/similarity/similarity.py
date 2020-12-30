@@ -5,7 +5,7 @@ import numpy as np
 from datasets import load_metric
 from robustnessgym.cached_ops.cached_ops import CachedOperation
 from robustnessgym.cached_ops.spacy.spacy import Spacy
-from robustnessgym.dataset import Batch, transpose_batch
+from robustnessgym.core.dataset import Batch, transpose_batch
 
 
 class SentenceSimilarityMatrix(CachedOperation):

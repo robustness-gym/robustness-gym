@@ -6,12 +6,12 @@ from typing import List, Dict, Tuple
 import numpy as np
 
 from robustnessgym.cached_ops.spacy.spacy import Spacy
-from robustnessgym.dataset import Dataset
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
-# TODO(karan): Inherit from HasScore
+# TODO(karan): Inherit from MultiScoreSubpopulation
 class EntityFrequency(Subpopulation,
                       Spacy):
 

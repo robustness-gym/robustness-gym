@@ -1,11 +1,11 @@
 import json
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 
 import cytoolz as tz
 import numpy as np
 
-from robustnessgym.dataset import Dataset, Batch
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.dataset import Dataset, Batch
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 

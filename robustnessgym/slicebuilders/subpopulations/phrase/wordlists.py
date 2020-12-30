@@ -1,7 +1,7 @@
 import urllib.request
 import zipfile
 
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.phrase.phrase import HasAnyPhrase
 from robustnessgym.tools import DownloadProgressBar
 

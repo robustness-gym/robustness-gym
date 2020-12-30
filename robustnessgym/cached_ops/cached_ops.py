@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 from functools import partial
 from typing import Dict, List, Optional, Union, Callable
 
-from robustnessgym.decorators import singlecolumn, methods_with_decorator, batch_processing, dataset_processing
-from robustnessgym.constants import *
-from robustnessgym.dataset import Dataset, Batch, BatchOrDataset
-from robustnessgym.identifier import Identifier
+from robustnessgym.decorators import singlecolumn
+from robustnessgym.core.constants import *
+from robustnessgym.core.dataset import Dataset, Batch, BatchOrDataset
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.tools import recmerge, persistent_hash, strings_as_json
 
 

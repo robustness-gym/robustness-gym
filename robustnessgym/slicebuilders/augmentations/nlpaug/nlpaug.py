@@ -1,9 +1,8 @@
 from typing import List
 
-import cytoolz as tz
 from nlpaug.flow import Pipeline
 
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.augmentation import SingleColumnAugmentation
 
 

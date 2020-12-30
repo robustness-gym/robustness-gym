@@ -6,14 +6,10 @@ import tqdm
 #
 #
 # tqdm.tqdm = nop
-import contextlib
-import os
 import pathlib
-import time
 from functools import partial
 from itertools import compress
 from multiprocess.pool import Pool
-from pickle import PicklingError
 from typing import *
 
 import cytoolz as tz
@@ -21,10 +17,10 @@ import numpy as np
 # from tqdm import tqdm
 
 from robustnessgym.cached_ops.cached_ops import CachedOperation
-from robustnessgym.constants import *
-from robustnessgym.dataset import Dataset, Batch
-from robustnessgym.identifier import Identifier
-from robustnessgym.slice import Slice
+from robustnessgym.core.constants import *
+from robustnessgym.core.dataset import Dataset, Batch
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import Slice
 from robustnessgym.storage import StorageMixin
 from robustnessgym.tools import recmerge, strings_as_json, persistent_hash
 

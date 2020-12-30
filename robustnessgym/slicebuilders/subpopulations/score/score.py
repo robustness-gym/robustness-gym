@@ -3,8 +3,8 @@ from typing import List, Tuple, Dict, Callable, Union
 import numpy as np
 
 from robustnessgym.cached_ops.cached_ops import ScoreOperation
-from robustnessgym.dataset import Dataset, Batch
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.dataset import Dataset, Batch
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
@@ -176,3 +176,96 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         assert len(scores) == slice_membership.shape[0], "Must have exactly one score per example."
 
         return self.bin(scores=scores)
+
+
+class MultiScoreSubpopulation(Subpopulation, BinningMixin):
+
+    def __init__(self,
+                 intervals: List[Tuple[Union[int, float, str], Union[int, float, str]]],
+                 identifiers: List[Identifier] = None,
+                 score_fn: Callable = None,
+                 bin_creation_fn: Callable = None,
+                 bin_fn: Callable = None,
+                 *args,
+                 **kwargs):
+
+        if not identifiers:
+            if score_fn:
+                identifiers = [
+                    Identifier(_name=self.__class__.__name__,
+                               gte=interval[0],
+                               lte=interval[1],
+                               score_fn=score_fn)
+                    for interval in intervals
+                ]
+            else:
+                identifiers = [
+                    Identifier(_name=self.__class__.__name__,
+                               gte=interval[0],
+                               lte=interval[1])
+                    for interval in intervals
+                ]
+
+        super(MultiScoreSubpopulation, self).__init__(
+            intervals=intervals,
+            identifiers=identifiers,
+            bin_creation_fn=bin_creation_fn,
+            bin_fn=bin_fn,
+            *args,
+            **kwargs,
+        )
+
+        # Assign the score fn
+        if score_fn:
+            self.score = score_fn
+
+    def prepare_dataset(self,
+                        dataset: Dataset,
+                        columns: List[str],
+                        batch_size: int = 32,
+                        mask: List[int] = None,
+                        store_compressed: bool = True,
+                        store: bool = True,
+                        *args,
+                        **kwargs) -> Dataset:
+
+        # First reset the scores
+        self._reset_scores()
+
+        # Prepare the dataset
+        dataset = super(MultiScoreSubpopulation, self).prepare_dataset(
+            dataset=dataset,
+            columns=columns,
+            batch_size=batch_size,
+            mask=mask,
+            store_compressed=store_compressed,
+            store=store
+        )
+
+        # Create the bins
+        self.create_bins()
+
+        return dataset
+
+    def prepare_batch(self,
+                      batch: Batch,
+                      columns: List[str],
+                      mask: List[int] = None,
+                      store_compressed: bool = True,
+                      store: bool = True,
+                      *args,
+                      **kwargs) -> Batch:
+
+        # Compute the scores
+        if isinstance(self.score, ScoreOperation):
+            self.scores.extend(
+                self.score.retrieve(batch=batch, columns=columns)
+            )
+        elif isinstance(self.score, Callable):
+            self.scores.extend(
+                self.score(batch=batch, columns=columns)
+            )
+        else:
+            raise RuntimeError("score function invalid.")
+
+        return batch

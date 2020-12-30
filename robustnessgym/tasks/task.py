@@ -4,7 +4,7 @@ from typing import *
 import cytoolz as tz
 from datasets.features import ClassLabel, Value, Sequence
 
-from robustnessgym.dataset import Dataset
+from robustnessgym.core.dataset import Dataset
 from robustnessgym.tasks.schema import Schema
 
 

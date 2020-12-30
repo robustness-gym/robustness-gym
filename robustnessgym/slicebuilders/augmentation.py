@@ -1,10 +1,10 @@
-from typing import List, Callable, Dict, Tuple
+from typing import List, Callable, Tuple
 
 import numpy as np
 
-from robustnessgym.constants import AUGMENTATION
-from robustnessgym.dataset import Batch
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.constants import AUGMENTATION
+from robustnessgym.core.dataset import Batch
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transform import Transform
 
 

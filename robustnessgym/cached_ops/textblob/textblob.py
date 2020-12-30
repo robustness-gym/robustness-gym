@@ -3,7 +3,7 @@ from typing import List, Dict, Union, Optional
 import textblob
 
 from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 
 
 class TextBlob(SingleColumnCachedOperation):

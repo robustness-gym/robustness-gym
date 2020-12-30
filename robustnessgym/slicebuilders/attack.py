@@ -1,7 +1,7 @@
 from typing import List
 
-from robustnessgym.identifier import Identifier
-from robustnessgym.constants import *
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.constants import *
 from robustnessgym.slicebuilders.transform import Transform
 
 

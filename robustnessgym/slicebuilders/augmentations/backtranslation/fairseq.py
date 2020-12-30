@@ -3,7 +3,7 @@ from typing import List
 import cytoolz as tz
 import torch
 
-from robustnessgym.identifier import Identifier
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.augmentation import SingleColumnAugmentation
 
 
