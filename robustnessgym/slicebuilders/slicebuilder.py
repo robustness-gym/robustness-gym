@@ -31,7 +31,7 @@ class SliceBuilder(StorageMixin):
     """
 
     # Path to a log directory
-    logdir: pathlib.Path = pathlib.Path.home() / 'robustnessgym/slicemakers/'
+    logdir: pathlib.Path = pathlib.Path.home() / 'robustnessgym' / SLICEBUILDERS
 
     # Create the log directory
     logdir.mkdir(parents=True, exist_ok=True)
@@ -40,7 +40,7 @@ class SliceBuilder(StorageMixin):
         GENERIC,
         SUBPOPULATION,
         ATTACK,
-        AUGMENTATION,
+        TRANSFORMATION,
         CURATION,
     ]
 
@@ -297,6 +297,10 @@ class SliceBuilder(StorageMixin):
             all_slice_memberships = []
 
             def _map_fn(batch):
+                """Map function for processing batches. Note that using this map_fn in a stateful way is dangerous,
+                since every invocation of this function appends to the all_slice_batches list.
+                The .map() function will invoke this once for testing before performing the map,
+                so we discard the first entry inserted into all_sliced_batches."""
                 batch, sliced_batches, slice_membership = self.process_batch(
                     batch=batch,
                     columns=columns,
@@ -321,6 +325,11 @@ class SliceBuilder(StorageMixin):
                 # The cache file name is a XOR of the interaction history and the current operation
                 str(dataset.logdir / ('cache-' + str(abs(val)) + '.arrow')),
             )
+
+            # Remove the first entry (see _map_fn)
+            all_sliced_batches = all_sliced_batches[1:]
+            all_slice_memberships = all_slice_memberships[1:]
+
         except:
             # Batch the dataset, and process each batch
             all_batches, all_sliced_batches, all_slice_memberships = zip(
@@ -350,8 +359,6 @@ class SliceBuilder(StorageMixin):
 
         # Create a single slice label matrix
         slice_membership = np.concatenate(all_slice_memberships, axis=0)
-
-        print(' ')
 
         slice_cache_hashes = []
         for identifier in self.identifiers:

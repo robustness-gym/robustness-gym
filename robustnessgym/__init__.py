@@ -23,16 +23,16 @@ from robustnessgym.cachedops.similarity.similarity import (
     RougeScore,
 )
 from robustnessgym.slicebuilders.attacks.textattack.textattack import TextAttack
-from robustnessgym.slicebuilders.augmentations.backtranslation.fairseq import (
+from robustnessgym.slicebuilders.transformations.backtranslation.fairseq import (
     FairseqBacktranslation,
 )
-from robustnessgym.slicebuilders.augmentations.eda.eda import (
+from robustnessgym.slicebuilders.transformations.eda.eda import (
     EasyDataAugmentation,
 )
-from robustnessgym.slicebuilders.augmentations.nlpaug.nlpaug import (
+from robustnessgym.slicebuilders.transformations.nlpaug.nlpaug import (
     NlpAug,
 )
-from robustnessgym.slicebuilders.augmentations.similarity.similarity import (
+from robustnessgym.slicebuilders.transformations.similarity.similarity import (
     RougeMatrixSentenceAugmentation,
 )
 from robustnessgym.slicebuilders.slicebuilder import (
@@ -123,7 +123,6 @@ from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import Slice
 from .slicebuilders.attack import Attack
-from .slicebuilders.augmentation import Augmentation
 from .slicebuilders.curator import Curator
 from .slicebuilders.subpopulation import (
     Subpopulation,

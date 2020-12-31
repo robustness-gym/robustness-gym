@@ -3,10 +3,10 @@ from typing import List
 from nlpaug.flow import Pipeline
 
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.augmentation import SingleColumnAugmentation
+from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
 
 
-class NlpAug(SingleColumnAugmentation):
+class NlpAug(SingleColumnTransformation):
 
     def __init__(self,
                  pipeline: Pipeline,

@@ -5,12 +5,12 @@ import numpy as np
 from robustnessgym.cachedops.similarity.similarity import RougeMatrix
 from robustnessgym.cachedops.spacy.spacy import Spacy
 from robustnessgym.core.dataset import Batch
-from robustnessgym.slicebuilders.augmentation import Augmentation
+from robustnessgym.slicebuilders.transformation import Transformation
 from robustnessgym.core.tools import strings_as_json
 from robustnessgym.core.identifier import Identifier
 
 
-class RougeMatrixSentenceAugmentation(Augmentation):
+class RougeMatrixSentenceAugmentation(Transformation):
 
     def __init__(self,
                  metric: Sequence[str],

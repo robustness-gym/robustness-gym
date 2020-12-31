@@ -1,13 +1,20 @@
 from typing import List, Dict, Tuple
 
 import numpy as np
-
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.augmentation import Augmentation
-from robustnessgym.slicebuilders.augmentations.eda._eda import eda
+from robustnessgym.slicebuilders.transformation import Transformation
+from robustnessgym.slicebuilders.transformations.eda._eda import eda
 
 
-class EasyDataAugmentation(Augmentation):
+class EasyDataAugmentation(Transformation):
+    """
+    Text transformation class for Easy Data Augmentation.
+
+    Citation
+    --------
+    Wei, J., & Zou, K. (2019). EDA: Easy Data Augmentation Techniques for Boosting Performance on Text Classification
+    Tasks. EMNLP 2019.
+    """
 
     def __init__(self,
                  num_transformed=1,
@@ -52,9 +59,9 @@ class EasyDataAugmentation(Augmentation):
               *args,
               **kwargs) -> Tuple[List[Dict[str, List]], np.ndarray]:
 
-        for key in columns:
-            # Iterate over key for all examples in the batch
-            for i, text in enumerate(batch[key]):
+        for col in columns:
+            # Iterate over col for all examples in the batch
+            for i, text in enumerate(batch[col]):
                 try:
                     # EDA returns a list of augmented text, including the original text at the last position
                     augmented_texts = eda(text,
@@ -66,7 +73,7 @@ class EasyDataAugmentation(Augmentation):
 
                     # Store the augmented text in the augmented batches
                     for j, augmented_text in enumerate(augmented_texts):
-                        skeleton_batches[j][key][i] = augmented_text
+                        skeleton_batches[j][col][i] = augmented_text
                 except:
                     # Unable to augment the example: set its slice membership to zero
                     slice_membership[i, :] = 0

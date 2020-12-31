@@ -113,7 +113,7 @@ class InteractionTapeHierarchyMixin:
             CACHEDOPS: InteractionTape(),
             SLICEBUILDERS: {
                 SUBPOPULATION: InteractionTape(),
-                AUGMENTATION: InteractionTape(),
+                TRANSFORMATION: InteractionTape(),
                 ATTACK: InteractionTape(),
             }
         }
@@ -122,7 +122,7 @@ class InteractionTapeHierarchyMixin:
         v = 0
         for path in [[CACHEDOPS],
                      [SLICEBUILDERS, SUBPOPULATION],
-                     [SLICEBUILDERS, AUGMENTATION],
+                     [SLICEBUILDERS, TRANSFORMATION],
                      [SLICEBUILDERS, ATTACK]]:
             v ^= self.fetch_tape(path=path).__hash__()
         return v
@@ -132,7 +132,7 @@ class InteractionTapeHierarchyMixin:
             CACHEDOPS: self.interactions[CACHEDOPS].dumps(),
             SLICEBUILDERS: {
                 SUBPOPULATION: self.interactions[SLICEBUILDERS][SUBPOPULATION].dumps(),
-                AUGMENTATION: self.interactions[SLICEBUILDERS][AUGMENTATION].dumps(),
+                TRANSFORMATION: self.interactions[SLICEBUILDERS][TRANSFORMATION].dumps(),
                 ATTACK: self.interactions[SLICEBUILDERS][ATTACK].dumps(),
             }
         })
@@ -145,7 +145,7 @@ class InteractionTapeHierarchyMixin:
             CACHEDOPS: InteractionTape.loads(interactions[CACHEDOPS]),
             SLICEBUILDERS: {
                 SUBPOPULATION: InteractionTape.loads(interactions[SLICEBUILDERS][SUBPOPULATION]),
-                AUGMENTATION: InteractionTape.loads(interactions[SLICEBUILDERS][AUGMENTATION]),
+                TRANSFORMATION: InteractionTape.loads(interactions[SLICEBUILDERS][TRANSFORMATION]),
                 ATTACK: InteractionTape.loads(interactions[SLICEBUILDERS][ATTACK]),
             }
         }

@@ -4,11 +4,11 @@ import cytoolz as tz
 import torch
 
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.augmentation import SingleColumnAugmentation
+from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
 
 
 # TODO(karan): spec requirements (fastBPE)
-class FairseqBacktranslation(SingleColumnAugmentation):
+class FairseqBacktranslation(SingleColumnTransformation):
     """
     Class for performing backtranslation using torchhub fairseq models.
     """
