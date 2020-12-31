@@ -1,6 +1,11 @@
 from typing import List, Dict, Union, Optional
 
-import textblob
+try:
+    import textblob
+except ImportError:
+    _textblob_available = False
+else:
+    _textblob_available = True
 
 from robustnessgym.core.cachedops import SingleColumnCachedOperation
 from robustnessgym.core.identifier import Identifier
@@ -9,6 +14,9 @@ from robustnessgym.core.identifier import Identifier
 class TextBlob(SingleColumnCachedOperation):
 
     def __init__(self):
+        if not _textblob_available:
+            raise ImportError("TextBlob not available for import. Install using "
+                              "\npip install textblob\npython -m textblob.download_corpora")
         # TODO(karan): requires running `python -m textblob.download_corpora`
         super(TextBlob, self).__init__()
 
@@ -20,7 +28,7 @@ class TextBlob(SingleColumnCachedOperation):
         return obj.to_json()
 
     @classmethod
-    def retrieve(self_or_cls,
+    def retrieve(cls,
                  batch: Dict[str, List],
                  columns: List[str],
                  identifier: Union[str, Identifier] = None,

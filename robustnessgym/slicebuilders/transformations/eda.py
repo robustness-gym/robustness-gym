@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 import numpy as np
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import Transformation
-from robustnessgym.slicebuilders.transformations.eda._eda import eda
+from robustnessgym.slicebuilders.transformations._eda import eda
 
 
 class EasyDataAugmentation(Transformation):

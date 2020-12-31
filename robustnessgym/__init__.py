@@ -22,17 +22,17 @@ from robustnessgym.cachedops.similarity import (
     RougeMatrix,
     RougeScore,
 )
-from robustnessgym.slicebuilders.attacks.textattack.textattack import TextAttack
-from robustnessgym.slicebuilders.transformations.backtranslation.fairseq import (
+from robustnessgym.slicebuilders.attacks.textattack import TextAttack
+from robustnessgym.slicebuilders.transformations.fairseq import (
     FairseqBacktranslation,
 )
-from robustnessgym.slicebuilders.transformations.eda.eda import (
+from robustnessgym.slicebuilders.transformations.eda import (
     EasyDataAugmentation,
 )
-from robustnessgym.slicebuilders.transformations.nlpaug.nlpaugtransformation import (
+from robustnessgym.slicebuilders.transformations.nlpaug import (
     NlpAugTransformation,
 )
-from robustnessgym.slicebuilders.transformations.similarity.similarity import (
+from robustnessgym.slicebuilders.transformations.similarity import (
     RougeMatrixSentenceTransformation,
 )
 from robustnessgym.slicebuilders.slicebuilder import (

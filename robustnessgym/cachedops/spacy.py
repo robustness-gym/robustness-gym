@@ -161,7 +161,7 @@ class Spacy(SingleColumnCachedOperation):
     def entities(cls,
                  decoded_batch: List) -> List[List[dict]]:
         """
-        For each example, returns the list of entity extracted by Spacy for each key.
+        For each example, returns the list of entity extracted by Spacy for each column.
         """
         return [doc_dict['ents'] for doc_dict in decoded_batch]
 
@@ -169,7 +169,7 @@ class Spacy(SingleColumnCachedOperation):
     def sentences(cls,
                   decoded_batch: List) -> List[List[str]]:
         """
-        For each example, returns the list of sentences extracted by Spacy for each key.
+        For each example, returns the list of sentences extracted by Spacy for each column.
         """
         return [
             [doc_dict['text'][sent['start']:sent['end']] for sent in doc_dict['sents']]
@@ -180,6 +180,6 @@ class Spacy(SingleColumnCachedOperation):
     def num_tokens(cls,
                    decoded_batch: List) -> List[int]:
         """
-        For each example, returns the length or the number of tokens extracted by Spacy for each key.
+        For each example, returns the length or the number of tokens extracted by Spacy for each column.
         """
         return [len(doc_dict['tokens']) for doc_dict in decoded_batch]

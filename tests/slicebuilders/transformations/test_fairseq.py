@@ -5,7 +5,7 @@ from unittest import TestCase
 
 import numpy as np
 import torch
-from robustnessgym.slicebuilders.transformations.backtranslation.fairseq import FairseqBacktranslation
+from robustnessgym.slicebuilders.transformations.fairseq import FairseqBacktranslation
 from tests.testbeds import MockTestBedv0
 
 

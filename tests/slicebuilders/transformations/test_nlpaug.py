@@ -6,7 +6,7 @@ from unittest import TestCase
 import numpy as np
 from nlpaug.augmenter.word import SynonymAug
 from nlpaug.flow import Sequential
-from robustnessgym.slicebuilders.transformations.nlpaug.nlpaugtransformation import NlpAugTransformation
+from robustnessgym.slicebuilders.transformations.nlpaug import NlpAugTransformation
 from tests.testbeds import MockTestBedv0
 
 
