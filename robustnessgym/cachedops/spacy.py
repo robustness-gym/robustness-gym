@@ -11,6 +11,9 @@ from robustnessgym.core.dataset import BatchOrDataset
 
 
 class Spacy(SingleColumnCachedOperation):
+    """
+    Class for running the Spacy pipeline using a CachedOperation.
+    """
 
     def __init__(self,
                  lang: str = 'en_core_web_sm',

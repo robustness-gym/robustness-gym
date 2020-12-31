@@ -3,7 +3,7 @@ Taken from https://github.com/tommccoy1/hans/blob/master/templates.py
 """
 
 from robustnessgym.slicebuilders.subpopulation import SubpopulationCollection
-from robustnessgym.slicebuilders.subpopulations.phrase.phrase import HasAnyPhrase
+from robustnessgym.slicebuilders.subpopulations.phrase import HasAnyPhrase
 from robustnessgym.core.identifier import Identifier
 
 

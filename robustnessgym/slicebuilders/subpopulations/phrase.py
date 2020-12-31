@@ -6,7 +6,7 @@ import cytoolz as tz
 import numpy as np
 from ahocorasick import Automaton
 
-from robustnessgym.cachedops.spacy.spacy import Spacy
+from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 

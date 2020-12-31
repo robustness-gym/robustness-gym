@@ -1,6 +1,10 @@
+"""
+Unittests for the EasyDataAugmentation class.
+"""
+from unittest import TestCase
+
 import numpy as np
 from robustnessgym import *
-from unittest import TestCase
 from tests.testbeds import MockTestBedv0
 
 
@@ -15,6 +19,10 @@ class TestEasyDataAugmentation(TestCase):
 
         # Create the EDA SliceBuilder
         eda = EasyDataAugmentation(num_transformed=3)
+
+        for i, identifier in enumerate(eda.identifiers):
+            self.assertEqual(str(identifier),
+                             f'EasyDataAugmentation-{i + 1}(alpha_sr=0.1, alpha_ri=0.1, alpha_rs=0.1, p_rd=0.1)')
 
         # Apply it
         dataset, slices, slice_membership = eda(self.testbed.dataset, columns=['text'])

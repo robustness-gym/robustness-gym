@@ -2,20 +2,20 @@ from functools import partial
 from typing import List, Tuple, Sequence
 
 import numpy as np
-from robustnessgym.cachedops.similarity.similarity import RougeMatrix
-from robustnessgym.cachedops.spacy.spacy import Spacy
+from robustnessgym.cachedops.similarity import RougeMatrix
+from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.dataset import Batch
-from robustnessgym.slicebuilders.transformation import Transformation
-from robustnessgym.core.tools import strings_as_json
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import strings_as_json
+from robustnessgym.slicebuilders.transformation import Transformation
 
 
-class RougeMatrixSentenceAugmentation(Transformation):
+class RougeMatrixSentenceTransformation(Transformation):
 
     def __init__(self,
                  metric: Sequence[str],
                  threshold: float):
-        super(RougeMatrixSentenceAugmentation, self).__init__(
+        super(RougeMatrixSentenceTransformation, self).__init__(
             num_transformed=1,
             identifiers=Identifier.range(n=1, _name=self.__class__.__name__),
         )

@@ -2,9 +2,15 @@ from typing import List
 
 import cytoolz as tz
 import torch
-
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
+
+try:
+    import fastBPE
+except ImportError:
+    _fastbpe_available = False
+else:
+    _fastbpe_available = True
 
 
 # TODO(karan): spec requirements (fastBPE)
@@ -24,6 +30,10 @@ class FairseqBacktranslation(SingleColumnTransformation):
                  tgt2src_topk: int = 1000,
                  tgt2src_temp: float = 1.0,
                  ):
+
+        if not _fastbpe_available:
+            raise ImportError("fastBPE not available for import. Please install fastBPE with pip install fastBPE.")
+
         super(FairseqBacktranslation, self).__init__(
             identifiers=Identifier.range(
                 n=n_src2tgt * n_tgt2src,

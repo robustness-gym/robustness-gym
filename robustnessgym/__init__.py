@@ -5,19 +5,19 @@ Import common classes.
 from robustnessgym.cachedops.allen.allen_predictor import (
     AllenPredictor
 )
-from robustnessgym.cachedops.allen.constituency_parser.constituency_parser import (
+from robustnessgym.cachedops.allen.constituency_parser import (
     AllenConstituencyParser
 )
-from robustnessgym.cachedops.allen.dependency_parser.dependency_parser import (
+from robustnessgym.cachedops.allen.dependency_parser import (
     AllenDependencyParser
 )
-from robustnessgym.cachedops.allen.semantic_role_labeler.semantic_role_labeler import (
+from robustnessgym.cachedops.allen.semantic_role_labeler import (
     AllenSemanticRoleLabeler
 )
-from robustnessgym.cachedops.bootleg.bootleg import (
+from robustnessgym.cachedops.bootleg import (
     Bootleg
 )
-from robustnessgym.cachedops.similarity.similarity import (
+from robustnessgym.cachedops.similarity import (
     SentenceSimilarityMatrix,
     RougeMatrix,
     RougeScore,
@@ -29,27 +29,27 @@ from robustnessgym.slicebuilders.transformations.backtranslation.fairseq import 
 from robustnessgym.slicebuilders.transformations.eda.eda import (
     EasyDataAugmentation,
 )
-from robustnessgym.slicebuilders.transformations.nlpaug.nlpaug import (
-    NlpAug,
+from robustnessgym.slicebuilders.transformations.nlpaug.nlpaugtransformation import (
+    NlpAugTransformation,
 )
 from robustnessgym.slicebuilders.transformations.similarity.similarity import (
-    RougeMatrixSentenceAugmentation,
+    RougeMatrixSentenceTransformation,
 )
 from robustnessgym.slicebuilders.slicebuilder import (
     SliceBuilder,
     SliceBuilderCollection,
 )
-from robustnessgym.slicebuilders.subpopulations.constituency_overlap.constituency_overlap import (
+from robustnessgym.slicebuilders.subpopulations.constituency_overlap import (
     ConstituencyOverlapSubpopulation,
     ConstituencySubtreeSubpopulation,
     FuzzyConstituencySubtreeSubpopulation,
 )
-from robustnessgym.slicebuilders.subpopulations.lexical_overlap.lexical_overlap import (
+from robustnessgym.slicebuilders.subpopulations.lexical_overlap import (
     LexicalOverlapSubpopulation,
 )
-from robustnessgym.slicebuilders.subpopulations.length.length import LengthSubpopulation
-from robustnessgym.slicebuilders.subpopulations.ner.entity_frequency import EntityFrequency
-from robustnessgym.slicebuilders.subpopulations.phrase.hans import (
+from robustnessgym.slicebuilders.subpopulations.length import LengthSubpopulation
+from robustnessgym.slicebuilders.subpopulations.entity_frequency import EntityFrequency
+from robustnessgym.slicebuilders.subpopulations.hans import (
     HansAllPhrases,
     HansSingularNouns,
     HansPluralNouns,
@@ -85,7 +85,7 @@ from robustnessgym.slicebuilders.subpopulations.phrase.hans import (
     HansAdvsNonEntailed,
     HansAdvsEntailed,
 )
-from robustnessgym.slicebuilders.subpopulations.phrase.phrase import (
+from robustnessgym.slicebuilders.subpopulations.phrase import (
     AhoCorasick,
     HasPhrase,
     HasAnyPhrase,
@@ -98,10 +98,7 @@ from robustnessgym.slicebuilders.subpopulations.phrase.phrase import (
     HasIndefiniteArticle,
     HasPosessivePreposition,
 )
-from robustnessgym.slicebuilders.subpopulations.phrase.wordlists import (
-    HasCategoryPhrase
-)
-from robustnessgym.slicebuilders.subpopulations.similarity.similarity import (
+from robustnessgym.slicebuilders.subpopulations.similarity import (
     RougeScoreSubpopulation,
     RougeMatrixScoreSubpopulation,
     Abstractiveness,
@@ -116,9 +113,9 @@ from robustnessgym.core.cachedops import (
     SingleColumnCachedOperation,
     stow
 )
-from .cachedops.custom.strip_text import StripText
-from .cachedops.spacy.spacy import Spacy
-from .cachedops.textblob.textblob import TextBlob
+from robustnessgym.cachedops.strip_text import StripText
+from robustnessgym.cachedops.spacy import Spacy
+from robustnessgym.cachedops.textblob import TextBlob
 from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import Slice
@@ -128,7 +125,7 @@ from .slicebuilders.subpopulation import (
     Subpopulation,
     SubpopulationCollection,
 )
-from .slicebuilders.subpopulations.score.score import (
+from robustnessgym.slicebuilders.subpopulations.score import (
     ScoreSubpopulation,
 )
 from robustnessgym.tasks.task import (

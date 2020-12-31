@@ -14,7 +14,7 @@ from torch import cuda
 
 from robustnessgym.core.cachedops import SingleColumnCachedOperation
 from robustnessgym.core.decorators import singlecolumn
-from robustnessgym.cachedops.textblob.textblob import TextBlob
+from robustnessgym.cachedops.textblob import TextBlob
 from robustnessgym.core.tools import DownloadProgressBar
 
 

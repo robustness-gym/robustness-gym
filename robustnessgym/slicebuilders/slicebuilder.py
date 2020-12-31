@@ -61,11 +61,12 @@ class SliceBuilder(StorageMixin):
         self.identifiers = identifiers
 
         # Keep track of the CachedOperation dependencies
-        self.prerequisites = set()
-        for base in self.__class__.__bases__:
-            for cls in base.__mro__:
-                if str(CachedOperation.__name__) in str(cls):
-                    self.prerequisites.add(base)
+        self.prerequisites = set() if not 'prerequisites' in kwargs else kwargs['prerequisites']
+        # TODO(karan): remove comment
+        # for base in self.__class__.__bases__:
+        #     for cls in base.__mro__:
+        #         if str(CachedOperation.__name__) in str(cls):
+        #             self.prerequisites.add(base)
 
         if apply_fn:
             # Assign to the method

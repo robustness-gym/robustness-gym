@@ -1,17 +1,16 @@
-from typing import List, Tuple, Dict
+from typing import List, Dict
 
 import fuzzywuzzy.fuzz as fuzz
 import numpy as np
 from nltk import Tree
-
-from robustnessgym.cachedops.allen.constituency_parser.constituency_parser import AllenConstituencyParser
+from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
+from robustnessgym.core.decorators import prerequisites
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
+from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 
-class ConstituencyOverlapSubpopulation(ScoreSubpopulation,
-                                       # AllenConstituencyParser,
-                                       ):
+@prerequisites(AllenConstituencyParser)
+class ConstituencyOverlapSubpopulation(ScoreSubpopulation):
 
     def score(self,
               batch: Dict[str, List],
@@ -25,7 +24,7 @@ class ConstituencyOverlapSubpopulation(ScoreSubpopulation,
         trees = AllenConstituencyParser.retrieve(batch=batch, columns=[[key] for key in columns])
         trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
-        # Fuzzy match the trees and return the scores
+        # Fuzzy match the trees and return the `scores`
         return np.array([
             fuzz.partial_token_set_ratio(
                 tree_0.replace("(", "").replace(")", "").replace(" ", ""),
@@ -35,9 +34,8 @@ class ConstituencyOverlapSubpopulation(ScoreSubpopulation,
         ])
 
 
-class ConstituencySubtreeSubpopulation(ScoreSubpopulation,
-                                       # AllenConstituencyParser,
-                                       ):
+@prerequisites(AllenConstituencyParser)
+class ConstituencySubtreeSubpopulation(ScoreSubpopulation):
 
     def __init__(self,
                  *args,
@@ -79,9 +77,8 @@ class ConstituencySubtreeSubpopulation(ScoreSubpopulation,
         ])
 
 
-class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation,
-                                            # AllenConstituencyParser,
-                                            ):
+@prerequisites(AllenConstituencyParser)
+class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation):
 
     def score(self,
               batch: Dict[str, List],

@@ -10,3 +10,4 @@
 # from .custom.strip_text import StripText
 # from .spacy.spacy import Spacy
 # from .textblob.textblob import TextBlob
+from .spacy import Spacy

@@ -154,8 +154,8 @@ class TestBench:
                 elif group_info[name] == 'full':
                     new_ident = str(ident).split(" -> ")[-1]
 
-                if new_ident.startswith('NlpAug'):
-                    new_ident = new_ident.split("NlpAug(pipeline=[")[1].split("])")[0]
+                if new_ident.startswith('NlpAugTransformation'):
+                    new_ident = new_ident.split("NlpAugTransformation(pipeline=[")[1].split("])")[0]
 
             else:
                 new_ident = str(ident).split("(")[0]

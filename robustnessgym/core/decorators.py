@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Callable, Dict, List
 
 
@@ -22,6 +23,29 @@ def singlecolumn(func: Callable):
         return func(self, batch, columns, *args, **kwargs)
 
     return _singlecolumn
+
+
+def prerequisites(*args):
+    """
+    Decorator to add a prerequisites attribute to any class.
+    Args:
+        *args: list of prerequisites
+
+    Returns: a decorator
+    """
+
+    def _decorator(cls):
+        _old_init = deepcopy(cls.__init__)
+
+        def _new_init(self, *_args, **kwargs):
+            _old_init(self, *_args, **kwargs)
+            self.prerequisites = set(args)
+
+        cls.__init__ = _new_init
+
+        return cls
+
+    return _decorator
 
 
 def function_register():
