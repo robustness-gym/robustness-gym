@@ -6,7 +6,7 @@ import spacy
 import torch
 from spacy.tokens import Doc
 
-from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
+from robustnessgym.core.cachedops import SingleColumnCachedOperation
 from robustnessgym.core.dataset import BatchOrDataset
 
 

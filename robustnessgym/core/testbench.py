@@ -8,11 +8,11 @@ import pandas as pd
 from fuzzywuzzy import process
 from tqdm import tqdm
 
-from robustnessgym.model import Model
-from robustnessgym.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
+from robustnessgym.core.model import Model
+from robustnessgym.core.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
 from robustnessgym.core.slice import Slice
 from robustnessgym.tasks.task import Task
-from robustnessgym.tools import persistent_hash
+from robustnessgym.core.tools import persistent_hash
 
 from robustnessgym.core.constants import GENERIC, SUBPOPULATION, ATTACK, AUGMENTATION, CURATION
 

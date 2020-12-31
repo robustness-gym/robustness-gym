@@ -164,3 +164,10 @@ def get_only_paths(coll, pred, prefix_path=(), stop_at=None, stop_below=None):
     """
     all_paths = get_all_paths(coll, prefix_path=prefix_path, stop_at=stop_at, stop_below=stop_below)
     return list(filter(pred, all_paths))
+
+
+class class_or_instancemethod(classmethod):
+
+    def __get__(self, instance, type_):
+        descr_get = super().__get__ if instance is None else self.__func__.__get__
+        return descr_get(instance, type_)

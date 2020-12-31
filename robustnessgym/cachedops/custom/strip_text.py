@@ -1,6 +1,6 @@
 from typing import List
 
-from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
+from robustnessgym.core.cachedops import SingleColumnCachedOperation
 
 
 class StripText(SingleColumnCachedOperation):

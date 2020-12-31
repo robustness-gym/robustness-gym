@@ -3,10 +3,10 @@ from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 from numpy.linalg import norm
-from robustnessgym.cached_ops.similarity.similarity import RougeScore, RougeMatrix
+from robustnessgym.cachedops.similarity.similarity import RougeScore, RougeMatrix
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
-from robustnessgym.tools import strings_as_json
+from robustnessgym.core.tools import strings_as_json
 from scipy.linalg import svd
 from scipy.stats import spearmanr
 

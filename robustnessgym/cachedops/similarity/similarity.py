@@ -3,8 +3,8 @@ from typing import List, Sequence
 import cytoolz as tz
 import numpy as np
 from datasets import load_metric
-from robustnessgym.cached_ops.cached_ops import CachedOperation
-from robustnessgym.cached_ops.spacy.spacy import Spacy
+from robustnessgym.core.cachedops import CachedOperation
+from robustnessgym.cachedops.spacy.spacy import Spacy
 from robustnessgym.core.dataset import Batch, transpose_batch
 
 

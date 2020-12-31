@@ -2,22 +2,22 @@
 Import common classes.
 """
 
-from robustnessgym.cached_ops.allen.allen_predictor import (
+from robustnessgym.cachedops.allen.allen_predictor import (
     AllenPredictor
 )
-from robustnessgym.cached_ops.allen.constituency_parser.constituency_parser import (
+from robustnessgym.cachedops.allen.constituency_parser.constituency_parser import (
     AllenConstituencyParser
 )
-from robustnessgym.cached_ops.allen.dependency_parser.dependency_parser import (
+from robustnessgym.cachedops.allen.dependency_parser.dependency_parser import (
     AllenDependencyParser
 )
-from robustnessgym.cached_ops.allen.semantic_role_labeler.semantic_role_labeler import (
+from robustnessgym.cachedops.allen.semantic_role_labeler.semantic_role_labeler import (
     AllenSemanticRoleLabeler
 )
-from robustnessgym.cached_ops.bootleg.bootleg import (
+from robustnessgym.cachedops.bootleg.bootleg import (
     Bootleg
 )
-from robustnessgym.cached_ops.similarity.similarity import (
+from robustnessgym.cachedops.similarity.similarity import (
     SentenceSimilarityMatrix,
     RougeMatrix,
     RougeScore,
@@ -110,18 +110,17 @@ from robustnessgym.slicebuilders.subpopulations.similarity.similarity import (
     Dispersion,
     Position,
 )
-from robustnessgym.testbench.testbench import TestBench
-from .cached_ops.cached_ops import (
+from robustnessgym.core.testbench import TestBench
+from robustnessgym.core.cachedops import (
     CachedOperation,
     SingleColumnCachedOperation,
     stow
 )
-from .cached_ops.custom.strip_text import StripText
-from .cached_ops.spacy.spacy import Spacy
-from .cached_ops.textblob.textblob import TextBlob
+from .cachedops.custom.strip_text import StripText
+from .cachedops.spacy.spacy import Spacy
+from .cachedops.textblob.textblob import TextBlob
 from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
-from .model import Model
 from robustnessgym.core.slice import Slice
 from .slicebuilders.attack import Attack
 from .slicebuilders.augmentation import Augmentation

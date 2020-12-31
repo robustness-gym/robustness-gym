@@ -4,12 +4,11 @@ from typing import List, Dict, Tuple
 import cytoolz as tz
 import numpy as np
 import textattack.attack_recipes as attack_recipes
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.model import Model
+from robustnessgym.slicebuilders.attack import Attack
 from textattack.attack_recipes import AttackRecipe
 from textattack.models.wrappers import ModelWrapper, HuggingFaceModelWrapper
-
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.attack import Attack
-from robustnessgym.model import Model
 
 
 class TextAttack(Attack):

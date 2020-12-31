@@ -2,7 +2,7 @@ from typing import List, Tuple, Dict, Callable, Union
 
 import numpy as np
 
-from robustnessgym.cached_ops.cached_ops import ScoreOperation
+from robustnessgym.core.cachedops import ScoreOperation
 from robustnessgym.core.dataset import Dataset, Batch
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation

@@ -11,7 +11,7 @@ import cytoolz as tz
 from pyarrow import json as jsonarrow, table
 from robustnessgym.core.constants import *
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.tools import strings_as_json, persistent_hash
+from robustnessgym.core.tools import strings_as_json, persistent_hash
 from tqdm import tqdm
 
 if USE_NLP:
@@ -110,8 +110,8 @@ class InteractionTapeHierarchyMixin:
 
     def __init__(self):
         self.interactions = {
-            CACHED_OPS: InteractionTape(),
-            SLICEMAKERS: {
+            CACHEDOPS: InteractionTape(),
+            SLICEBUILDERS: {
                 SUBPOPULATION: InteractionTape(),
                 AUGMENTATION: InteractionTape(),
                 ATTACK: InteractionTape(),
@@ -120,20 +120,20 @@ class InteractionTapeHierarchyMixin:
 
     def hash_interactions(self):
         v = 0
-        for path in [[CACHED_OPS],
-                     [SLICEMAKERS, SUBPOPULATION],
-                     [SLICEMAKERS, AUGMENTATION],
-                     [SLICEMAKERS, ATTACK]]:
+        for path in [[CACHEDOPS],
+                     [SLICEBUILDERS, SUBPOPULATION],
+                     [SLICEBUILDERS, AUGMENTATION],
+                     [SLICEBUILDERS, ATTACK]]:
             v ^= self.fetch_tape(path=path).__hash__()
         return v
 
     def dumps_interactions(self):
         return json.dumps({
-            CACHED_OPS: self.interactions[CACHED_OPS].dumps(),
-            SLICEMAKERS: {
-                SUBPOPULATION: self.interactions[SLICEMAKERS][SUBPOPULATION].dumps(),
-                AUGMENTATION: self.interactions[SLICEMAKERS][AUGMENTATION].dumps(),
-                ATTACK: self.interactions[SLICEMAKERS][ATTACK].dumps(),
+            CACHEDOPS: self.interactions[CACHEDOPS].dumps(),
+            SLICEBUILDERS: {
+                SUBPOPULATION: self.interactions[SLICEBUILDERS][SUBPOPULATION].dumps(),
+                AUGMENTATION: self.interactions[SLICEBUILDERS][AUGMENTATION].dumps(),
+                ATTACK: self.interactions[SLICEBUILDERS][ATTACK].dumps(),
             }
         })
 
@@ -142,11 +142,11 @@ class InteractionTapeHierarchyMixin:
         tape_hierarchy = InteractionTapeHierarchyMixin()
         interactions = json.loads(s)
         tape_hierarchy.interactions = {
-            CACHED_OPS: InteractionTape.loads(interactions[CACHED_OPS]),
-            SLICEMAKERS: {
-                SUBPOPULATION: InteractionTape.loads(interactions[SLICEMAKERS][SUBPOPULATION]),
-                AUGMENTATION: InteractionTape.loads(interactions[SLICEMAKERS][AUGMENTATION]),
-                ATTACK: InteractionTape.loads(interactions[SLICEMAKERS][ATTACK]),
+            CACHEDOPS: InteractionTape.loads(interactions[CACHEDOPS]),
+            SLICEBUILDERS: {
+                SUBPOPULATION: InteractionTape.loads(interactions[SLICEBUILDERS][SUBPOPULATION]),
+                AUGMENTATION: InteractionTape.loads(interactions[SLICEBUILDERS][AUGMENTATION]),
+                ATTACK: InteractionTape.loads(interactions[SLICEBUILDERS][ATTACK]),
             }
         }
         return tape_hierarchy
@@ -268,7 +268,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         return example
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(num_rows: {self.num_rows}, " \
+        return f"RobustnessGym{self.__class__.__name__}(num_rows: {self.num_rows}, " \
                f"interactions: {self.interactions})"
 
     @classmethod
@@ -349,8 +349,10 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         """
         Load a dataset from a JSON file on disk, where each line of the json file consists of a single example.
         """
-        return cls(jsonarrow.read_json(json_path),
-                   identifier=identifier)
+        return cls(
+            jsonarrow.read_json(json_path),
+            identifier=identifier,
+        )
 
     @classmethod
     def from_slice(cls):
@@ -359,7 +361,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
     @classmethod
     def from_batch(cls,
                    batch: Batch,
-                   identifier: Identifier = None) -> Dataset:
+                   identifier: Identifier) -> Dataset:
         """
         Convert a batch to a Dataset.
 
@@ -469,9 +471,12 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
     @classmethod
     def load(cls, path: str) -> Optional[Dataset]:
         try:
-            return cls.from_file(filename=os.path.join(path, 'data.arrow'),
-                                 info=datasets.DatasetInfo.from_directory(path),
-                                 split=pickle.load(open(os.path.join(path, 'split.p'), 'rb')))
+            with open(os.path.join(path, 'split.p'), 'rb') as f:
+                return cls.from_file(
+                    filename=os.path.join(path, 'data.arrow'),
+                    info=datasets.DatasetInfo.from_directory(path),
+                    split=pickle.load(f),
+                )
         except:
             return None
 
@@ -484,8 +489,11 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
         # Taken from Huggingface datasets.Dataset
         # Prepare output buffer and batched writer in memory or on file if we update the table
-        writer = ArrowWriter(features=self.features, path=os.path.join(
-            path, 'data.arrow'), writer_batch_size=1000)
+        writer = ArrowWriter(
+            features=self.features,
+            path=os.path.join(path, 'data.arrow'),
+            writer_batch_size=1000
+        )
 
         # Loop over single examples or batches and write to buffer/file if examples are to be updated
         for i, example in tqdm(enumerate(self)):
@@ -497,7 +505,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         self.info.write_to_directory(path)
 
         # Write split to file
-        pickle.dump(self.split, open(os.path.join(path, 'split.p'), 'wb'))
+        with open(os.path.join(path, 'split.p'), 'wb') as f:
+            pickle.dump(self.split, f)
 
     @classmethod
     def from_tfds(cls):
@@ -505,23 +514,25 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         pass
 
     @classmethod
-    def interleave(cls, datasets: List[Dataset]) -> Dataset:
+    def interleave(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
         """
         Interleave a list of datasets.
         """
         return cls.from_batch(
             tz.merge_with(tz.interleave,
-                          *[dataset[:] for dataset in datasets])
+                          *[dataset[:] for dataset in datasets]),
+            identifier=identifier,
         )
 
     @classmethod
-    def chain(cls, datasets: List[Dataset]) -> Dataset:
+    def chain(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
         """
         Chain a list of datasets.
         """
         return cls.from_batch(
             tz.merge_with(tz.concat,
-                          *[dataset[:] for dataset in datasets])
+                          *[dataset[:] for dataset in datasets]),
+            identifier=identifier,
         )
 
     def __getstate__(self):

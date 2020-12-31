@@ -12,10 +12,10 @@ else:
 
 from torch import cuda
 
-from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
-from robustnessgym.decorators import singlecolumn
-from robustnessgym.cached_ops.textblob.textblob import TextBlob
-from robustnessgym.tools import DownloadProgressBar
+from robustnessgym.core.cachedops import SingleColumnCachedOperation
+from robustnessgym.core.decorators import singlecolumn
+from robustnessgym.cachedops.textblob.textblob import TextBlob
+from robustnessgym.core.tools import DownloadProgressBar
 
 
 class Bootleg(SingleColumnCachedOperation):

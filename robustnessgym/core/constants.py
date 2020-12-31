@@ -1,5 +1,5 @@
-CACHED_OPS = 'cached_operations'
-SLICEMAKERS = 'slicemakers'
+CACHEDOPS = 'cachedoperations'
+SLICEBUILDERS = 'slicebuilders'
 
 GENERIC = 'slicebuilder'
 SUBPOPULATION = 'subpopulation'

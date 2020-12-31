@@ -3,7 +3,7 @@ from typing import Dict, List
 import cytoolz as tz
 import numpy as np
 
-from robustnessgym.cached_ops.spacy.spacy import Spacy
+from robustnessgym.cachedops.spacy.spacy import Spacy
 from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
 
 

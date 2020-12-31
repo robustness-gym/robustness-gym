@@ -4,7 +4,7 @@ import fuzzywuzzy.fuzz as fuzz
 import numpy as np
 from nltk import Tree
 
-from robustnessgym.cached_ops.allen.constituency_parser.constituency_parser import AllenConstituencyParser
+from robustnessgym.cachedops.allen.constituency_parser.constituency_parser import AllenConstituencyParser
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation
 

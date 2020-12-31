@@ -11,7 +11,6 @@ def singlecolumn(func: Callable):
         func: function to wrap
 
     Returns: decorated function
-
     """
 
     def _singlecolumn(self,

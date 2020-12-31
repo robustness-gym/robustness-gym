@@ -3,7 +3,7 @@ from typing import OrderedDict, Dict, Collection, Callable
 import cytoolz as tz
 from datasets.features import FeatureType
 
-from robustnessgym.tools import get_all_paths
+from robustnessgym.core.tools import get_all_paths
 
 
 class Schema:

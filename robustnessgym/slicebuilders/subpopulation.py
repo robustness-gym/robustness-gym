@@ -7,7 +7,7 @@ from multiprocess.pool import Pool
 from tqdm import tqdm
 
 from robustnessgym.core.dataset import Dataset
-from robustnessgym.tools import recmerge
+from robustnessgym.core.tools import recmerge
 from robustnessgym.core.constants import *
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
@@ -303,7 +303,7 @@ class SubpopulationCollection(Subpopulation):
                 for subpopulation in self.subpopulations:
                     # Update the Dataset's history
                     batch_or_dataset.update_tape(
-                        path=[SLICEMAKERS, subpopulation.category],
+                        path=[SLICEBUILDERS, subpopulation.category],
                         identifiers=subpopulation.identifiers,
                         columns=columns,
                     )

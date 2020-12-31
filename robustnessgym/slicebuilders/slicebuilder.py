@@ -16,13 +16,13 @@ import cytoolz as tz
 import numpy as np
 # from tqdm import tqdm
 
-from robustnessgym.cached_ops.cached_ops import CachedOperation
+from robustnessgym.core.cachedops import CachedOperation
 from robustnessgym.core.constants import *
 from robustnessgym.core.dataset import Dataset, Batch
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import Slice
-from robustnessgym.storage import StorageMixin
-from robustnessgym.tools import recmerge, strings_as_json, persistent_hash
+from robustnessgym.core.storage import StorageMixin
+from robustnessgym.core.tools import recmerge, strings_as_json, persistent_hash
 
 
 class SliceBuilder(StorageMixin):
@@ -92,7 +92,7 @@ class SliceBuilder(StorageMixin):
                 columns=columns,
                 # Automatically infer the mask from the Dataset if it's not specified
                 mask=batch_or_dataset.check_tape(
-                    path=[SLICEMAKERS, self.category],
+                    path=[SLICEBUILDERS, self.category],
                     identifiers=self.identifiers,
                     columns=columns
                 ) if not mask else mask,
@@ -106,7 +106,7 @@ class SliceBuilder(StorageMixin):
             # Update the Dataset's history
             # TODO(karan): use mask to figure out what is actually applied
             dataset.update_tape(
-                path=[SLICEMAKERS, self.category],
+                path=[SLICEBUILDERS, self.category],
                 identifiers=self.identifiers,
                 columns=columns,
             )

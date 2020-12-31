@@ -2,7 +2,7 @@ from typing import List, Dict, Union, Optional
 
 import textblob
 
-from robustnessgym.cached_ops.cached_ops import SingleColumnCachedOperation
+from robustnessgym.core.cachedops import SingleColumnCachedOperation
 from robustnessgym.core.identifier import Identifier
 
 
@@ -20,7 +20,7 @@ class TextBlob(SingleColumnCachedOperation):
         return obj.to_json()
 
     @classmethod
-    def retrieve(cls,
+    def retrieve(self_or_cls,
                  batch: Dict[str, List],
                  columns: List[str],
                  identifier: Union[str, Identifier] = None,

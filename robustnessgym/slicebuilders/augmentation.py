@@ -5,10 +5,10 @@ import numpy as np
 from robustnessgym.core.constants import AUGMENTATION
 from robustnessgym.core.dataset import Batch
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.transform import Transform
+from robustnessgym.slicebuilders.transformation import Transformation
 
 
-class Augmentation(Transform):
+class Augmentation(Transformation):
 
     def __init__(
             self,

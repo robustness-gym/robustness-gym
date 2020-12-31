@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from json import JSONDecodeError
 
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.constants import CURATION
+from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.identifier import Identifier
 
 
 class Slice(Dataset):
@@ -30,11 +30,11 @@ class Slice(Dataset):
             # A slice has a lineage
             self.lineage = []
 
-        # Always a single slice inside a slice
-        self.num_slices = 1
-
         # Set the category of the slice: defaults to 'curated'
         self.category = CURATION
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}[category: {self.category}, num_rows: {self.num_rows}]({self.identifier})"
 
     @property
     def identifier(self):
@@ -61,9 +61,5 @@ class Slice(Dataset):
 
     @classmethod
     def from_dataset(cls,
-                     dataset: Dataset,
-                     identifier: str):
-        return cls(identifier=identifier, dataset=dataset)
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}[category: {self.category}, num_rows: {self.num_rows}]({self.identifier})"
+                     dataset: Dataset):
+        return cls(dataset=dataset)

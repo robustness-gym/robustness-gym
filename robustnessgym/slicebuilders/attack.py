@@ -2,10 +2,10 @@ from typing import List
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.constants import *
-from robustnessgym.slicebuilders.transform import Transform
+from robustnessgym.slicebuilders.transformation import Transformation
 
 
-class Attack(Transform):
+class Attack(Transformation):
 
     def __init__(
             self,

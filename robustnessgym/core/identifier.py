@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from typing import Callable, Union, List
 
-from robustnessgym.tools import persistent_hash
+from robustnessgym.core.tools import persistent_hash
 
 
 class Identifier:

@@ -9,7 +9,7 @@ from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
-class Transform(SliceBuilder):
+class Transformation(SliceBuilder):
 
     def __init__(
             self,
@@ -17,7 +17,7 @@ class Transform(SliceBuilder):
             identifiers: List[Identifier],
             apply_fn=None,
     ):
-        super(Transform, self).__init__(
+        super(Transformation, self).__init__(
             category=category,
             identifiers=identifiers,
             apply_fn=apply_fn,

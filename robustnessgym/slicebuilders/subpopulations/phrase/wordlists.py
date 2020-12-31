@@ -3,7 +3,7 @@ import zipfile
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.phrase.phrase import HasAnyPhrase
-from robustnessgym.tools import DownloadProgressBar
+from robustnessgym.core.tools import DownloadProgressBar
 
 
 class HasCategoryPhrase(HasAnyPhrase):

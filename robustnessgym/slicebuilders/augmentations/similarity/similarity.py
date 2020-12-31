@@ -2,11 +2,11 @@ from functools import partial
 from typing import List, Tuple, Sequence
 
 import numpy as np
-from robustnessgym.cached_ops.similarity.similarity import RougeMatrix
-from robustnessgym.cached_ops.spacy.spacy import Spacy
+from robustnessgym.cachedops.similarity.similarity import RougeMatrix
+from robustnessgym.cachedops.spacy.spacy import Spacy
 from robustnessgym.core.dataset import Batch
 from robustnessgym.slicebuilders.augmentation import Augmentation
-from robustnessgym.tools import strings_as_json
+from robustnessgym.core.tools import strings_as_json
 from robustnessgym.core.identifier import Identifier
 
 

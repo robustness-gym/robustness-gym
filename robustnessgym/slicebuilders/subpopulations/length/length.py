@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple, Callable
 import numpy as np
 import cytoolz as tz
 
-from robustnessgym.cached_ops.spacy.spacy import Spacy
+from robustnessgym.cachedops.spacy.spacy import Spacy
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.score.score import ScoreSubpopulation

@@ -1,17 +1,16 @@
 import itertools
+import re
 import statistics
 from typing import *
-import re
 
 import cytoolz as tz
+import nltk
 import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
-from transformers import *
-from rouge_score import rouge_scorer
-import nltk
-
-from robustnessgym.tasks.task import Task
 from robustnessgym.core.dataset import Dataset
+from robustnessgym.tasks.task import Task
+from rouge_score import rouge_scorer
+from transformers import *
 
 
 class Model:
@@ -46,7 +45,6 @@ class Model:
                 # 'embeddings',
                 # TODO(karan): other information from the model e.g. embeddings which aren't task related?
             }
-
 
         if not device:
             self.device = 'cpu'
@@ -195,7 +193,7 @@ class HuggingfaceModel(Model):
                 summary_token_ids = self.model.generate(**input_batch)
                 summaries = [self.tokenizer.decode(token_id_list, skip_special_tokens=True,
                                                    clean_up_tokenization_spaces=False) for token_id_list in
-                       summary_token_ids]
+                             summary_token_ids]
                 output_dict['pred'] = summaries
 
         return output_dict
@@ -280,13 +278,12 @@ class HuggingfaceModel(Model):
             predictions = tz.merge_with(lambda x: list(itertools.chain.from_iterable(x)), *predictions)
             targets = tz.merge_with(lambda x: list(itertools.chain.from_iterable(x)), *targets)
 
-
         # Compute the metrics
         # TODO(karan): generalize this code to support metric computation for any task
 
         # Assumes classification, so the output_columns contains a single key for the label
         if self.task.classification():
-            assert len(output_columns) == 1#, "Only supports classification."
+            assert len(output_columns) == 1  # , "Only supports classification."
             num_classes = self.task.output_schema.features[list(self.task.output_schema.keys())[0]].num_classes
 
         labels = targets[list(targets.keys())[0]]
@@ -321,7 +318,7 @@ class HuggingfaceModel(Model):
                 scorer = rouge_scorer.RougeScorer([metric], use_stemmer=True)
                 evaluation_dict[metric_name] = statistics.mean(scorer.score(format_summary(reference),
                                                                             format_summary(pred))[metric].fmeasure for \
-                                                          reference, pred in zip(labels, predictions['pred']))
+                                                               reference, pred in zip(labels, predictions['pred']))
 
             elif metric == 'class_dist':
                 # Calculate class distribution
@@ -339,7 +336,6 @@ class HuggingfaceModel(Model):
 
             else:
                 raise NotImplementedError
-
 
         # Reset the data format
         dataset.reset_format()

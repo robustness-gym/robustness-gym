@@ -22,7 +22,7 @@ python -m spacy download en_core_web_sm
 ```
 
 #### Installing neuralcoref
-The standard version of `neuralcoref` does not use GPU for prediction and a pull request that is pending adds this 
+The standard version of `neuralcoref` does not use GPUs for prediction and a pull request that is pending adds this 
 functionality (https://github.com/huggingface/neuralcoref/pull/149). 
 Follow the steps below to use this.   
 ```

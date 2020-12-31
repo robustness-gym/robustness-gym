@@ -1,4 +1,4 @@
-from robustnessgym.cached_ops.allen.allen_predictor import AllenPredictor
+from robustnessgym.cachedops.allen.allen_predictor import AllenPredictor
 
 
 class AllenSemanticRoleLabeler(AllenPredictor):

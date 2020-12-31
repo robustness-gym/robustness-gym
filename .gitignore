@@ -1,7 +1,7 @@
-examples/save/
-brainstorm.py
-test.py
-_analysis
+# Note files
+notes.md
+
+# Mac
 .DS_STORE
 
 # VSCode
