@@ -4,7 +4,6 @@ channels:
 dependencies:
   - ca-certificates=2020.7.22
   - certifi=2020.6.20
-  - libcxx=10.0.0
   - libedit=3.1.20191231
   - libffi=3.3
   - ncurses=6.2
@@ -54,7 +53,6 @@ dependencies:
     - docopt==0.6.2
     - docutils==0.15.2
     - editdistance==0.5.3
-    - en-core-web-sm==2.3.1
     - entrypoints==0.3
     - fastbpe==0.1.0
     - filelock==3.0.12
