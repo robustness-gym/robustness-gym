@@ -20,7 +20,7 @@ class SemanticVersionerMixin:
         self._version_history = {}
         self._last_digest = None
 
-        # TODO(karan): implement more features for commit-then-bump
+        # TODO(karan): implement more features for commit-then-bump, add diffing
 
     @property
     def version(self):
