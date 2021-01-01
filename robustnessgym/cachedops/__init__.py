@@ -11,3 +11,5 @@
 # from .spacy.spacy import Spacy
 # from .textblob.textblob import TextBlob
 from .spacy import Spacy
+from .stanza import Stanza
+from .textblob import TextBlob

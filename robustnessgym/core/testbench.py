@@ -1,23 +1,24 @@
 from __future__ import annotations
 
+import json
 import pathlib
 from typing import *
 
 import dill
 import pandas as pd
 from fuzzywuzzy import process
-from tqdm import tqdm
-
+from robustnessgym.core.constants import GENERIC, SUBPOPULATION, ATTACK, AUGMENTATION, CURATION
 from robustnessgym.core.model import Model
 from robustnessgym.core.report import Report, ScoreColumn, NumericColumn, ClassDistributionColumn
 from robustnessgym.core.slice import Slice
-from robustnessgym.tasks.task import Task
 from robustnessgym.core.tools import persistent_hash
-
-from robustnessgym.core.constants import GENERIC, SUBPOPULATION, ATTACK, AUGMENTATION, CURATION
+from robustnessgym.core.version import SemanticVersionerMixin
+from robustnessgym.tasks.task import Task
+from semver import VersionInfo as Version
+from tqdm import tqdm
 
 TEST = 'test'
-category_to_label= {
+category_to_label = {
     TEST: 'Test Set',
     GENERIC: 'Slice',
     SUBPOPULATION: 'SubPop',
@@ -36,13 +37,17 @@ category_to_order = {
 
 
 # TODO(karan): make the TestBench hashable
-class TestBench:
+class TestBench(SemanticVersionerMixin):
 
     def __init__(self,
                  identifier: str,
-                 task: Task,
-                 slices: Collection[Slice],
+                 task: Task = None,
+                 slices: Collection[Slice] = None,
+                 version: str = '0.0.1',
                  dataset_id: str = None):
+
+        # Call the superclass
+        super(TestBench, self).__init__(version=version)
 
         # An identifier for the TestBench
         self.identifier = identifier
@@ -54,7 +59,10 @@ class TestBench:
         self.slices = set()
         self.slice_identifiers = set()
         self._slice_table = {}
-        self.add_slices(slices)
+
+        # Add slices if any
+        if slices:
+            self.add_slices(slices)
 
         # The testbench internally tracks metrics
         self.metrics = {}
@@ -64,15 +72,8 @@ class TestBench:
 
         self.dataset_id = dataset_id
 
-    @property
-    def version(self):
-        """
-        The test bench version.
-
-        Returns: version
-
-        """
-        return '1.0.0'
+    def digest(self) -> str:
+        return json.dumps([str(sl) for sl in self.slices])
 
     @classmethod
     def for_dataset(
@@ -231,7 +232,7 @@ class TestBench:
                     input_columns=self.task.input_schema.keys(),
                     output_columns=self.task.output_schema.keys(),
                     batch_size=batch_size,
-                    coerce_fn=coerce_fn
+                    coerce_fn=coerce_fn,
                 )
 
         return self.metrics[model.identifier]
@@ -250,23 +251,23 @@ class TestBench:
         model_metrics = self.evaluate(model=model, batch_size=batch_size, coerce_fn=coerce_fn)
 
         # Create a consolidated "report"
-
         # TODO(karan): make this more general
         self._human_readable_identifiers()
 
         data = []
-        for slice in self.slices:
+        for sl in self.slices:
             row = {
-                'category_order': category_to_order[slice.category],
-                'category': category_to_label.get(slice.category, slice.category.capitalize()),
-                'slice_name': self.ident_mapping[slice.identifier],  # str(slice.identifier),
-                'Size': len(slice)
+                'category_order': category_to_order[sl.category],
+                'category': category_to_label.get(sl.category, sl.category.capitalize()),
+                'slice_name': self.ident_mapping[sl.identifier],  # str(sl.identifier),
+                'Size': len(sl)
             }
-            slice_metrics = model_metrics[slice.identifier]
+            slice_metrics = model_metrics[sl.identifier]
             row.update(slice_metrics)
             data.append(row)
             if metric_ids is None:
                 metric_ids = list(slice_metrics.keys())
+
         df = pd.DataFrame(data)
         df = df.sort_values(['category_order', 'slice_name'])
 
@@ -288,7 +289,7 @@ class TestBench:
         # slice_metrics = tz.merge_with(np.mean, slice_metrics)
         # Task-dependent model predictions
         # TODO(karan): e.g. average class distribution predicted, figure out how to put this in
-        # Task-dependent slice information
+        # Task-dependent sl information
         # TODO(karan): e.g. class distribution
 
         return Report(df, columns, model.identifier, self.dataset_id)
@@ -357,6 +358,10 @@ class TestBench:
             open(str(savedir / 'metadata.dill'), 'wb')
         )
 
+        # Save version info
+        with open(str(savedir / 'version.dill'), 'wb') as f:
+            f.write(self._dumps_version())
+
     @classmethod
     def available(cls,
                   path: str) -> List[str]:
@@ -422,6 +427,10 @@ class TestBench:
 
         # Set previously stored metrics
         testbench.metrics = metrics
+
+        # Load version info
+        with open(str(savedir / 'version.dill'), 'rb') as f:
+            testbench._load_version(f.read())
 
         return testbench
 

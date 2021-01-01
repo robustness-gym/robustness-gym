@@ -18,7 +18,7 @@ import numpy as np
 
 from robustnessgym.core.cachedops import CachedOperation
 from robustnessgym.core.constants import *
-from robustnessgym.core.dataset import Dataset, Batch
+from robustnessgym.core.dataset import Dataset, Batch, BatchOrDataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import Slice
 from robustnessgym.core.storage import StorageMixin
@@ -73,7 +73,7 @@ class SliceBuilder(StorageMixin):
             self.apply = apply_fn
 
     def __call__(self,
-                 batch_or_dataset: Union[Dict[str, List], Dataset],
+                 batch_or_dataset: BatchOrDataset,
                  columns: List[str],
                  mask: List[int] = None,
                  store_compressed: bool = None,
@@ -147,7 +147,7 @@ class SliceBuilder(StorageMixin):
         yield from self.identifiers
 
     def prerequisites_handler(self,
-                              batch_or_dataset: Union[Dict[str, List], Dataset]):
+                              batch_or_dataset: BatchOrDataset):
         if isinstance(batch_or_dataset, Dataset):
             batch = batch_or_dataset[:2]
         else:
@@ -530,7 +530,7 @@ class SliceBuilderCollection(SliceBuilder):
         return f"{self.__class__.__name__}({[str(slicebuilder) for slicebuilder in self.slicebuilders]})]"
 
     def __call__(self,
-                 batch_or_dataset: Union[Dict[str, List], Dataset],
+                 batch_or_dataset: BatchOrDataset,
                  columns: List[str],
                  mask: List[int] = None,
                  store_compressed: bool = None,

@@ -19,7 +19,6 @@ plotly==4.9.0
 torch==1.5.0
 pyahocorasick==1.4.0
 fuzzywuzzy==0.18.0
-wandb==0.8.30
 textattack
 ipywidgets
 multiprocess

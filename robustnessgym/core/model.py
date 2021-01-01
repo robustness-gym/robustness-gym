@@ -90,7 +90,8 @@ class Model:
 
         Examples:
             >>> Model.huggingface(identifier='', task=TernaryNaturalLanguageInference())
-            >>> Model.huggingface(identifier='', model=AutoModelForSequenceClassification.from_pretrained(''), tokenizer=AutoTokenizer.from_pretrained(''))
+            >>> Model.huggingface(identifier='', \
+            model=AutoModelForSequenceClassification.from_pretrained(''), tokenizer=AutoTokenizer.from_pretrained(''))
 
         """
 
