@@ -11,6 +11,30 @@ on:
 
 jobs:
     
+    formatting:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: ['3.8']
+        
+        steps:
+            -   uses: actions/checkout@v2
+            -   name: Set up Python ${{ matrix.python-version }}
+                uses: actions/setup-python@v2
+                with:
+                    python-version: ${{ matrix.python-version }}
+
+            -   name: Install Dependencies
+                run: |
+                    python -m pip install --upgrade pip
+                    make dev
+
+            -   name: Lint with isort, black, docformatter, flake8
+                run: |
+                    make autoformat
+                    make lint
+    
+
     build:
         runs-on: ${{ matrix.os }}
         strategy:
@@ -36,16 +60,16 @@ jobs:
                     
             -   name: Install Poetry
                 run: |
-                    make poetry-setup
+                    curl -fsS -o get-poetry.py https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py
+                    python get-poetry.py -y
+                    echo "$$HOME/.poetry/bin" >> $$GITHUB_PATH
             
             -   name: Install Dependencies
                 run: |
-                    make poetry-install
+                    poetry config virtualenvs.create false
+                    poetry install --no-interaction
                     make dev
-#                    python -m pip install poetry
-#                    poetry install
-#                    poetry shell
-            
+
             -   name: Lint with isort, black, docformatter, flake8
                 run: |
                     make autoformat

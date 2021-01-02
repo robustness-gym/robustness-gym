@@ -23,15 +23,6 @@ docs-check:
 dev:
 	pip install black isort flake8 docformatter pytest-cov
 
-poetry-setup:
-	curl -fsS -o get-poetry.py https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py
-	python get-poetry.py -y
-	echo "$$HOME/.poetry/bin" >> $$GITHUB_PATH
-
-poetry-install:
-	poetry install --no-interaction
-	poetry shell --no-interaction
-
 all: autoformat lint docs test
 
 
