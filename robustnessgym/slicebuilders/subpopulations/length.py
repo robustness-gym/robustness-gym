@@ -16,12 +16,13 @@ class LengthSubpopulation(ScoreSubpopulation):
     Class to compute subpopulations based on text length.
     """
 
-    def __init__(self,
-                 intervals: List[Tuple[int, int]],
-                 reduction_fn: Callable = np.sum,
-                 *args,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        intervals: List[Tuple[int, int]],
+        reduction_fn: Callable = np.sum,
+        *args,
+        **kwargs
+    ):
         super(LengthSubpopulation, self).__init__(
             intervals=intervals,
             identifiers=[
@@ -29,7 +30,7 @@ class LengthSubpopulation(ScoreSubpopulation):
                     _name=self.__class__.__name__,
                     gte=interval[0],
                     lte=interval[1],
-                    reduction_fn=reduction_fn
+                    reduction_fn=reduction_fn,
                 )
                 for interval in intervals
             ],
@@ -40,11 +41,9 @@ class LengthSubpopulation(ScoreSubpopulation):
         # Assign the reduction fn
         self.reduction_fn = reduction_fn
 
-    def score(self,
-              batch: Dict[str, List],
-              columns: List[str],
-              *args,
-              **kwargs) -> np.ndarray:
+    def score(
+        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
+    ) -> np.ndarray:
         # Compute the length of each example under each key
         lengths = [
             Spacy.retrieve(
@@ -54,8 +53,8 @@ class LengthSubpopulation(ScoreSubpopulation):
                     # Compute lengths (# of words) for each tokenized text in a batch
                     lambda l: np.array([len(t) for t in l]),
                     # Extract tokens using Spacy
-                    Spacy.tokens
-                )
+                    Spacy.tokens,
+                ),
             )[key]
             for key in columns
         ]

@@ -16,12 +16,9 @@ class EasyDataAugmentation(Transformation):
     Tasks. EMNLP 2019.
     """
 
-    def __init__(self,
-                 num_transformed=1,
-                 alpha_sr=0.1,
-                 alpha_ri=0.1,
-                 alpha_rs=0.1,
-                 p_rd=0.1):
+    def __init__(
+        self, num_transformed=1, alpha_sr=0.1, alpha_ri=0.1, alpha_rs=0.1, p_rd=0.1
+    ):
 
         super(EasyDataAugmentation, self).__init__(
             identifiers=Identifier.range(
@@ -45,31 +42,38 @@ class EasyDataAugmentation(Transformation):
 
     def _download_wordnet(self):
         try:
-            if not (self.logdir / 'wordnet').exists():
+            if not (self.logdir / "wordnet").exists():
                 import nltk
-                nltk.download('wordnet', download_dir=str(self.logdir / 'wordnet'), quiet=False)
+
+                nltk.download(
+                    "wordnet", download_dir=str(self.logdir / "wordnet"), quiet=False
+                )
         except ImportError:
             print("Need nltk.")
 
-    def apply(self,
-              skeleton_batches: List[Dict[str, List]],
-              slice_membership: np.ndarray,
-              batch: Dict[str, List],
-              columns: List[str],
-              *args,
-              **kwargs) -> Tuple[List[Dict[str, List]], np.ndarray]:
+    def apply(
+        self,
+        skeleton_batches: List[Dict[str, List]],
+        slice_membership: np.ndarray,
+        batch: Dict[str, List],
+        columns: List[str],
+        *args,
+        **kwargs
+    ) -> Tuple[List[Dict[str, List]], np.ndarray]:
 
         for col in columns:
             # Iterate over col for all examples in the batch
             for i, text in enumerate(batch[col]):
                 try:
                     # EDA returns a list of augmented text, including the original text at the last position
-                    augmented_texts = eda(text,
-                                          alpha_sr=self.alpha_sr,
-                                          alpha_ri=self.alpha_ri,
-                                          alpha_rs=self.alpha_rs,
-                                          p_rd=self.p_rd,
-                                          num_aug=self.num_transformed)[:-1]
+                    augmented_texts = eda(
+                        text,
+                        alpha_sr=self.alpha_sr,
+                        alpha_ri=self.alpha_ri,
+                        alpha_rs=self.alpha_rs,
+                        p_rd=self.p_rd,
+                        num_aug=self.num_transformed,
+                    )[:-1]
 
                     # Store the augmented text in the augmented batches
                     for j, augmented_text in enumerate(augmented_texts):

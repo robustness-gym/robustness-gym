@@ -11,10 +11,7 @@ class SemanticVersionerMixin:
     Simple mixin that adds semantic versioning to any class.
     """
 
-    def __init__(self,
-                 version: str = '0.0.1',
-                 *args,
-                 **kwargs):
+    def __init__(self, version: str = "0.0.1", *args, **kwargs):
         super(SemanticVersionerMixin, self).__init__(*args, **kwargs)
         self._version = Version.parse(version)
         self._version_history = {}
@@ -66,18 +63,22 @@ class SemanticVersionerMixin:
 
     def digest(self) -> str:
         """Compute a digest for the object."""
-        raise NotImplementedError("Must implement a digest for the object that is being versioned.")
+        raise NotImplementedError(
+            "Must implement a digest for the object that is being versioned."
+        )
 
     def diff(self, digest: str, otherdigest: str) -> bool:
         """Check if digests have changed."""
         return digest != otherdigest
 
     def _dumps_version(self) -> str:
-        return pickle.dumps(SimpleNamespace(
-            version=self.version,
-            history=self._version_history,
-            last_digest=self._last_digest,
-        ))
+        return pickle.dumps(
+            SimpleNamespace(
+                version=self.version,
+                history=self._version_history,
+                last_digest=self._last_digest,
+            )
+        )
 
     def _loads_version(self, s: str):
         namespace = pickle.loads(s)

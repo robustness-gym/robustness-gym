@@ -14,14 +14,7 @@ from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
 class Subpopulation(SliceBuilder):
-
-    def __init__(
-            self,
-            identifiers: List[Identifier],
-            apply_fn=None,
-            *args,
-            **kwargs
-    ):
+    def __init__(self, identifiers: List[Identifier], apply_fn=None, *args, **kwargs):
         super(Subpopulation, self).__init__(
             category=SUBPOPULATION,
             identifiers=identifiers,
@@ -30,22 +23,26 @@ class Subpopulation(SliceBuilder):
             **kwargs,
         )
 
-    def apply(self,
-              slice_membership: np.ndarray,
-              batch: Dict[str, List],
-              columns: List[str],
-              *args,
-              **kwargs) -> np.ndarray:
+    def apply(
+        self,
+        slice_membership: np.ndarray,
+        batch: Dict[str, List],
+        columns: List[str],
+        *args,
+        **kwargs
+    ) -> np.ndarray:
         raise NotImplementedError
 
-    def process_batch(self,
-                      batch: Dict[str, List],
-                      columns: List[str],
-                      mask: List[int] = None,
-                      store_compressed: bool = True,
-                      store: bool = True,
-                      *args,
-                      **kwargs) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+    def process_batch(
+        self,
+        batch: Dict[str, List],
+        columns: List[str],
+        mask: List[int] = None,
+        store_compressed: bool = True,
+        store: bool = True,
+        *args,
+        **kwargs
+    ) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
 
         # Determine the size of the batch
         batch_size = len(batch[list(batch.keys())[0]])
@@ -62,7 +59,7 @@ class Subpopulation(SliceBuilder):
             slice_membership=slice_membership,
             columns=columns,
             mask=mask,
-            compress=store_compressed
+            compress=store_compressed,
         )
 
         if store:
@@ -71,13 +68,19 @@ class Subpopulation(SliceBuilder):
                 updates=updates,
             )
 
-        return batch, self.filter_batch_by_slice_membership(batch, slice_membership), slice_membership
+        return (
+            batch,
+            self.filter_batch_by_slice_membership(batch, slice_membership),
+            slice_membership,
+        )
 
-    def construct_updates(self,
-                          slice_membership: np.ndarray,
-                          columns: List[str],
-                          mask: List[int] = None,
-                          compress: bool = True):
+    def construct_updates(
+        self,
+        slice_membership: np.ndarray,
+        columns: List[str],
+        mask: List[int] = None,
+        compress: bool = True,
+    ):
 
         # Mask out components
         # TODO(karan): masking inside apply, but only if the components are computed independently
@@ -86,30 +89,42 @@ class Subpopulation(SliceBuilder):
         if compress:
             # TODO(karan): this will overwrite a previous application of the same Slicer right now, need a merge operation
             # Merge is just an append to whatever list already exists
-            return [{
-                self.category: {
-                    self.__class__.__name__: {
-                        json.dumps(columns) if len(columns) > 1 else columns[0]: row
+            return [
+                {
+                    self.category: {
+                        self.__class__.__name__: {
+                            json.dumps(columns) if len(columns) > 1 else columns[0]: row
+                        }
                     }
                 }
-            } for row in (slice_membership[:, np.logical_not(np.array(mask, dtype=bool))]
-                          if mask else slice_membership).tolist()]
+                for row in (
+                    slice_membership[:, np.logical_not(np.array(mask, dtype=bool))]
+                    if mask
+                    else slice_membership
+                ).tolist()
+            ]
 
-        return [{
-            self.category: {
-                self.__class__.__name__: {
-                    str(self.identifiers[i]): {
-                        json.dumps(columns) if len(columns) > 1 else columns[0]: membership
-                    }
-                    for i, membership in enumerate(row) if not mask or not mask[i]
-                },
+        return [
+            {
+                self.category: {
+                    self.__class__.__name__: {
+                        str(self.identifiers[i]): {
+                            json.dumps(columns)
+                            if len(columns) > 1
+                            else columns[0]: membership
+                        }
+                        for i, membership in enumerate(row)
+                        if not mask or not mask[i]
+                    },
+                }
             }
-        } for row in slice_membership.tolist()]
+            for row in slice_membership.tolist()
+        ]
 
     @classmethod
-    def union(cls,
-              *slicemakers: SliceBuilder,
-              identifier: Identifier = None) -> SliceBuilder:
+    def union(
+        cls, *slicemakers: SliceBuilder, identifier: Identifier = None
+    ) -> SliceBuilder:
         """
         Combine a list of slicers using a union.
         """
@@ -117,16 +132,15 @@ class Subpopulation(SliceBuilder):
         grouped_slicers = tz.groupby(lambda s: s.__class__, slicemakers)
 
         # Join the slicers corresponding to each class, and flatten
-        slicemakers = list(tz.concat(
-            tz.itemmap(lambda item: (item[0], item[0].join(*item[1])),
-                       grouped_slicers).values())
+        slicemakers = list(
+            tz.concat(
+                tz.itemmap(
+                    lambda item: (item[0], item[0].join(*item[1])), grouped_slicers
+                ).values()
+            )
         )
 
-        def apply_fn(slice_membership,
-                     batch,
-                     columns,
-                     *args,
-                     **kwargs):
+        def apply_fn(slice_membership, batch, columns, *args, **kwargs):
             # Determine the size of the batch
             batch_size = len(batch[list(batch.keys())[0]])
 
@@ -137,9 +151,11 @@ class Subpopulation(SliceBuilder):
             for slicemaker in slicemakers:
                 all_slice_membership.append(
                     slicemaker.apply(
-                        slice_membership=np.zeros((batch_size, slicemaker.num_slices), dtype=np.int32),
+                        slice_membership=np.zeros(
+                            (batch_size, slicemaker.num_slices), dtype=np.int32
+                        ),
                         batch=batch,
-                        columns=columns
+                        columns=columns,
                     )
                 )
 
@@ -147,16 +163,18 @@ class Subpopulation(SliceBuilder):
             slice_membership = np.concatenate(all_slice_membership, axis=1)
 
             # Take the union over the slices (columns)
-            slice_membership = np.any(slice_membership, axis=1).astype(np.int32)[:, np.newaxis]
+            slice_membership = np.any(slice_membership, axis=1).astype(np.int32)[
+                :, np.newaxis
+            ]
 
             return slice_membership
 
         return Subpopulation(identifiers=[identifier], apply_fn=apply_fn)
 
     @classmethod
-    def intersection(cls,
-                     *slicemakers: SliceBuilder,
-                     identifier: Identifier = None) -> SliceBuilder:
+    def intersection(
+        cls, *slicemakers: SliceBuilder, identifier: Identifier = None
+    ) -> SliceBuilder:
         """
         Combine a list of slicemakers using an intersection.
         """
@@ -164,16 +182,15 @@ class Subpopulation(SliceBuilder):
         grouped_slicemakers = tz.groupby(lambda s: s.__class__, slicemakers)
 
         # Join the slicemakers corresponding to each class, and flatten
-        slicemakers = list(tz.concat(
-            tz.itemmap(lambda item: (item[0], item[0].join(*item[1])),
-                       grouped_slicemakers).values())
+        slicemakers = list(
+            tz.concat(
+                tz.itemmap(
+                    lambda item: (item[0], item[0].join(*item[1])), grouped_slicemakers
+                ).values()
+            )
         )
 
-        def apply_fn(slice_membership,
-                     batch,
-                     columns,
-                     *args,
-                     **kwargs):
+        def apply_fn(slice_membership, batch, columns, *args, **kwargs):
             # Determine the size of the batch
             batch_size = len(batch[list(batch.keys())[0]])
 
@@ -184,9 +201,11 @@ class Subpopulation(SliceBuilder):
             for slicemaker in slicemakers:
                 all_slice_membership.append(
                     slicemaker.apply(
-                        slice_membership=np.zeros((batch_size, slicemaker.num_slices), dtype=np.int32),
+                        slice_membership=np.zeros(
+                            (batch_size, slicemaker.num_slices), dtype=np.int32
+                        ),
                         batch=batch,
-                        columns=columns
+                        columns=columns,
                     )
                 )
 
@@ -194,7 +213,9 @@ class Subpopulation(SliceBuilder):
             slice_membership = np.concatenate(all_slice_membership, axis=1)
 
             # Take the union over the slices (columns)
-            slice_membership = np.all(slice_membership, axis=1).astype(np.int32)[:, np.newaxis]
+            slice_membership = np.all(slice_membership, axis=1).astype(np.int32)[
+                :, np.newaxis
+            ]
 
             return slice_membership
 
@@ -202,16 +223,16 @@ class Subpopulation(SliceBuilder):
 
 
 class SubpopulationCollection(Subpopulation):
-
-    def __init__(self,
-                 subpopulations: Sequence[Subpopulation],
-                 *args,
-                 **kwargs):
+    def __init__(self, subpopulations: Sequence[Subpopulation], *args, **kwargs):
 
         super(SubpopulationCollection, self).__init__(
-            identifiers=list(tz.concat([subpopulation.identifiers for subpopulation in subpopulations])),
+            identifiers=list(
+                tz.concat(
+                    [subpopulation.identifiers for subpopulation in subpopulations]
+                )
+            ),
             *args,
-            **kwargs
+            **kwargs,
         )
 
         # TODO(karan): some subpopulations aren't compatible with each other (e.g. single column vs. multi column):
@@ -220,18 +241,22 @@ class SubpopulationCollection(Subpopulation):
         # Store the subpopulations
         self.subpopulations = subpopulations
 
-    def __call__(self,
-                 batch_or_dataset: Union[Dict[str, List], Dataset],
-                 columns: List[str],
-                 mask: List[int] = None,
-                 store_compressed: bool = None,
-                 store: bool = None,
-                 num_proc: int = None,
-                 *args,
-                 **kwargs):
+    def __call__(
+        self,
+        batch_or_dataset: Union[Dict[str, List], Dataset],
+        columns: List[str],
+        mask: List[int] = None,
+        store_compressed: bool = None,
+        store: bool = None,
+        num_proc: int = None,
+        *args,
+        **kwargs
+    ):
 
         if mask:
-            raise NotImplementedError("Mask not supported for SubpopulationCollection yet.")
+            raise NotImplementedError(
+                "Mask not supported for SubpopulationCollection yet."
+            )
 
         if not num_proc or num_proc == 1:
             slices = []
@@ -265,9 +290,9 @@ class SubpopulationCollection(Subpopulation):
                             store_compressed=store_compressed,
                             store=store,
                             *args,
-                            **kwargs
+                            **kwargs,
                         ),
-                        [slicebuilder for slicebuilder in self.subpopulations]
+                        [slicebuilder for slicebuilder in self.subpopulations],
                     )
                 )
 
@@ -316,19 +341,27 @@ class SubpopulationCollection(Subpopulation):
 
         return batch_or_dataset, slices, slice_membership
 
-    def apply(self,
-              slice_membership: np.ndarray,
-              batch: Dict[str, List],
-              columns: List[str],
-              *args,
-              **kwargs) -> np.ndarray:
+    def apply(
+        self,
+        slice_membership: np.ndarray,
+        batch: Dict[str, List],
+        columns: List[str],
+        *args,
+        **kwargs
+    ) -> np.ndarray:
         # Each Subpopulation will generate slices
-        for subpopulation, end_idx in zip(self.subpopulations, np.cumsum([s.num_slices for s in self.subpopulations])):
+        for subpopulation, end_idx in zip(
+            self.subpopulations, np.cumsum([s.num_slices for s in self.subpopulations])
+        ):
             # Fill out the slice_membership
-            slice_membership[:, end_idx - subpopulation.num_slices:end_idx] = subpopulation.apply(
-                slice_membership=slice_membership[:, end_idx - subpopulation.num_slices:end_idx],
+            slice_membership[
+                :, end_idx - subpopulation.num_slices : end_idx
+            ] = subpopulation.apply(
+                slice_membership=slice_membership[
+                    :, end_idx - subpopulation.num_slices : end_idx
+                ],
                 batch=batch,
-                columns=columns
+                columns=columns,
             )
 
         return slice_membership

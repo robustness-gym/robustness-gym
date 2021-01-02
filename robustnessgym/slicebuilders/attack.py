@@ -14,9 +14,9 @@ class Attack(Transformation):
     """
 
     def __init__(
-            self,
-            identifiers: List[Identifier],
-            apply_fn=None,
+        self,
+        identifiers: List[Identifier],
+        apply_fn=None,
     ):
         super(Attack, self).__init__(
             category=ATTACK,

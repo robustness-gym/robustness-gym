@@ -2,21 +2,11 @@
 Import common classes.
 """
 
-from robustnessgym.cachedops.allen.allen_predictor import (
-    AllenPredictor
-)
-from robustnessgym.cachedops.allen.constituency_parser import (
-    AllenConstituencyParser
-)
-from robustnessgym.cachedops.allen.dependency_parser import (
-    AllenDependencyParser
-)
-from robustnessgym.cachedops.allen.semantic_role_labeler import (
-    AllenSemanticRoleLabeler
-)
-from robustnessgym.cachedops.bootleg import (
-    Bootleg
-)
+from robustnessgym.cachedops.allen.allen_predictor import AllenPredictor
+from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
+from robustnessgym.cachedops.allen.dependency_parser import AllenDependencyParser
+from robustnessgym.cachedops.allen.semantic_role_labeler import AllenSemanticRoleLabeler
+from robustnessgym.cachedops.bootleg import Bootleg
 from robustnessgym.cachedops.similarity import (
     SentenceSimilarityMatrix,
     RougeMatrix,
@@ -111,7 +101,7 @@ from robustnessgym.core.testbench import TestBench
 from robustnessgym.core.cachedops import (
     CachedOperation,
     SingleColumnCachedOperation,
-    stow
+    stow,
 )
 from robustnessgym.cachedops.strip_text import StripText
 from robustnessgym.cachedops.spacy import Spacy
@@ -133,12 +123,9 @@ from robustnessgym.tasks.task import (
     NaturalLanguageInference,
     BinaryNaturalLanguageInference,
     TernaryNaturalLanguageInference,
-
     Summarization,
-
     Sentiment,
     BinarySentiment,
-
     QuestionAnswering,
     ExtractiveQuestionAnswering,
 )

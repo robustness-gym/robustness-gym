@@ -12,13 +12,13 @@ def read(fname):
 
 setup(
     name="Robustness Gym",
-    version="",
-    author="",
+    version="0.0.1",
+    author="Stanford Hazy Research, Salesforce Research",
     author_email="kgoel@cs.stanford.edu",
-    license="",
-    description="Robustness Gym is a toolkit for evaluating the robustness of NLP models.",
+    license="Apache 2.0",
+    description="Robustness Gym is an evaluation toolkit for natural language processing.",
     keywords="nlp ml ai deep learning evaluation robustness",
-    # url="http://packages.python.org/an_example_pypi_project",
+    url="https://github.com/robustness-gym/robustness-gym",
     packages=['robustnessgym'],
     long_description=read('README.md'),
 )

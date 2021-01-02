@@ -14,11 +14,9 @@ def singlecolumn(func: Callable):
     Returns: decorated function
     """
 
-    def _singlecolumn(self,
-                      batch: Dict[str, List],
-                      columns: List[str],
-                      *args,
-                      **kwargs):
+    def _singlecolumn(
+        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
+    ):
         assert len(columns) == 1, "Must pass in a single column."
         return func(self, batch, columns, *args, **kwargs)
 
@@ -76,6 +74,6 @@ def methods_with_decorator(cls, decorator):
     Credit: https://stackoverflow.com/questions/5910703/how-to-get-all-methods-of-a-python-class-with-given-decorator
     """
     for maybe_decorated in cls.__dict__.values():
-        if hasattr(maybe_decorated, 'decorator'):
+        if hasattr(maybe_decorated, "decorator"):
             if maybe_decorated.decorator == decorator:
                 yield maybe_decorated

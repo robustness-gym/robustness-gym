@@ -12,16 +12,17 @@ from textattack.models.wrappers import ModelWrapper, HuggingFaceModelWrapper
 
 
 class TextAttack(Attack):
-
     def __init__(
-            self,
-            attack: AttackRecipe,
+        self,
+        attack: AttackRecipe,
     ):
         super(TextAttack, self).__init__(
-            identifiers=[Identifier(
-                self.__class__.__name__,
-                attack=attack,
-            )],
+            identifiers=[
+                Identifier(
+                    self.__class__.__name__,
+                    attack=attack,
+                )
+            ],
         )
 
         self.attack = attack
@@ -31,23 +32,27 @@ class TextAttack(Attack):
         recipes = []
         for possible_recipe_name in dir(attack_recipes):
             possible_recipe = getattr(attack_recipes, possible_recipe_name)
-            if hasattr(possible_recipe, 'mro'):
+            if hasattr(possible_recipe, "mro"):
                 for _cls in possible_recipe.mro():
                     if _cls == AttackRecipe and possible_recipe != AttackRecipe:
                         recipes.append(possible_recipe_name)
         return recipes
 
-    def apply(self,
-              skeleton_batches: List[Dict[str, List]],
-              slice_membership: np.ndarray,
-              batch: Dict[str, List],
-              columns: List[str],
-              *args,
-              **kwargs) -> Tuple[List[Dict[str, List]], np.ndarray]:
+    def apply(
+        self,
+        skeleton_batches: List[Dict[str, List]],
+        slice_membership: np.ndarray,
+        batch: Dict[str, List],
+        columns: List[str],
+        *args,
+        **kwargs
+    ) -> Tuple[List[Dict[str, List]], np.ndarray]:
 
         # Group the batch into inputs and output
         batch_inputs = tz.keyfilter(lambda k: k in columns[:-1], batch)
-        batch_inputs = [OrderedDict(zip(batch_inputs, t)) for t in zip(*batch_inputs.values())]
+        batch_inputs = [
+            OrderedDict(zip(batch_inputs, t)) for t in zip(*batch_inputs.values())
+        ]
 
         batch_output = [int(e) for e in batch[columns[-1]]]
 
@@ -61,7 +66,10 @@ class TextAttack(Attack):
             # Check if the goal succeeded
             if output.perturbed_result.goal_status == 0:
                 # If success, fill out the skeleton batch
-                for key, val in output.perturbed_result.attacked_text._text_input.items():
+                for (
+                    key,
+                    val,
+                ) in output.perturbed_result.attacked_text._text_input.items():
                     # TODO(karan): support num_attacked_texts > 1
                     skeleton_batches[0][key][i] = val
 
@@ -75,12 +83,9 @@ class TextAttack(Attack):
         return skeleton_batches, slice_membership
 
     @classmethod
-    def from_recipe(cls,
-                    recipe: str,
-                    model: ModelWrapper):
+    def from_recipe(cls, recipe: str, model: ModelWrapper):
         return cls(attack=getattr(attack_recipes, recipe).build(model=model))
 
     @classmethod
-    def wrap_huggingface_model(cls,
-                               model: Model) -> ModelWrapper:
+    def wrap_huggingface_model(cls, model: Model) -> ModelWrapper:
         return HuggingFaceModelWrapper(model=model.model, tokenizer=model.tokenizer)

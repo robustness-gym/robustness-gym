@@ -19,20 +19,23 @@ class FairseqBacktranslation(SingleColumnTransformation):
     Class for performing backtranslation using torchhub fairseq models.
     """
 
-    def __init__(self,
-                 n_src2tgt: int = 1,
-                 n_tgt2src: int = 1,
-                 langs: str = 'en2de',
-                 torchhub_dir: str = None,
-                 device: str = 'cuda',
-                 src2tgt_topk: int = 1000,
-                 src2tgt_temp: float = 1.0,
-                 tgt2src_topk: int = 1000,
-                 tgt2src_temp: float = 1.0,
-                 ):
+    def __init__(
+        self,
+        n_src2tgt: int = 1,
+        n_tgt2src: int = 1,
+        langs: str = "en2de",
+        torchhub_dir: str = None,
+        device: str = "cuda",
+        src2tgt_topk: int = 1000,
+        src2tgt_temp: float = 1.0,
+        tgt2src_topk: int = 1000,
+        tgt2src_temp: float = 1.0,
+    ):
 
         if not _fastbpe_available:
-            raise ImportError("fastBPE not available for import. Please install fastBPE with pip install fastBPE.")
+            raise ImportError(
+                "fastBPE not available for import. Please install fastBPE with pip install fastBPE."
+            )
 
         super(FairseqBacktranslation, self).__init__(
             identifiers=Identifier.range(
@@ -63,37 +66,47 @@ class FairseqBacktranslation(SingleColumnTransformation):
         )
 
     @staticmethod
-    def load_models(langs: str,
-                    torchhub_dir: str = None,
-                    device: str = 'cuda',
-                    half_precision: bool = False):
+    def load_models(
+        langs: str,
+        torchhub_dir: str = None,
+        device: str = "cuda",
+        half_precision: bool = False,
+    ):
         if torchhub_dir:
             # Set the directory where the models will be stored.
             torch.hub.set_dir(torchhub_dir)
 
-        if langs == 'en2de':
+        if langs == "en2de":
             # Round-trip translations between English and German
-            src2tgt = torch.hub.load('pytorch/fairseq',
-                                     'transformer.wmt19.en-de.single_model',
-                                     tokenizer='moses',
-                                     bpe='fastbpe')
+            src2tgt = torch.hub.load(
+                "pytorch/fairseq",
+                "transformer.wmt19.en-de.single_model",
+                tokenizer="moses",
+                bpe="fastbpe",
+            )
 
-            tgt2src = torch.hub.load('pytorch/fairseq',
-                                     'transformer.wmt19.de-en.single_model',
-                                     tokenizer='moses',
-                                     bpe='fastbpe')
+            tgt2src = torch.hub.load(
+                "pytorch/fairseq",
+                "transformer.wmt19.de-en.single_model",
+                tokenizer="moses",
+                bpe="fastbpe",
+            )
 
-        elif langs == 'en2ru':
+        elif langs == "en2ru":
             # Round-trip translations between English and Russian
-            src2tgt = torch.hub.load('pytorch/fairseq',
-                                     'transformer.wmt19.en-ru.single_model',
-                                     tokenizer='moses',
-                                     bpe='fastbpe')
+            src2tgt = torch.hub.load(
+                "pytorch/fairseq",
+                "transformer.wmt19.en-ru.single_model",
+                tokenizer="moses",
+                bpe="fastbpe",
+            )
 
-            tgt2src = torch.hub.load('pytorch/fairseq',
-                                     'transformer.wmt19.ru-en.single_model',
-                                     tokenizer='moses',
-                                     bpe='fastbpe')
+            tgt2src = torch.hub.load(
+                "pytorch/fairseq",
+                "transformer.wmt19.ru-en.single_model",
+                tokenizer="moses",
+                bpe="fastbpe",
+            )
         else:
             raise NotImplementedError
 
@@ -102,8 +115,7 @@ class FairseqBacktranslation(SingleColumnTransformation):
             return src2tgt.to(device).half(), tgt2src.to(device).half()
         return src2tgt.to(device), tgt2src.to(device)
 
-    def single_column_apply(self,
-                            column_batch: List) -> List[List]:
+    def single_column_apply(self, column_batch: List) -> List[List]:
         """
         Perform backtranslation using the fairseq pretrained translation models.
         """
@@ -112,27 +124,38 @@ class FairseqBacktranslation(SingleColumnTransformation):
         src_sentences_bin = [self.src2tgt.encode(e)[:1024] for e in src_sentences]
 
         # Translate it
-        tgt_sentences = self.src2tgt.generate(src_sentences_bin,
-                                              beam=self.n_src2tgt,
-                                              sampling=True,
-                                              sampling_topk=self.src2tgt_topk,
-                                              temperature=self.src2tgt_temp,
-                                              skip_invalid_size_inputs=True,
-                                              )
+        tgt_sentences = self.src2tgt.generate(
+            src_sentences_bin,
+            beam=self.n_src2tgt,
+            sampling=True,
+            sampling_topk=self.src2tgt_topk,
+            temperature=self.src2tgt_temp,
+            skip_invalid_size_inputs=True,
+        )
 
         # Back-translate: moving tokens to CPU because of an error otherwise
-        src_paraphrases = self.tgt2src.generate([e['tokens'].cpu() for l in tgt_sentences for e in l],
-                                                beam=self.n_tgt2src,
-                                                sampling=True,
-                                                sampling_topk=self.tgt2src_topk,
-                                                temperature=self.tgt2src_temp,
-                                                skip_invalid_size_inputs=True,
-                                                )
+        src_paraphrases = self.tgt2src.generate(
+            [e["tokens"].cpu() for l in tgt_sentences for e in l],
+            beam=self.n_tgt2src,
+            sampling=True,
+            sampling_topk=self.tgt2src_topk,
+            temperature=self.tgt2src_temp,
+            skip_invalid_size_inputs=True,
+        )
 
         # Flatten out all the translations into one giant list
         flat_src_paraphrases = list(
-            tz.concat(map(lambda l: list(map(lambda e: self.tgt2src.decode(e['tokens']), l)), src_paraphrases))
+            tz.concat(
+                map(
+                    lambda l: list(map(lambda e: self.tgt2src.decode(e["tokens"]), l)),
+                    src_paraphrases,
+                )
+            )
         )
 
         # Partition so that we get n_src2tgt * n_tgt2src paraphrases per input sentence
-        return list(tz.partition_all(len(flat_src_paraphrases) // len(src_sentences), flat_src_paraphrases))
+        return list(
+            tz.partition_all(
+                len(flat_src_paraphrases) // len(src_sentences), flat_src_paraphrases
+            )
+        )

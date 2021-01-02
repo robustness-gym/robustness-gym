@@ -2,11 +2,8 @@ from robustnessgym.tasks.task import *
 
 dataset_to_task = {
     # Natural Language Inference
-
     # Ternary
-    'snli': TernaryNaturalLanguageInference,
-
+    "snli": TernaryNaturalLanguageInference,
     # Question Answering
-    'squad': QuestionAnswering,
-
+    "squad": QuestionAnswering,
 }

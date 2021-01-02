@@ -9,12 +9,9 @@ from robustnessgym.core.identifier import Identifier
 
 
 class Slice(Dataset):
-
-    def __init__(self,
-                 *args,
-                 identifier: str = None,
-                 dataset: Dataset = None,
-                 **kwargs):
+    def __init__(
+        self, *args, identifier: str = None, dataset: Dataset = None, **kwargs
+    ):
 
         if dataset is not None:
             # Create a Slice directly from the Dataset object
@@ -60,6 +57,5 @@ class Slice(Dataset):
         self._identifier = value
 
     @classmethod
-    def from_dataset(cls,
-                     dataset: Dataset):
+    def from_dataset(cls, dataset: Dataset):
         return cls(dataset=dataset)

@@ -1,6 +1,7 @@
 """
 Unittests for the NlpAugTransformation class.
 """
+import random
 from unittest import TestCase
 
 import numpy as np
@@ -17,6 +18,7 @@ class TestNlpAugTransformation(TestCase):
 
     def test_apply(self):
         # Set the seed
+        random.seed(0)
         np.random.seed(0)
 
         # Create the nlpaug transformation
@@ -47,5 +49,9 @@ class TestNlpAugTransformation(TestCase):
 
         # Checking that the transformed text matches
         self.assertEqual(slices[0]['text'],
-                         ['The man be walking.', 'The man be running.', 'The woman is sprint.',
-                          'The woman is repose.', 'The hobbit be flying.', 'The hobbit is swimming.'])
+                         ['The man is walk.',
+                          'The man be running.',
+                          'The cleaning lady is sprinting.',
+                          'The woman personify resting.',
+                          'The hobbit is fly.',
+                          'The hobbit is swimming.'])

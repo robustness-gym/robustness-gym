@@ -14,22 +14,26 @@ class Operation(ABC):
     Abstract base class for operations in Robustness Gym.
     """
 
-    def __init__(self,
-                 apply_fn: Callable = None,
-                 identifiers: List[Identifier] = None,
-                 num_outputs: int = None,
-                 *args,
-                 **kwargs):
+    def __init__(
+        self,
+        apply_fn: Callable = None,
+        identifiers: List[Identifier] = None,
+        num_outputs: int = None,
+        *args,
+        **kwargs
+    ):
 
         if not identifiers:
-            assert num_outputs, "Must pass in num_outputs if no identifiers are specified."
+            assert (
+                num_outputs
+            ), "Must pass in num_outputs if no identifiers are specified."
 
         # Set the identifiers for the outputs of the Operation
-        self._identifiers = Identifier.range(
-            n=num_outputs,
-            _name=self.__class__.__name__,
-            **kwargs
-        ) if not identifiers else identifiers
+        self._identifiers = (
+            Identifier.range(n=num_outputs, _name=self.__class__.__name__, **kwargs)
+            if not identifiers
+            else identifiers
+        )
 
         # Assign the apply_fn
         if apply_fn:

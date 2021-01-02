@@ -11,14 +11,15 @@ from robustnessgym.tasks.schema import Schema
 class Task:
     dataset_to_task = {}
 
-    def __init__(self,
-                 identifier,
-                 input_schema: Schema,
-                 output_schema: Schema,
-                 metrics: List[str],
-                 *args,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        identifier,
+        input_schema: Schema,
+        output_schema: Schema,
+        metrics: List[str],
+        *args,
+        **kwargs,
+    ):
         self.identifier = identifier
         self.input_schema = input_schema
         self.output_schema = output_schema
@@ -39,31 +40,39 @@ class Task:
     @classmethod
     def create(cls, task: str):
         # TODO(karan): figure out how to getattr this
-        if task == 'TernaryNaturalLanguageInference':
+        if task == "TernaryNaturalLanguageInference":
             return TernaryNaturalLanguageInference()
         else:
             raise NotImplementedError
 
     def remap_schema(self, dataset: Dataset):
         # Ground the schema to the dataset
-        input_grounding, reversed_input_grounding = self.input_schema.ground(dataset.features)
-        output_grounding, reversed_output_grounding = self.output_schema.ground(dataset.features)
+        input_grounding, reversed_input_grounding = self.input_schema.ground(
+            dataset.features
+        )
+        output_grounding, reversed_output_grounding = self.output_schema.ground(
+            dataset.features
+        )
 
         # Construct a map_fn that remaps the dataset schema
         def map_fn(example):
-            return tz.merge({k: example[input_grounding[k]] for k in self.input_schema.features},
-                            {k: example[output_grounding[k]] for k in self.output_schema.features})
+            return tz.merge(
+                {k: example[input_grounding[k]] for k in self.input_schema.features},
+                {k: example[output_grounding[k]] for k in self.output_schema.features},
+            )
 
         return dataset.map(
             map_fn,
-            remove_columns=list(reversed_input_grounding.keys()) + list(reversed_output_grounding.keys())
+            remove_columns=list(reversed_input_grounding.keys())
+            + list(reversed_output_grounding.keys()),
         )
 
     def classification(self):
         # TODO(karan): improve the schema inference
         # Check that the only output is a ClassLabel output
-        if len(self.output_schema) == 1 and \
-                isinstance(self.output_schema.features[self.output_schema.keys()[0]], ClassLabel):
+        if len(self.output_schema) == 1 and isinstance(
+            self.output_schema.features[self.output_schema.keys()[0]], ClassLabel
+        ):
             return True
         return False
 
@@ -83,22 +92,16 @@ class Task:
 
 
 class Sentiment(Task):
-
-    def __init__(self,
-                 identifier,
-                 input_schema,
-                 output_schema,
-                 *args,
-                 **kwargs):
+    def __init__(self, identifier, input_schema, output_schema, *args, **kwargs):
         super(Sentiment, self).__init__(
             identifier=identifier,
             input_schema=input_schema,
             output_schema=output_schema,
             metrics=[
-                'accuracy',
-                'f1',
-                'class_dist',
-                'pred_dist'
+                "accuracy",
+                "f1",
+                "class_dist",
+                "pred_dist"
                 # TODO(karan): calibration, other metrics
             ],
             *args,
@@ -107,25 +110,28 @@ class Sentiment(Task):
 
 
 class BinarySentiment(Sentiment):
-
     def __init__(self):
         super(BinarySentiment, self).__init__(
             num_classes=2,
             input_schema=Schema(
-                features=OrderedDict([
-                    ('text', Value(dtype='string')),
-                ]),
+                features=OrderedDict(
+                    [
+                        ("text", Value(dtype="string")),
+                    ]
+                ),
                 grounding_candidates={
-                    'text': {'text', 'sentence'},
-                }
+                    "text": {"text", "sentence"},
+                },
             ),
             output_schema=Schema(
-                features=OrderedDict([
-                    ('label', ClassLabel(names=['negative', 'positive'])),
-                ]),
+                features=OrderedDict(
+                    [
+                        ("label", ClassLabel(names=["negative", "positive"])),
+                    ]
+                ),
                 grounding_candidates={
-                    'label': {'label'},
-                }
+                    "label": {"label"},
+                },
             ),
             identifier=self.__class__.__name__,
         )
@@ -133,64 +139,53 @@ class BinarySentiment(Sentiment):
     @classmethod
     def list_datasets(cls):
         return [
-            'imdb',
+            "imdb",
         ]
 
 
 class Summarization(Task):
-
     def __init__(self):
         super(Summarization, self).__init__(
             identifier=self.__class__.__name__,
             input_schema=Schema(
-                features=OrderedDict([
-                    ('text', Value(dtype='string'))
-                ]),
+                features=OrderedDict([("text", Value(dtype="string"))]),
                 grounding_candidates={
-                    'text': {'article', 'document'},
-                }
+                    "text": {"article", "document"},
+                },
             ),
             output_schema=Schema(
-                features=OrderedDict([
-                    ('summary', Value(dtype='string'))
-                ]),
+                features=OrderedDict([("summary", Value(dtype="string"))]),
                 grounding_candidates={
-                    'summary': {'highlights', 'summary'},
-                }
+                    "summary": {"highlights", "summary"},
+                },
             ),
             metrics=[
                 # blah,
                 # TODO(karan): calibration, other metrics
-                'rouge1',
-                'rouge2',
-                'rougeLsum'
+                "rouge1",
+                "rouge2",
+                "rougeLsum",
             ],
         )
 
     @classmethod
     def list_datasets(cls):
         return [
-            'cnn_dailymail',
+            "cnn_dailymail",
         ]
 
 
 class NaturalLanguageInference(Task):
-
-    def __init__(self,
-                 identifier,
-                 input_schema,
-                 output_schema,
-                 *args,
-                 **kwargs):
+    def __init__(self, identifier, input_schema, output_schema, *args, **kwargs):
         super(NaturalLanguageInference, self).__init__(
             identifier=identifier,
             input_schema=input_schema,
             output_schema=output_schema,
             metrics=[
-                'accuracy',
-                'f1',
-                'class_dist',
-                'pred_dist'
+                "accuracy",
+                "f1",
+                "class_dist",
+                "pred_dist"
                 # TODO(karan): calibration, other metrics
             ],
             *args,
@@ -199,85 +194,88 @@ class NaturalLanguageInference(Task):
 
 
 class BinaryNaturalLanguageInference(NaturalLanguageInference):
-
     def __init__(self):
         super(BinaryNaturalLanguageInference, self).__init__(
             num_classes=2,
             input_schema=Schema(
-                features=OrderedDict([
-                    ('premise', Value(dtype='string')),
-                    ('hypothesis', Value(dtype='string')),
-                ]),
+                features=OrderedDict(
+                    [
+                        ("premise", Value(dtype="string")),
+                        ("hypothesis", Value(dtype="string")),
+                    ]
+                ),
                 grounding_candidates={
-                    'premise': {'premise', 'sentence1'},
-                    'hypothesis': {'hypothesis', 'sentence2'},
-                }
+                    "premise": {"premise", "sentence1"},
+                    "hypothesis": {"hypothesis", "sentence2"},
+                },
             ),
             output_schema=Schema(
-                features=OrderedDict([
-                    ('label', ClassLabel(names=['entailment', 'non entailment'])),
-                ]),
+                features=OrderedDict(
+                    [
+                        ("label", ClassLabel(names=["entailment", "non entailment"])),
+                    ]
+                ),
                 grounding_candidates={
-                    'label': {'label'},
-                }
+                    "label": {"label"},
+                },
             ),
             identifier=self.__class__.__name__,
         )
 
     @classmethod
     def list_datasets(cls):
-        return [
-
-        ]
+        return []
 
 
 class TernaryNaturalLanguageInference(NaturalLanguageInference):
-
     def __init__(self):
         super(TernaryNaturalLanguageInference, self).__init__(
             num_classes=3,
             input_schema=Schema(
-                features=OrderedDict([
-                    ('premise', Value(dtype='string')),
-                    ('hypothesis', Value(dtype='string')),
-                ]),
+                features=OrderedDict(
+                    [
+                        ("premise", Value(dtype="string")),
+                        ("hypothesis", Value(dtype="string")),
+                    ]
+                ),
                 grounding_candidates={
-                    'premise': {'premise', 'sentence1'},
-                    'hypothesis': {'hypothesis', 'sentence2'},
-                }
+                    "premise": {"premise", "sentence1"},
+                    "hypothesis": {"hypothesis", "sentence2"},
+                },
             ),
             output_schema=Schema(
-                features=OrderedDict([
-                    ('label', ClassLabel(names=['entailment', 'neutral', 'contradiction'])),
-                ]),
+                features=OrderedDict(
+                    [
+                        (
+                            "label",
+                            ClassLabel(
+                                names=["entailment", "neutral", "contradiction"]
+                            ),
+                        ),
+                    ]
+                ),
                 grounding_candidates={
-                    'label': {'label'},
-                }
+                    "label": {"label"},
+                },
             ),
             identifier=self.__class__.__name__,
         )
 
     def datasets(self):
         return {
-            'snli',
+            "snli",
         }
 
 
 class QuestionAnswering(Task):
-
-    def __init__(self,
-                 identifier,
-                 input_schema,
-                 output_schema,
-                 *args,
-                 **kwargs):
+    def __init__(self, identifier, input_schema, output_schema, *args, **kwargs):
         super(QuestionAnswering, self).__init__(
             identifier=identifier,
             input_schema=input_schema,
             output_schema=output_schema,
             metrics=[
-                'em',
-                'f1',
+                "em",
+                "f1",
                 # TODO(karan): calibration, other metrics
             ],
             *args,
@@ -286,38 +284,48 @@ class QuestionAnswering(Task):
 
 
 class ExtractiveQuestionAnswering(Task):
-
     def __init__(self):
         super(ExtractiveQuestionAnswering, self).__init__(
             input_schema=Schema(
-                features=OrderedDict([
-                    ('context', Value(dtype='string')),
-                    ('question', Value(dtype='string')),
-                ]),
+                features=OrderedDict(
+                    [
+                        ("context", Value(dtype="string")),
+                        ("question", Value(dtype="string")),
+                    ]
+                ),
                 grounding_candidates={
-                    'context': {'context'},
-                    'question': {'question'},
+                    "context": {"context"},
+                    "question": {"question"},
                 },
             ),
             output_schema=Schema(
-                features=OrderedDict([
-                    ('answers', Sequence(
-                        feature={'text': Value(dtype='string', id=None),
-                                 'answer_start': Value(dtype='int32', id=None)},
-                        length=-1)),
-                ]),
+                features=OrderedDict(
+                    [
+                        (
+                            "answers",
+                            Sequence(
+                                feature={
+                                    "text": Value(dtype="string", id=None),
+                                    "answer_start": Value(dtype="int32", id=None),
+                                },
+                                length=-1,
+                            ),
+                        ),
+                    ]
+                ),
                 grounding_candidates={
-                    'answers': {
-                        'answers',
+                    "answers": {
+                        "answers",
                     },
-                }
+                },
             ),
             metrics=[
-                'em',
-                'f1',
+                "em",
+                "f1",
             ],
             identifier=self.__class__.__name__,
         )
+
 
 # class ExtractiveQuestionAnswering(Task):
 #

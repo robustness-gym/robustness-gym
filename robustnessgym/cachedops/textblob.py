@@ -12,11 +12,12 @@ from robustnessgym.core.identifier import Identifier
 
 
 class TextBlob(SingleColumnCachedOperation):
-
     def __init__(self):
         if not _textblob_available:
-            raise ImportError("TextBlob not available for import. Install using "
-                              "\npip install textblob\npython -m textblob.download_corpora")
+            raise ImportError(
+                "TextBlob not available for import. Install using "
+                "\npip install textblob\npython -m textblob.download_corpora"
+            )
         # TODO(karan): requires running `python -m textblob.download_corpora`
         super(TextBlob, self).__init__()
 
@@ -28,18 +29,17 @@ class TextBlob(SingleColumnCachedOperation):
         return obj.to_json()
 
     @classmethod
-    def retrieve(cls,
-                 batch: Dict[str, List],
-                 columns: List[str],
-                 identifier: Union[str, Identifier] = None,
-                 reapply: bool = False,
-                 **kwargs) -> Optional[Dict[str, List]]:
+    def retrieve(
+        cls,
+        batch: Dict[str, List],
+        columns: List[str],
+        identifier: Union[str, Identifier] = None,
+        reapply: bool = False,
+        **kwargs
+    ) -> Optional[Dict[str, List]]:
         # Default to reapplying the TextBlob op when retrieving
         return super().retrieve(batch, columns, identifier, reapply=True, **kwargs)
 
-    def single_column_apply(self,
-                            column_batch: List,
-                            *args,
-                            **kwargs) -> List:
+    def single_column_apply(self, column_batch: List, *args, **kwargs) -> List:
         # Create a TextBlob for each example
         return [textblob.TextBlob(text) for text in column_batch]

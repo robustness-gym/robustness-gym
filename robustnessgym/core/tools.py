@@ -74,13 +74,15 @@ def get_default_args(func) -> dict:
     }
 
 
-class DownloadProgressBar():
+class DownloadProgressBar:
     def __init__(self):
         self.pbar = None
 
     def __call__(self, block_num, block_size, total_size):
         if not self.pbar:
-            self.pbar = progressbar.ProgressBar(maxval=total_size if total_size > 0 else 1e-2)
+            self.pbar = progressbar.ProgressBar(
+                maxval=total_size if total_size > 0 else 1e-2
+            )
             self.pbar.start()
 
         downloaded = block_num * block_size
@@ -98,7 +100,7 @@ def prettyprint(s: str) -> None:
         s: string
 
     """
-    if hasattr(s, '__dict__'):
+    if hasattr(s, "__dict__"):
         print(yaml.dump(s.__dict__))
     elif isinstance(s, dict):
         print(yaml.dump(s))
@@ -112,18 +114,24 @@ def get_all_leaf_paths(coll):
     Paths can travel through lists and the index is inserted into the path.
     """
     if isinstance(coll, Mapping):
-        return list(tz.concat(map(lambda t: list(map(lambda p: [t[0]] + p,
-                                                     get_all_leaf_paths(t[1])
-                                                     )),
-                                  coll.items()))
-                    )
+        return list(
+            tz.concat(
+                map(
+                    lambda t: list(map(lambda p: [t[0]] + p, get_all_leaf_paths(t[1]))),
+                    coll.items(),
+                )
+            )
+        )
 
     elif isinstance(coll, list):
-        return list(tz.concat(map(lambda t: list(map(lambda p: [t[0]] + p,
-                                                     get_all_leaf_paths(t[1])
-                                                     )),
-                                  enumerate(coll)))
-                    )
+        return list(
+            tz.concat(
+                map(
+                    lambda t: list(map(lambda p: [t[0]] + p, get_all_leaf_paths(t[1]))),
+                    enumerate(coll),
+                )
+            )
+        )
     else:
         return [[]]
 
@@ -134,8 +142,12 @@ def get_all_paths(coll, prefix_path=(), stop_at=None, stop_below=None):
     Use stop_at to truncate paths at the given key.
     Use stop_below to truncate paths one level below the given key.
     """
-    assert stop_at is None or stop_below is None, 'Only one of stop_at or stop_below can be used.'
-    if stop_below is not None and stop_below in str(tz.last(tz.take(len(prefix_path) - 1, prefix_path))):
+    assert (
+        stop_at is None or stop_below is None
+    ), "Only one of stop_at or stop_below can be used."
+    if stop_below is not None and stop_below in str(
+        tz.last(tz.take(len(prefix_path) - 1, prefix_path))
+    ):
         return [[]]
     if stop_at is not None and stop_at in str(tz.last(prefix_path)):
         return [[]]
@@ -145,14 +157,24 @@ def get_all_paths(coll, prefix_path=(), stop_at=None, stop_below=None):
         else:
             items = enumerate(coll)
 
-        return list(tz.concat(map(lambda t: list(map(lambda p: [t[0]] + p,
-                                                     get_all_paths(t[1],
-                                                                   prefix_path=list(prefix_path) + [t[0]],
-                                                                   stop_at=stop_at,
-                                                                   stop_below=stop_below)
-                                                     )),
-                                  items))
-                    )
+        return list(
+            tz.concat(
+                map(
+                    lambda t: list(
+                        map(
+                            lambda p: [t[0]] + p,
+                            get_all_paths(
+                                t[1],
+                                prefix_path=list(prefix_path) + [t[0]],
+                                stop_at=stop_at,
+                                stop_below=stop_below,
+                            ),
+                        )
+                    ),
+                    items,
+                )
+            )
+        )
     else:
         return [[]]
 
@@ -162,12 +184,13 @@ def get_only_paths(coll, pred, prefix_path=(), stop_at=None, stop_below=None):
     Get all paths that satisfy the predicate fn pred.
     First gets all paths and then filters them based on pred.
     """
-    all_paths = get_all_paths(coll, prefix_path=prefix_path, stop_at=stop_at, stop_below=stop_below)
+    all_paths = get_all_paths(
+        coll, prefix_path=prefix_path, stop_at=stop_at, stop_below=stop_below
+    )
     return list(filter(pred, all_paths))
 
 
 class class_or_instancemethod(classmethod):
-
     def __get__(self, instance, type_):
         descr_get = super().__get__ if instance is None else self.__func__.__get__
         return descr_get(instance, type_)
