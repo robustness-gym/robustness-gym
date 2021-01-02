@@ -1,10 +1,10 @@
 autoformat:
 	black robustnessgym/ tests/
-	isort --atomic -rc robustnessgym/ tests/
+	isort --atomic robustnessgym/ tests/
 	docformatter --in-place --recursive robustnessgym tests
 
 lint:
-	isort -c -rc robustnessgym/ tests/
+	isort -c robustnessgym/ tests/
 	black robustnessgym/ tests/ --check
 	flake8 robustnessgym/ tests/
 
@@ -22,6 +22,11 @@ docs-check:
 
 dev:
 	pip install black isort flake8 docformatter pytest-cov
+
+poetry:
+	curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+	poetry install
+	poetry shell
 
 all: autoformat lint docs test
 

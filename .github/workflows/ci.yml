@@ -10,6 +10,7 @@ on:
     workflow_dispatch:
 
 jobs:
+    
     build:
         
         runs-on: ${{ matrix.os }}
@@ -29,9 +30,11 @@ jobs:
             -   name: Install dependencies
                 run: |
                     python -m pip install --upgrade pip
+                    make poetry
                     make dev
-                    python -m pip install poetry
-                    poetry install
+#                    python -m pip install poetry
+#                    poetry install
+#                    poetry shell
             
             -   name: Lint with isort, black, docformatter, flake8
                 run: |

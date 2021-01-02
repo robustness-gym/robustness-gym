@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Sequence
 
 import cytoolz as tz
 import numpy as np
-
 from ahocorasick import Automaton
+
 from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation

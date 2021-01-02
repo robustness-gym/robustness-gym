@@ -7,10 +7,7 @@ from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.attack import Attack
 
 try:
-    from morpheus import (
-        MorpheusHuggingfaceNLI,
-        MorpheusHuggingfaceQA,
-    )
+    from morpheus import MorpheusHuggingfaceNLI, MorpheusHuggingfaceQA
 except ImportError:
     _morpheus_available = False
 else:
