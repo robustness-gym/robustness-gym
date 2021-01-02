@@ -1,6 +1,4 @@
-"""
-Generic wrapper for adversarial attacks.
-"""
+"""Generic wrapper for adversarial attacks."""
 from typing import List
 
 from robustnessgym.core.constants import ATTACK
@@ -9,9 +7,7 @@ from robustnessgym.slicebuilders.transformation import Transformation
 
 
 class Attack(Transformation):
-    """
-    Class for adversarial attacks.
-    """
+    """Class for adversarial attacks."""
 
     def __init__(
         self,

@@ -1,24 +1,22 @@
 import pathlib
 from functools import partial
-from typing import Dict, List, Optional, Union, Callable
+from typing import Callable, Dict, List, Optional, Union
 
-from robustnessgym.core.constants import *
-from robustnessgym.core.dataset import Dataset, Batch, BatchOrDataset
+from robustnessgym.core.constants import CACHEDOPS
+from robustnessgym.core.dataset import Batch, BatchOrDataset, Dataset
 from robustnessgym.core.decorators import singlecolumn
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.tools import (
-    recmerge,
-    persistent_hash,
-    strings_as_json,
     class_or_instancemethod,
+    persistent_hash,
+    recmerge,
+    strings_as_json,
 )
 
 
 class CachedOperation(Operation):
-    """
-    Class to create CachedOperations.
-    """
+    """Class to create CachedOperations."""
 
     # Path to a log directory
     logdir: pathlib.Path = pathlib.Path.home() / "robustnessgym/cachedops/"
@@ -39,8 +37,7 @@ class CachedOperation(Operation):
         )
 
     def __repr__(self):
-        """
-        Representation of a cached operation object.
+        """Representation of a cached operation object.
 
         Returns: string representation
         """
@@ -52,20 +49,20 @@ class CachedOperation(Operation):
 
     @staticmethod
     def store(batch: Batch, updates: List[Dict]) -> Batch:
-        """
-        Updates the cache of preprocessed information stored with each example in a batch.
+        """Updates the cache of preprocessed information stored with each
+        example in a batch.
 
         Args:
             batch: a batch of data
             updates: a list of dictionaries, one per example
 
         Returns: updated batch
-
         """
         if "cache" not in batch:
             batch["cache"] = [{} for _ in range(len(batch["index"]))]
 
-        # For each example, recursively merge the example's original cache dictionary with the update dictionary
+        # For each example, recursively merge the example's original cache dictionary
+        # with the update dictionary
         batch["cache"] = [
             recmerge(cache_dict, update_dict)
             for cache_dict, update_dict in zip(batch["cache"], updates)
@@ -83,18 +80,17 @@ class CachedOperation(Operation):
         reapply: bool = False,
         **kwargs,
     ) -> Optional[Union[Batch, List[Batch]]]:
-        """
-        Retrieve information from the cache.
+        """Retrieve information from the cache.
 
         Args:
             batch: a batch of data
             columns: list of columns to retrieve cached information for
-            proc_fns: list of processing functions to be executed left to right on the cached data
+            proc_fns: list of processing functions to be executed left to right on
+            the cached data
             identifier: name of the identifier to retrieve
             reapply: whether to recompute the cached operation at retrieval
 
         Returns: dict mapping a column to a list of length len(batch)
-
         """
         if not reapply:
             # Nothing to return if there's no cache
@@ -113,9 +109,11 @@ class CachedOperation(Operation):
                     # self
                     target_ident_key = str(self_or_cls.identifier)
 
-                # TODO(karan): iterate over all keys and pick the best match, rather than breaking
+                # TODO(karan): iterate over all keys and pick the best match,
+                #  rather than breaking
                 for ident_key in batch["cache"][0].keys():
-                    # Pick the first key that matches the cls name or instance identifier
+                    # Pick the first key that matches the cls name or instance
+                    # identifier
                     if ident_key.startswith(target_ident_key):
                         identifier = ident_key
                         break
@@ -123,7 +121,8 @@ class CachedOperation(Operation):
                 # Still no identifier
                 if not identifier:
                     raise ValueError(
-                        f"Retrieval failed: couldn't find a key called {target_ident_key} in cache."
+                        f"Retrieval failed: couldn't find a key called "
+                        f"{target_ident_key} in cache."
                     )
 
             try:
@@ -150,8 +149,9 @@ class CachedOperation(Operation):
             except KeyError:
                 raise KeyError(
                     "Could not retrieve information for all columns. "
-                    "If you're trying to retrieve information for multiple columns, use "
-                    "columns=[[col_1], [col_2], ..] instead of columns=[col_1, col_2, ..]."
+                    "If you're trying to retrieve information for multiple columns, "
+                    "use columns=[[col_1], [col_2], ..] "
+                    "instead of columns=[col_1, col_2, ..]."
                 )
 
             # Check if the retrieved information needs to be processed
@@ -201,9 +201,8 @@ class CachedOperation(Operation):
             }
 
     def get_cache_hash(self, columns: Optional[List[str]] = None):
-        """
-        Construct a hash that will be used to identify the application of a cached operation to the columns of a dataset.
-        """
+        """Construct a hash that will be used to identify the application of a
+        cached operation to the columns of a dataset."""
 
         val = hash(self)
         if columns:
@@ -212,16 +211,14 @@ class CachedOperation(Operation):
         return val
 
     def get_cache_file_name(self, columns=None):
-        """
-        Construct a file name for caching.
-        """
+        """Construct a file name for caching."""
         return "cache-" + str(abs(self.get_cache_hash(columns=columns))) + ".arrow"
 
     def prepare_batch(self, batch: Batch, columns: List[str]) -> Batch:
-        """
-        Preparation that is applied before the CachedOperation.
+        """Preparation that is applied before the CachedOperation.
 
-        This is provided as a convenience function that can be called by prepare_dataset.
+        This is provided as a convenience function that can be called by
+        prepare_dataset.
 
         Args:
             batch: batch of examples
@@ -234,12 +231,12 @@ class CachedOperation(Operation):
     def prepare_dataset(
         self, dataset: Dataset, columns: List[str], batch_size: int = 32
     ) -> Dataset:
-        """
-        Preparation that is applied before the CachedOperation.
+        """Preparation that is applied before the CachedOperation.
 
-        Many CachedOperations require a full pass over the dataset to precompute some variables
-        before the core operation can actually be applied e.g. to create a Bag-of-Words representation,
-        constructing a dataset vocabulary to keep only tokens that are frequently seen across the dataset.
+        Many CachedOperations require a full pass over the dataset to precompute some
+        variables before the core operation can actually be applied e.g. to create a
+        Bag-of-Words representation, constructing a dataset vocabulary to keep only
+        tokens that are frequently seen across the dataset.
 
         Args:
             dataset: Dataset
@@ -247,20 +244,20 @@ class CachedOperation(Operation):
             batch_size: batch size for .map(..)
 
         Returns: updated Dataset
-
         """
 
         # Apply preparation to the dataset
-        # TODO(karan): this is similar to the try except block for slicebuilders, refactor
+        # TODO(karan): this is similar to the try except block for slicebuilders,
+        #  refactor
         try:
             return dataset.map(
                 partial(self.prepare_batch, columns=columns),
                 batched=True,
                 batch_size=batch_size,
-                cache_file_name=
-                # The cache file name is a XOR of the interaction history and the current operation
+                # The cache file name is a XOR of the interaction history and the
+                # current operation
                 # FIXME(karan): this is repeated
-                str(
+                cache_file_name=str(
                     dataset.logdir
                     / (
                         "cache-"
@@ -277,7 +274,7 @@ class CachedOperation(Operation):
                     )
                 ),
             )
-        except:  # TypeError or PicklingError or AttributeError:
+        except:  # TypeError or PicklingError or AttributeError: # noqa
             # Batch the dataset, and process each batch
             all_batches = [
                 self.prepare_batch(
@@ -293,10 +290,10 @@ class CachedOperation(Operation):
                 batch_size=batch_size,
                 with_indices=True,
                 load_from_cache_file=False,
-                cache_file_name=
-                # The cache file name is a XOR of the interaction history and the current operation
+                # The cache file name is a XOR of the interaction history and the
+                # current operation
                 # FIXME(karan): this is repeated
-                str(
+                cache_file_name=str(
                     dataset.logdir
                     / (
                         "cache-"
@@ -315,15 +312,11 @@ class CachedOperation(Operation):
             )
 
     def apply(self, batch: Batch, columns: List[str], *args, **kwargs) -> List:
-        """
-        Implements the core functionality of the cached operation.
-        """
+        """Implements the core functionality of the cached operation."""
         pass
 
     def process_batch(self, batch: Batch, columns: List[str]) -> Batch:
-        """
-        Apply the cached operation to a batch.
-        """
+        """Apply the cached operation to a batch."""
         assert (
             len(set(columns) - set(batch.keys())) == 0
         ), "Any column in 'columns' must be present in 'batch'."
@@ -345,9 +338,7 @@ class CachedOperation(Operation):
     def process_dataset(
         self, dataset: Dataset, columns: List[str], batch_size: int = 32
     ) -> Dataset:
-        """
-        Apply the cached operation to a dataset.
-        """
+        """Apply the cached operation to a dataset."""
 
         # Prepare to apply the CachedOperation to the dataset
         dataset = self.prepare_dataset(
@@ -361,9 +352,9 @@ class CachedOperation(Operation):
                 partial(self.process_batch, columns=columns),
                 batched=True,
                 batch_size=batch_size,
-                cache_file_name=
-                # The cache file name is a XOR of the interaction history and the current operation
-                str(
+                # The cache file name is a XOR of the interaction history and the
+                # current operation
+                cache_file_name=str(
                     dataset.logdir
                     / (
                         "cache-"
@@ -381,7 +372,7 @@ class CachedOperation(Operation):
                 ),
                 # self.get_cache_file_name(columns=columns),
             )
-        except:
+        except:  # noqa
             # Batch the dataset, and process each batch
             all_batches = [
                 self.process_batch(
@@ -397,9 +388,9 @@ class CachedOperation(Operation):
                 batch_size=batch_size,
                 with_indices=True,
                 load_from_cache_file=False,
-                cache_file_name=
-                # The cache file name is a XOR of the interaction history and the current operation
-                str(
+                # The cache file name is a XOR of the interaction history and the
+                # current operation
+                cache_file_name=str(
                     dataset.logdir
                     / (
                         "cache-"
@@ -472,15 +463,13 @@ class SingleColumnCachedOperation(CachedOperation):
     def __call__(
         self, batch_or_dataset: BatchOrDataset, columns: List[str], batch_size: int = 32
     ) -> BatchOrDataset:
-        """
-        Apply independently to each column.
+        """Apply independently to each column.
 
         Args:
             batch_or_dataset:
             columns:
 
         Returns:
-
         """
         # Iterate over the columns and apply
         for column in columns:
@@ -513,9 +502,7 @@ def stow(
     batch_size: int = 32,
     load_from_cache_file: bool = True,
 ):
-    """
-    Apply a list of cached operations in sequence.
-    """
+    """Apply a list of cached operations in sequence."""
 
     # Check the InteractionTape to remove CachedOperations that have already been stowed
     for cached_op, list_of_columns in list(cached_ops.items()):
@@ -545,7 +532,8 @@ def stow(
 
     # def _map_fn(batch: Batch):
     #     """
-    #     Consolidate the application of the CachedOperations passed to stow into a single mappable function.
+    #     Consolidate the application of the CachedOperations passed to stow into a
+    #     single mappable function.
     #     """
     #     for cached_op, list_of_columns in cached_ops.items():
     #         for columns in list_of_columns:
@@ -563,7 +551,8 @@ def stow(
     # val ^= persistent_hash(
     #     # TODO(karan): move this to Dataset
     #     "-".join(
-    #         "-".join(str(k) + "-" + str(v) for k, v in f.items()) for f in dataset._data_files
+    #         "-".join(str(k) + "-" + str(v) for k, v in f.items()) for f in
+    #         dataset._data_files
     #     )
     # )
     #

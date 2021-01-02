@@ -2,7 +2,7 @@ import hashlib
 import inspect
 import json
 from functools import partial
-from typing import Mapping, Sequence, List
+from typing import List, Mapping, Sequence
 
 import cytoolz as tz
 import progressbar
@@ -10,17 +10,16 @@ import yaml
 
 
 def recmerge(*objs, merge_sequences=False):
-    """
-    Recursively merge an arbitrary number of collections.
-    For conflicting values, later collections to the right are given priority.
-    By default (merge_sequences=False), sequences are treated as a normal value and not merged.
+    """Recursively merge an arbitrary number of collections. For conflicting
+    values, later collections to the right are given priority. By default
+    (merge_sequences=False), sequences are treated as a normal value and not
+    merged.
 
     Args:
         *objs: collections to merge
         merge_sequences: whether to merge values that are sequences
 
     Returns: merged collection
-
     """
     if isinstance(objs, tuple) and len(objs) == 1:
         # A squeeze operation since merge_with generates tuple(list_of_objs,)
@@ -37,34 +36,30 @@ def recmerge(*objs, merge_sequences=False):
 
 
 def persistent_hash(s: str):
-    """
-    Compute a hash that persists across multiple Python sessions for a string.
-    """
+    """Compute a hash that persists across multiple Python sessions for a
+    string."""
     return int(hashlib.sha224(s.encode()).hexdigest(), 16)
 
 
 def strings_as_json(strings: List[str]):
-    """
-    Convert a list of strings to JSON.
+    """Convert a list of strings to JSON.
 
     Args:
         strings: A list of str.
 
     Returns: JSON dump of the strings.
-
     """
     return json.dumps(strings) if len(strings) > 1 else strings[0]
 
 
 def get_default_args(func) -> dict:
-    """
-    Inspect a function to get arguments that have default values.
+    """Inspect a function to get arguments that have default values.
 
     Args:
         func: a Python function
 
-    Returns: dictionary where keys correspond to arguments, and values correspond to their defaults.
-
+    Returns: dictionary where keys correspond to arguments, and values correspond to
+    their defaults.
     """
     signature = inspect.signature(func)
     return {
@@ -93,12 +88,10 @@ class DownloadProgressBar:
 
 
 def prettyprint(s: str) -> None:
-    """
-    Prettyprint with YAML.
+    """Prettyprint with YAML.
 
     Args:
         s: string
-
     """
     if hasattr(s, "__dict__"):
         print(yaml.dump(s.__dict__))
@@ -109,9 +102,10 @@ def prettyprint(s: str) -> None:
 
 
 def get_all_leaf_paths(coll):
-    """
-    Returns a list of paths to all leaf nodes in a nested dict.
-    Paths can travel through lists and the index is inserted into the path.
+    """Returns a list of paths to all leaf nodes in a nested dict.
+
+    Paths can travel through lists and the index is inserted into the
+    path.
     """
     if isinstance(coll, Mapping):
         return list(
@@ -137,10 +131,10 @@ def get_all_leaf_paths(coll):
 
 
 def get_all_paths(coll, prefix_path=(), stop_at=None, stop_below=None):
-    """
-    Given a collection, by default returns paths to all the leaf nodes.
-    Use stop_at to truncate paths at the given key.
-    Use stop_below to truncate paths one level below the given key.
+    """Given a collection, by default returns paths to all the leaf nodes.
+
+    Use stop_at to truncate paths at the given key. Use stop_below to
+    truncate paths one level below the given key.
     """
     assert (
         stop_at is None or stop_below is None
@@ -180,8 +174,8 @@ def get_all_paths(coll, prefix_path=(), stop_at=None, stop_below=None):
 
 
 def get_only_paths(coll, pred, prefix_path=(), stop_at=None, stop_below=None):
-    """
-    Get all paths that satisfy the predicate fn pred.
+    """Get all paths that satisfy the predicate fn pred.
+
     First gets all paths and then filters them based on pred.
     """
     all_paths = get_all_paths(

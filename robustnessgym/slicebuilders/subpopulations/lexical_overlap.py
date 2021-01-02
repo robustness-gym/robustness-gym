@@ -19,7 +19,8 @@ class LexicalOverlapSubpopulation(ScoreSubpopulation):
             batch=batch,
             columns=[[key] for key in columns],
             proc_fns=tz.compose(
-                # Lower case and put the tokens in a set for each tokenized text in the batch
+                # Lower case and put the tokens in a set for each tokenized text in
+                # the batch
                 lambda l: np.array(
                     [set([str(tok).lower() for tok in toks]) for toks in l]
                 ),

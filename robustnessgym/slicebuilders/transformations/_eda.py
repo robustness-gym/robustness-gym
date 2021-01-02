@@ -1,6 +1,8 @@
-# Easy data augmentation techniques for text classification
-# Jason Wei and Kai Zou
-# Taken from https://github.com/jasonwei20/eda_nlp
+"""Easy data augmentation techniques for text classification. Jason Wei and Kai
+Zou.
+
+Taken from https://github.com/jasonwei20/eda_nlp
+"""
 
 import random
 import re

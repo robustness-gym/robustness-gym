@@ -3,8 +3,7 @@ from typing import Callable, Dict, List
 
 
 def singlecolumn(func: Callable):
-    """
-    Assert that func is called with a single column.
+    """Assert that func is called with a single column.
 
     Mainly used with .apply(..) methods for CachedOperation and SliceBuilder.
 
@@ -68,10 +67,10 @@ dataset_processing = function_register()
 
 
 def methods_with_decorator(cls, decorator):
-    """
-    Returns all methods in cls with decorator as the outermost decorator.
+    """Returns all methods in cls with decorator as the outermost decorator.
 
-    Credit: https://stackoverflow.com/questions/5910703/how-to-get-all-methods-of-a-python-class-with-given-decorator
+    Credit: https://stackoverflow.com/questions/5910703/how-to-get-all-methods-of-a
+    -python-class-with-given-decorator
     """
     for maybe_decorated in cls.__dict__.values():
         if hasattr(maybe_decorated, "decorator"):

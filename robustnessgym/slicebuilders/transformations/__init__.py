@@ -1,3 +1,3 @@
-from .eda import EasyDataAugmentation
-from .fairseq import FairseqBacktranslation
-from .nlpaug import NlpAugTransformation
+from .eda import EasyDataAugmentation  # noqa
+from .fairseq import FairseqBacktranslation  # noqa
+from .nlpaug import NlpAugTransformation  # noqa

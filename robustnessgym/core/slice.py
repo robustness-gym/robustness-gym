@@ -31,7 +31,10 @@ class Slice(Dataset):
         self.category = CURATION
 
     def __repr__(self):
-        return f"{self.__class__.__name__}[category: {self.category}, num_rows: {self.num_rows}]({self.identifier})"
+        return (
+            f"{self.__class__.__name__}[category: {self.category}, "
+            f"num_rows: {self.num_rows}]({self.identifier})"
+        )
 
     @property
     def identifier(self):

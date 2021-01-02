@@ -1,5 +1,7 @@
 from typing import List
 
+from robustnessgym.core.cachedops import SingleColumnCachedOperation
+
 try:
     import stanza
 except ImportError:
@@ -7,12 +9,9 @@ except ImportError:
 else:
     _stanza_available = True
 
-from robustnessgym.core.cachedops import SingleColumnCachedOperation
-
 
 class Stanza(SingleColumnCachedOperation):
-    """
-    Class for running the Stanza pipeline using a CachedOperation.
+    """Class for running the Stanza pipeline using a CachedOperation.
 
     URL: https://stanfordnlp.github.io/stanza/
     """
@@ -48,7 +47,8 @@ class Stanza(SingleColumnCachedOperation):
     def _get_attribute(
         cls, decoded_batch: List[stanza.Document], attribute: str
     ) -> List:
-        """Get an arbitrary attribute using doc.get(attribute) from a list of Stanza Documents."""
+        """Get an arbitrary attribute using doc.get(attribute) from a list of
+        Stanza Documents."""
         return [doc.get(attribute) for doc in decoded_batch]
 
     @classmethod

@@ -1,4 +1,4 @@
-from robustnessgym.tasks.task import *
+from robustnessgym.tasks.task import QuestionAnswering, TernaryNaturalLanguageInference
 
 dataset_to_task = {
     # Natural Language Inference

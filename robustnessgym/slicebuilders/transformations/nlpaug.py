@@ -1,17 +1,14 @@
-"""
-Transformations using nlpaug.
-"""
+"""Transformations using nlpaug."""
 from typing import List
 
 from nlpaug.flow import Pipeline
+
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
 
 
 class NlpAugTransformation(SingleColumnTransformation):
-    """
-    Class for building transformations using nlpaug.
-    """
+    """Class for building transformations using nlpaug."""
 
     def __init__(
         self,
@@ -23,7 +20,8 @@ class NlpAugTransformation(SingleColumnTransformation):
     ):
         assert isinstance(pipeline, Pipeline), (
             "`pipeline` must be an nlpaug Pipeline object. "
-            "Please use \nfrom nlpaug.flow import Sequential\nrg.NlpAugTransformation(pipeline=Sequential(flow=[...]))."
+            "Please use \nfrom nlpaug.flow import "
+            "Sequential\nrg.NlpAugTransformation(pipeline=Sequential(flow=[...]))."
         )
 
         # Superclass call

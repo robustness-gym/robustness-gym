@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -54,16 +54,15 @@ class EntityFrequency(Subpopulation, Spacy):
             ]:
                 raise ValueError(f"Invalid entity type: {entity_type}")
 
-        # List of tuples, each of which contains an entity type and a list of associated frequency thresholds
+        # List of tuples, each of which contains an entity type and a list of
+        # associated frequency thresholds
         self.entity_thresholds = entity_thresholds
 
     @classmethod
     def from_dataset(
         cls, dataset: Dataset, entity_percentiles: List[Tuple[str, List[float]]]
     ) -> EntityFrequency:
-        """
-        Determine thresholds from dataset and specific percentiles
-        """
+        """Determine thresholds from dataset and specific percentiles."""
         raise NotImplementedError
 
     def apply(

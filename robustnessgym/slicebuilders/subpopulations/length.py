@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import List, Dict, Tuple, Callable
+from typing import Callable, Dict, List, Tuple
 
 import cytoolz as tz
 import numpy as np
+
 from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.decorators import prerequisites
 from robustnessgym.core.identifier import Identifier
@@ -12,9 +13,7 @@ from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 @prerequisites(Spacy)
 class LengthSubpopulation(ScoreSubpopulation):
-    """
-    Class to compute subpopulations based on text length.
-    """
+    """Class to compute subpopulations based on text length."""
 
     def __init__(
         self,

@@ -1,6 +1,13 @@
 import tarfile
 import urllib.request
-from typing import List, Dict
+from typing import Dict, List
+
+from torch import cuda
+
+from robustnessgym.cachedops.textblob import TextBlob
+from robustnessgym.core.cachedops import SingleColumnCachedOperation
+from robustnessgym.core.decorators import singlecolumn
+from robustnessgym.core.tools import DownloadProgressBar
 
 try:
     from bootleg.annotator import Annotator
@@ -9,13 +16,6 @@ except ImportError:
     _bootleg_available = False
 else:
     _bootleg_available = True
-
-from torch import cuda
-
-from robustnessgym.core.cachedops import SingleColumnCachedOperation
-from robustnessgym.core.decorators import singlecolumn
-from robustnessgym.cachedops.textblob import TextBlob
-from robustnessgym.core.tools import DownloadProgressBar
 
 
 class Bootleg(SingleColumnCachedOperation):
@@ -49,7 +49,8 @@ class Bootleg(SingleColumnCachedOperation):
         if not (cls.logdir / "bootleg_wiki").exists():
             print("bootleg_wiki not found. Downloading..")
             urllib.request.urlretrieve(
-                "https://bootleg-emb.s3.amazonaws.com/models/2020_08_25/bootleg_wiki.tar.gz",
+                "https://bootleg-emb.s3.amazonaws.com/models/2020_08_25/bootleg_wiki"
+                ".tar.gz",
                 filename=str(cls.logdir / "bootleg_wiki.tar.gz"),
                 reporthook=DownloadProgressBar(),
             )

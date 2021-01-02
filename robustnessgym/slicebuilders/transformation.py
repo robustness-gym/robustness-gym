@@ -1,10 +1,11 @@
 import json
-from typing import List, Tuple, Optional, Callable
+from typing import Callable, List, Optional, Tuple
 
 import cytoolz as tz
 import numpy as np
+
 from robustnessgym.core.constants import TRANSFORMATION
-from robustnessgym.core.dataset import Dataset, Batch
+from robustnessgym.core.dataset import Batch, Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
@@ -196,7 +197,7 @@ class SingleColumnTransformation(Transformation):
                 for i in range(slice_membership.shape[0]):
                     for j, transformed in enumerate(transformed_batch[i]):
                         skeleton_batches[j][column][i] = transformed
-            except:
+            except:  # noqa
                 # Unable to transform: set all slice membership labels to zero
                 slice_membership[:, :] = 0
 

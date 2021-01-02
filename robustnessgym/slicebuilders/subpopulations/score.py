@@ -1,9 +1,9 @@
-from typing import List, Tuple, Dict, Callable, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 import numpy as np
 
 from robustnessgym.core.cachedops import ScoreOperation
-from robustnessgym.core.dataset import Dataset, Batch
+from robustnessgym.core.dataset import Batch, Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 

@@ -5,22 +5,25 @@ import os
 import pathlib
 import pickle
 from copy import deepcopy
-from typing import *
+from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import cytoolz as tz
-from pyarrow import json as jsonarrow, table
-from robustnessgym.core.constants import *
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tools import strings_as_json, persistent_hash
-from tqdm import tqdm
-
-if USE_NLP:
-    import nlp as datasets
-else:
-    import datasets
-
+import datasets
 from datasets import Features
 from datasets.arrow_writer import ArrowWriter
+from pyarrow import json as jsonarrow
+from pyarrow import table
+from tqdm import tqdm
+
+from robustnessgym.core.constants import (
+    ATTACK,
+    CACHEDOPS,
+    SLICEBUILDERS,
+    SUBPOPULATION,
+    TRANSFORMATION,
+)
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import persistent_hash, strings_as_json
 
 
 class InteractionTape:
@@ -60,15 +63,14 @@ class InteractionTape:
         return tape
 
     def update(self, identifier: Union[str, Identifier], columns: List[str]) -> None:
-        """
-        Update the interaction tape with information about an interaction.
+        """Update the interaction tape with information about an interaction.
 
         Args:
             identifier: Identifier for the interaction used.
             columns: list of columns on which the interaction was applied.
 
-        Returns: True if the interaction was added to the tape, False if it was already applied before.
-
+        Returns: True if the interaction was added to the tape, False if it was
+        already applied before.
         """
         if isinstance(identifier, str):
             identifier = Identifier(_name=identifier)
@@ -76,7 +78,8 @@ class InteractionTape:
             pass
         else:
             raise ValueError(
-                f"Parameter `identifier` should be an instance of class Identifier or str, "
+                f"Parameter `identifier` should be an instance of class Identifier "
+                f"or str, "
                 f"not {type(identifier)}."
             )
 
@@ -100,7 +103,8 @@ class InteractionTape:
         """
         if not (isinstance(identifier, str) or isinstance(identifier, Identifier)):
             raise ValueError(
-                f"Parameter `identifier` should be an instance of class Identifier or str, "
+                f"Parameter `identifier` should be an instance of class Identifier "
+                f"or str, "
                 f"not {type(identifier)}."
             )
 
@@ -175,8 +179,7 @@ class InteractionTapeHierarchyMixin:
         identifiers: Union[Identifier, List[Identifier]],
         columns: List[str],
     ):
-        """
-        Update the tape.
+        """Update the tape.
 
         Args:
             path: Location of the InteractionTape in the hierarchy.
@@ -184,7 +187,6 @@ class InteractionTapeHierarchyMixin:
             columns:
 
         Returns:
-
         """
         # Fetch the tape
         tape = self.fetch_tape(path=path)
@@ -204,8 +206,7 @@ class InteractionTapeHierarchyMixin:
         identifiers: Union[Identifier, List[Identifier]],
         columns: List[str],
     ):
-        """
-        Check the tape.
+        """Check the tape.
 
         Args:
 
@@ -214,7 +215,6 @@ class InteractionTapeHierarchyMixin:
             columns:
 
         Returns:
-
         """
         # Fetch the tape
         tape = self.fetch_tape(path=path)
@@ -229,14 +229,12 @@ class InteractionTapeHierarchyMixin:
             ]
 
     def fetch_tape(self, path: List[str]) -> InteractionTape:
-        """
-        Fetch an InteractionTape.
+        """Fetch an InteractionTape.
 
         Args:
             path:
 
         Returns:
-
         """
         return tz.get_in(path, self.interactions)
 
@@ -299,18 +297,14 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def uncached_batch(cls, batch: Batch, copy=True) -> Batch:
-        """
-        Return batch with the "cache" and "slices" columns removed.
-        """
+        """Return batch with the "cache" and "slices" columns removed."""
         return tz.keyfilter(
             lambda k: k not in ["cache", "slices"], deepcopy(batch) if copy else batch
         )
 
     @classmethod
     def uncached_example(cls, example: Dict, copy=True) -> Dict:
-        """
-        Return example with the "cache" and "slices" columns removed.
-        """
+        """Return example with the "cache" and "slices" columns removed."""
         return tz.keyfilter(
             lambda k: k not in ["cache", "slices"],
             deepcopy(example) if copy else example,
@@ -318,15 +312,12 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def from_huggingface(cls, dataset: datasets.Dataset):
-        """
-        Create a Dataset from a Huggingface datasets.Dataset.
-        """
+        """Create a Dataset from a Huggingface datasets.Dataset."""
         return cls(dataset.info.builder_name, dataset)
 
     @classmethod
     def list_datasets(cls) -> List[str]:
-        """
-        List datasets on Huggingface.
+        """List datasets on Huggingface.
 
         Returns: list of datasets
         """
@@ -334,8 +325,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def load_dataset(cls, *args, **kwargs):
-        """
-        Create a Dataset from any Huggingface nlp dataset source.
+        """Create a Dataset from any Huggingface nlp dataset source.
 
         Use this instead of datasets.load_dataset, so that
 
@@ -377,9 +367,8 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def from_json(cls, json_path: str, identifier: Identifier) -> Dataset:
-        """
-        Load a dataset from a JSON file on disk, where each line of the json file consists of a single example.
-        """
+        """Load a dataset from a JSON file on disk, where each line of the json
+        file consists of a single example."""
         return cls(
             jsonarrow.read_json(json_path),
             identifier=identifier,
@@ -391,8 +380,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def from_batch(cls, batch: Batch, identifier: Identifier) -> Dataset:
-        """
-        Convert a batch to a Dataset.
+        """Convert a batch to a Dataset.
 
         TODO(karan): disable preprocessing in this case
         """
@@ -402,23 +390,19 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
     def from_batches(
         cls, batches: Sequence[Batch], identifier: Identifier = None
     ) -> Dataset:
-        """
-        Convert a list of batches to a dataset.
-        """
+        """Convert a list of batches to a dataset."""
         return cls.from_batch(
             tz.merge_with(tz.concat, *batches),
             identifier=identifier,
         )
 
     def batch(self, batch_size: int = 32):
-        """
-        Batch the dataset.
+        """Batch the dataset.
 
         Args:
             batch_size: integer batch size
 
         Returns:
-
         """
         for i in range(0, len(self), batch_size):
             yield self[i : i + batch_size]
@@ -444,47 +428,29 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         new_fingerprint: Optional[str] = None,
         **kwargs,
     ) -> Dataset:
-        """
-        Wrap map.
-        """
+        """Wrap map."""
 
         # Compute the map using datasets.Dataset's .map()
-        if USE_NLP:
-            output = datasets.Dataset.map(
-                self,
-                function,
-                with_indices,
-                batched,
-                batch_size,
-                remove_columns,
-                keep_in_memory,
-                load_from_cache_file,
-                cache_file_name,
-                writer_batch_size,
-                features,
-                disable_nullable,
-            )
-        else:
-            output = datasets.Dataset.map(
-                self,
-                function,
-                with_indices,
-                input_columns,
-                batched,
-                batch_size,
-                drop_last_batch,
-                remove_columns,
-                keep_in_memory,
-                load_from_cache_file,
-                cache_file_name,
-                writer_batch_size,
-                features,
-                disable_nullable,
-                fn_kwargs,
-                num_proc,
-                suffix_template,
-                new_fingerprint,
-            )
+        output = datasets.Dataset.map(
+            self,
+            function,
+            with_indices,
+            input_columns,
+            batched,
+            batch_size,
+            drop_last_batch,
+            remove_columns,
+            keep_in_memory,
+            load_from_cache_file,
+            cache_file_name,
+            writer_batch_size,
+            features,
+            disable_nullable,
+            fn_kwargs,
+            num_proc,
+            suffix_template,
+            new_fingerprint,
+        )
 
         if isinstance(output, datasets.Dataset):
             dataset = deepcopy(self)
@@ -502,7 +468,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
                     info=datasets.DatasetInfo.from_directory(path),
                     split=pickle.load(f),
                 )
-        except:
+        except:  # noqa
             return None
 
     # def save_to_disk(self, dataset_path: str):
@@ -513,14 +479,16 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         os.makedirs(path, exist_ok=True)
 
         # Taken from Huggingface datasets.Dataset
-        # Prepare output buffer and batched writer in memory or on file if we update the table
+        # Prepare output buffer and batched writer in memory or on file if we update
+        # the table
         writer = ArrowWriter(
             features=self.features,
             path=os.path.join(path, "data.arrow"),
             writer_batch_size=1000,
         )
 
-        # Loop over single examples or batches and write to buffer/file if examples are to be updated
+        # Loop over single examples or batches and write to buffer/file if examples
+        # are to be updated
         for i, example in tqdm(enumerate(self)):
             writer.write(example)
 
@@ -540,9 +508,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def interleave(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
-        """
-        Interleave a list of datasets.
-        """
+        """Interleave a list of datasets."""
         return cls.from_batch(
             tz.merge_with(tz.interleave, *[dataset[:] for dataset in datasets]),
             identifier=identifier,
@@ -550,9 +516,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def chain(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
-        """
-        Chain a list of datasets.
-        """
+        """Chain a list of datasets."""
         return cls.from_batch(
             tz.merge_with(tz.concat, *[dataset[:] for dataset in datasets]),
             identifier=identifier,
@@ -586,7 +550,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         if "_identifier" in state:
             try:
                 state["_identifier"] = Identifier.loads(state["_identifier"])
-            except:
+            except:  # noqa
                 pass
         if "lineage" in state:
             try:
@@ -596,7 +560,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
                     + (tuple(t[2:]) if len(t) > 2 else ())
                     for t in state["lineage"]
                 ]
-            except:
+            except:  # noqa
                 pass
         if "logdir" in state:
             try:
@@ -604,7 +568,7 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
                     pathlib.Path.home()
                     / f"robustnessgym/datasets/{str(state['identifier'])}"
                 )
-            except:
+            except:  # noqa
                 state["logdir"] = (
                     pathlib.Path.home()
                     / f"robustnessgym/datasets/{str(state['_identifier'])}"
@@ -613,11 +577,11 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
     @classmethod
     def load_from_disk(cls, dataset_path: str) -> Dataset:
-        """
-        Load the dataset from a dataset directory
+        """Load the dataset from a dataset directory.
 
         Args:
-            dataset_path (``str``): path of the dataset directory where the dataset will be loaded from
+            dataset_path (``str``): path of the dataset directory where the dataset
+            will be loaded from
         """
         with open(os.path.join(dataset_path, "state.json"), "r") as state_file:
             state = json.load(state_file)
@@ -643,13 +607,11 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
 
 
 def transpose_batch(batch: Batch):
-    """
-    Transpose a batch of data from a dict of lists to a list of dicts.
+    """Transpose a batch of data from a dict of lists to a list of dicts.
 
     Args:
         batch: batch of data which is a dictionary mapping columns to lists
 
     Returns: list of dicts, each dict corresponding to a single example
-
     """
     return [dict(zip(batch, t)) for t in zip(*batch.values())]

@@ -1,5 +1,3 @@
-import json
-from copy import copy
 from types import SimpleNamespace
 
 import dill as pickle
@@ -7,9 +5,7 @@ from semver import VersionInfo as Version
 
 
 class SemanticVersionerMixin:
-    """
-    Simple mixin that adds semantic versioning to any class.
-    """
+    """Simple mixin that adds semantic versioning to any class."""
 
     def __init__(self, version: str = "0.0.1", *args, **kwargs):
         super(SemanticVersionerMixin, self).__init__(*args, **kwargs)
@@ -58,7 +54,10 @@ class SemanticVersionerMixin:
         self._last_digest = self.digest()
 
     def commit(self):
-        """Commit the current version to history. Multiple commits on the same version overwrite each other."""
+        """Commit the current version to history.
+
+        Multiple commits on the same version overwrite each other.
+        """
         self._version_history[self.version] = self.digest()
 
     def digest(self) -> str:

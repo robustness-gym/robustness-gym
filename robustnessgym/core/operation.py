@@ -1,6 +1,4 @@
-"""
-Implementation of the Operation abstract base class.
-"""
+"""Implementation of the Operation abstract base class."""
 import json
 from abc import ABC, abstractmethod
 from typing import Callable, List
@@ -10,9 +8,7 @@ from robustnessgym.core.tools import persistent_hash
 
 
 class Operation(ABC):
-    """
-    Abstract base class for operations in Robustness Gym.
-    """
+    """Abstract base class for operations in Robustness Gym."""
 
     def __init__(
         self,
@@ -41,9 +37,11 @@ class Operation(ABC):
 
         # # Find the batch and dataset processors
         # self._batch_processors = {method.__name__ for method in
-        #                           methods_with_decorator(self.__class__, batch_processing)}
+        #                           methods_with_decorator(self.__class__,
+        #                           batch_processing)}
         # self._dataset_processors = {method.__name__ for method in
-        #                             methods_with_decorator(self.__class__, dataset_processing)}
+        #                             methods_with_decorator(self.__class__,
+        #                             dataset_processing)}
 
     @property
     def identifiers(self):
@@ -52,7 +50,8 @@ class Operation(ABC):
     # @property
     # @abstractmethod
     # def processors(self):
-    #     raise NotImplementedError("Must specify the order in which processors are applied.")
+    #     raise NotImplementedError("Must specify the order in which processors are
+    #     applied.")
     #
     # @property
     # def batch_processors(self):
@@ -63,9 +62,7 @@ class Operation(ABC):
     #     return self._dataset_processors
 
     def __hash__(self):
-        """
-        Compute a hash value for the cached operation object.
-        """
+        """Compute a hash value for the cached operation object."""
         val = 0
         for identifier in self.identifiers:
             val ^= persistent_hash(str(identifier))
@@ -75,7 +72,8 @@ class Operation(ABC):
     #                    columns: List[str],
     #                    processor: str = None):
     #     """
-    #     Construct a hash that will be used to identify the application of a Operation to the columns of a dataset.
+    #     Construct a hash that will be used to identify the application of a
+    #     Operation to the columns of a dataset.
     #     """
     #
     #     # Hash the Operation
@@ -97,7 +95,8 @@ class Operation(ABC):
     #     """
     #     Construct a file name for caching.
     #     """
-    #     return 'cache-' + str(abs(self.get_cache_hash(columns=columns, processor=processor))) + '.arrow'
+    #     return 'cache-' + str(abs(self.get_cache_hash(columns=columns,
+    #     processor=processor))) + '.arrow'
 
     # # FIXME: temporary
     # def __call__(self,
@@ -108,16 +107,19 @@ class Operation(ABC):
     #              **kwargs) -> BatchOrDataset:
     #
     #     if isinstance(batch_or_dataset, Dataset):
-    #         # Check the Dataset's InteractionTape to see if the Operation was previously applied
+    #         # Check the Dataset's InteractionTape to see if the Operation was
+    #         previously applied
     #         if not mask:
-    #             # This infers a mask that specifies which outputs of the Operation are not required
+    #             # This infers a mask that specifies which outputs of the Operation
+    #             are not required
     #             mask = batch_or_dataset.check_tape(
     #                 path=[self.__class__.__name__],
     #                 identifiers=self.identifiers,
     #                 columns=columns
     #             )
     #
-    #         # If all outputs of the Operation were previously present in the Dataset, simply return
+    #         # If all outputs of the Operation were previously present in the
+    #         Dataset, simply return
     #         if all(mask):
     #             return batch_or_dataset
     #
@@ -141,7 +143,8 @@ class Operation(ABC):
     #         assert len(self.dataset_processors) == 0, \
     #             f"Cannot apply {self.__class__.__name__} to a batch, " \
     #             f"since it has dataset processors: {self.dataset_processors}. " \
-    #             f"Use Dataset.from_batch(batch) before calling {self.__class__.__name__}."
+    #             f"Use Dataset.from_batch(batch) before calling {
+    #             self.__class__.__name__}."
     #
     #         # Apply the Operation
     #         return self.process_batch(
@@ -179,7 +182,8 @@ class Operation(ABC):
     #                 partial(method, columns=columns),
     #                 batched=True,
     #                 batch_size=batch_size,
-    #                 cache_file_name=self.get_cache_file_name(columns=columns, processor=method)
+    #                 cache_file_name=self.get_cache_file_name(columns=columns,
+    #                 processor=method)
     #             )
     #         # Apply dataset processors directly
     #         elif method.__name__ in self.dataset_processors:
@@ -189,7 +193,8 @@ class Operation(ABC):
     #             )
     #         else:
     #             raise RuntimeError(f"{method} is not a processor. "
-    #                                f"Please remove {method} from the `processors` property or decorate it.")
+    #                                f"Please remove {method} from the `processors`
+    #                                property or decorate it.")
     #
     #     return dataset
     #
@@ -199,7 +204,8 @@ class Operation(ABC):
     #     """
     #     Apply the cached operation to a batch.
     #     """
-    #     assert len(set(columns) - set(batch.keys())) == 0, "Any column in 'columns' must be present in 'batch'."
+    #     assert len(set(columns) - set(batch.keys())) == 0, "Any column in 'columns'
+    #     must be present in 'batch'."
     #
     #     # Run the cached operation, and encode outputs (defaults to json.dumps)
     #     encoded_outputs = [
@@ -222,12 +228,37 @@ class Operation(ABC):
 
     @classmethod
     def encode(cls, obj) -> str:
+        """
+
+        Args:
+            obj:
+
+        Returns:
+
+        """
         return json.dumps(obj)
 
     @classmethod
     def decode(cls, s: str):
+        """
+
+        Args:
+            s:
+
+        Returns:
+
+        """
         return json.loads(s)
 
     @abstractmethod
     def apply(self, *args, **kwargs):
+        """
+
+        Args:
+            *args:
+            **kwargs:
+
+        Returns:
+
+        """
         pass

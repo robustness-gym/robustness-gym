@@ -2,31 +2,31 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import *
+from typing import Callable, Collection, Dict, List, Optional, Union
 
 import dill
 import pandas as pd
 from fuzzywuzzy import process
+from tqdm import tqdm
+
 from robustnessgym.core.constants import (
-    GENERIC,
-    SUBPOPULATION,
     ATTACK,
     AUGMENTATION,
     CURATION,
+    GENERIC,
+    SUBPOPULATION,
 )
 from robustnessgym.core.model import Model
 from robustnessgym.core.report import (
+    ClassDistributionColumn,
+    NumericColumn,
     Report,
     ScoreColumn,
-    NumericColumn,
-    ClassDistributionColumn,
 )
 from robustnessgym.core.slice import Slice
 from robustnessgym.core.tools import persistent_hash
 from robustnessgym.core.version import SemanticVersionerMixin
 from robustnessgym.tasks.task import Task
-from semver import VersionInfo as Version
-from tqdm import tqdm
 
 TEST = "test"
 category_to_label = {
@@ -79,7 +79,8 @@ class TestBench(SemanticVersionerMixin):
         # The testbench internally tracks metrics
         self.metrics = {}
 
-        # The schema tells the testbench which columns to extract from the slices for evaluation
+        # The schema tells the testbench which columns to extract from the slices for
+        # evaluation
         self.schema_type = "default"
 
         self.dataset_id = dataset_id
@@ -91,8 +92,7 @@ class TestBench(SemanticVersionerMixin):
     def for_dataset(
         cls, dataset: str, task: Optional[Union[str, Task]] = None, version: str = None
     ):
-        """
-        Create a test bench for a dataset.
+        """Create a test bench for a dataset.
 
         Args:
             dataset:
@@ -100,7 +100,6 @@ class TestBench(SemanticVersionerMixin):
             version:
 
         Returns:
-
         """
 
         # Infer the task from the dataset
@@ -109,7 +108,8 @@ class TestBench(SemanticVersionerMixin):
         # Check that the inferred task matches the task argument
         if task is not None and task != inferred_task:
             raise AssertionError(
-                f"Dataset {dataset} is only compatible with {inferred_task}, not {task}."
+                f"Dataset {dataset} is only compatible with {inferred_task}, "
+                f"not {task}."
             )
 
         return TestBench(
@@ -180,19 +180,18 @@ class TestBench(SemanticVersionerMixin):
         self.ident_mapping = ident_mapping
 
     def add_slices(self, slices: Collection[Slice]):
-        """
-        Add slices to the testbench.
+        """Add slices to the testbench.
 
         Args:
             slices: collection of Slice objects
 
         Returns:
-
         """
         if isinstance(slices, Slice):
             slices = [slices]
 
-        # Only add slices that aren't already present in the testbench and have non-zero length
+        # Only add slices that aren't already present in the testbench and have
+        # non-zero length
         for sl in slices:
             if sl.identifier not in self.slice_identifiers and len(sl) > 0:
                 self.slices.add(sl)
@@ -202,24 +201,25 @@ class TestBench(SemanticVersionerMixin):
     def evaluate(
         self, model: Model, batch_size: int = 32, coerce_fn: Callable = None
     ) -> Dict:
-        """
-        Evaluate a model using the test bench.
+        """Evaluate a model using the test bench.
 
         Args:
             model: model to evaluate
             batch_size: batch size for inference
-            coerce_fn: function to coerce the model's outputs. Useful if the model's outputs cannot directly be compared
+            coerce_fn: function to coerce the model's outputs. Useful if the model's
+            outputs cannot directly be compared
             to the targets.
 
         Returns: dict mapping slice identifiers to evaluation metrics.
-
         """
 
         # Set the schema using the task
         self.set_schema("task")
 
-        # TODO(karan): Uncomment and fix this assert on the type of outputs that model(..) returns
-        # # Grab 2 examples from the first slice, run it through the model and check that the output is a dictionary
+        # TODO(karan): Uncomment and fix this assert on the type of outputs that
+        #  model(..) returns
+        # # Grab 2 examples from the first slice, run it through the model and check
+        # that the output is a dictionary
         # output = model(dataset=Dataset.from_batch(self.slices[0][:2]),
         #                input_keys=self.task.input_schema.keys(),
         #                output_keys=self.task.output_schema.keys(),
@@ -227,14 +227,16 @@ class TestBench(SemanticVersionerMixin):
         #                coerce_fn=coerce_fn)
         # print(output)
         # assert isinstance(output, Sequence) and isinstance(output[0], Mapping), \
-        #     "model(..) must return a list of dictionaries. Each dictionary should map metric names to values."
+        #     "model(..) must return a list of dictionaries. Each dictionary should
+        #     map metric names to values."
 
         # Store the model_metrics
         if model.identifier not in self.metrics:
             self.metrics[model.identifier] = {}
 
         # Run the model on all the slices
-        # TODO(karan): For slices that are subpopulations, the same example can be in multiple slices
+        # TODO(karan): For slices that are subpopulations, the same example can be in
+        #  multiple slices
         #  and will be run through the model multiple times. Create a UnionSlice?
         for sl in tqdm(self.slices):
             if sl.identifier not in self.metrics[model.identifier]:
@@ -256,12 +258,11 @@ class TestBench(SemanticVersionerMixin):
         coerce_fn: Callable = None,
         metric_ids: List[str] = None,
     ) -> Report:
-        """
-        Generate a report for a model.
-        """
+        """Generate a report for a model."""
 
         # Grab the metrics
-        # TODO(karan): ask the model to return side-information (probs, logits, embeddings)
+        # TODO(karan): ask the model to return side-information (probs, logits,
+        #  embeddings)
         model_metrics = self.evaluate(
             model=model, batch_size=batch_size, coerce_fn=coerce_fn
         )
@@ -308,7 +309,8 @@ class TestBench(SemanticVersionerMixin):
         # TODO(karan): generalize aggregation
         # slice_metrics = tz.merge_with(np.mean, slice_metrics)
         # Task-dependent model predictions
-        # TODO(karan): e.g. average class distribution predicted, figure out how to put this in
+        # TODO(karan): e.g. average class distribution predicted, figure out how to
+        #  put this in
         # Task-dependent sl information
         # TODO(karan): e.g. class distribution
 
@@ -334,21 +336,21 @@ class TestBench(SemanticVersionerMixin):
         ]
 
     def save(self, path: str) -> None:
-        """
-        Save the current testbench to disk. This will save all slices in the testbench to disk, as well as metrics
-        and other metadata associated with this testbench.
+        """Save the current testbench to disk. This will save all slices in the
+        testbench to disk, as well as metrics and other metadata associated
+        with this testbench.
 
         Args:
             path: string path to the save directory
 
         Returns: None
 
-        >>> testbench = TestBench(identifier='my-testbench', task=TernaryNaturalLanguageInference())
+        >>> testbench = TestBench(identifier='my-testbench',
+        task=TernaryNaturalLanguageInference())
         # Save to the current directory
         >>> testbench.save('.')
         # Load back the testbench
         >>> testbench = TestBench.load('my-testbench')
-
         """
 
         # Path to the save directory
@@ -384,14 +386,13 @@ class TestBench(SemanticVersionerMixin):
 
     @classmethod
     def available(cls, path: str) -> List[str]:
-        """
-        Check the list of available testbenches in a directory.
+        """Check the list of available testbenches in a directory.
 
         Args:
-            path: string path to a directory. The testbenches available inside this directory will be returned.
+            path: string path to a directory. The testbenches available inside this
+            directory will be returned.
 
         Returns: list of available testbenches
-
         """
 
         # Path to the save directory
@@ -410,14 +411,12 @@ class TestBench(SemanticVersionerMixin):
 
     @classmethod
     def load(cls, path: str) -> TestBench:
-        """
-        Load a testbench from disk.
+        """Load a testbench from disk.
 
         Args:
             path: string path to the testbench directory
 
         Returns:
-
         """
 
         # Path to the save directory

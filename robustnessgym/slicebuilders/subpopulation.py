@@ -1,15 +1,15 @@
 import json
-from typing import List, Dict, Tuple, Optional, Union, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import cytoolz as tz
 import numpy as np
 from multiprocess.pool import Pool
 from tqdm import tqdm
 
+from robustnessgym.core.constants import SLICEBUILDERS, SUBPOPULATION
 from robustnessgym.core.dataset import Dataset
-from robustnessgym.core.tools import recmerge
-from robustnessgym.core.constants import *
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import recmerge
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
@@ -83,11 +83,14 @@ class Subpopulation(SliceBuilder):
     ):
 
         # Mask out components
-        # TODO(karan): masking inside apply, but only if the components are computed independently
+        # TODO(karan): masking inside apply, but only if the components are computed
+        #  independently
 
-        # Construct a list of update dicts that contains the slice membership for each example
+        # Construct a list of update dicts that contains the slice membership for
+        # each example
         if compress:
-            # TODO(karan): this will overwrite a previous application of the same Slicer right now, need a merge operation
+            # TODO(karan): this will overwrite a previous application of the same
+            #  Slicer right now, need a merge operation
             # Merge is just an append to whatever list already exists
             return [
                 {
@@ -125,9 +128,7 @@ class Subpopulation(SliceBuilder):
     def union(
         cls, *slicemakers: SliceBuilder, identifier: Identifier = None
     ) -> SliceBuilder:
-        """
-        Combine a list of slicers using a union.
-        """
+        """Combine a list of slicers using a union."""
         # Group the slicers based on their class
         grouped_slicers = tz.groupby(lambda s: s.__class__, slicemakers)
 
@@ -175,9 +176,7 @@ class Subpopulation(SliceBuilder):
     def intersection(
         cls, *slicemakers: SliceBuilder, identifier: Identifier = None
     ) -> SliceBuilder:
-        """
-        Combine a list of slicemakers using an intersection.
-        """
+        """Combine a list of slicemakers using an intersection."""
         # Group the slicemakers based on their class
         grouped_slicemakers = tz.groupby(lambda s: s.__class__, slicemakers)
 
@@ -235,7 +234,8 @@ class SubpopulationCollection(Subpopulation):
             **kwargs,
         )
 
-        # TODO(karan): some subpopulations aren't compatible with each other (e.g. single column vs. multi column):
+        # TODO(karan): some subpopulations aren't compatible with each other (e.g.
+        #  single column vs. multi column):
         #  add some smarter logic here to handle this
 
         # Store the subpopulations

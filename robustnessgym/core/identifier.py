@@ -1,18 +1,14 @@
-"""
-Identifiers for objects in Robustness Gym.
-"""
+"""Identifiers for objects in Robustness Gym."""
 from __future__ import annotations
 
 import json
-from typing import Callable, Union, List
+from typing import Callable, List, Union
 
 from robustnessgym.core.tools import persistent_hash
 
 
 class Identifier:
-    """
-    Class for creating identifiers for objects in Robustness Gym.
-    """
+    """Class for creating identifiers for objects in Robustness Gym."""
 
     def __init__(self, _name: str, _index: Union[str, int] = None, **kwargs):
 

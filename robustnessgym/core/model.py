@@ -1,16 +1,22 @@
 import itertools
 import re
 import statistics
-from typing import *
+from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
 import nltk
 import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
+from rouge_score import rouge_scorer
+from transformers import (
+    AutoModel,
+    AutoModelForSeq2SeqLM,
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+)
+
 from robustnessgym.core.dataset import Dataset
 from robustnessgym.tasks.task import Task
-from rouge_score import rouge_scorer
-from transformers import *
 
 
 class Model:
@@ -38,13 +44,15 @@ class Model:
                 "logits",
                 "pred",
                 # 'embeddings',
-                # TODO(karan): other information from the model e.g. embeddings which aren't task related?
+                # TODO(karan): other information from the model e.g. embeddings which
+                #  aren't task related?
             }
         else:
             self.outputs = {
                 "pred",
                 # 'embeddings',
-                # TODO(karan): other information from the model e.g. embeddings which aren't task related?
+                # TODO(karan): other information from the model e.g. embeddings which
+                #  aren't task related?
             }
 
         if not device:
@@ -98,7 +106,8 @@ class Model:
         Examples:
             >>> Model.huggingface(identifier='', task=TernaryNaturalLanguageInference())
             >>> Model.huggingface(identifier='', \
-            model=AutoModelForSequenceClassification.from_pretrained(''), tokenizer=AutoTokenizer.from_pretrained(''))
+            model=AutoModelForSequenceClassification.from_pretrained(''),
+            tokenizer=AutoTokenizer.from_pretrained(''))
 
         """
 
@@ -121,8 +130,7 @@ class Model:
 
     @staticmethod
     def remap_labels(output_dict: Dict, label_map: List[int]) -> Dict:
-        """
-        Map the output labels of the model.
+        """Map the output labels of the model.
 
         Example: 3-way classificaiton, with label_map = [1, 2, 0]
         => (model label 0 -> dataset label 1, model label 1 -> dataset label 2, ...).
@@ -187,14 +195,16 @@ class HuggingfaceModel(Model):
 
         if self.task.classification():
             # Run the model on the input_batch
-            # TODO(karan): allow outputs to generically contain side information (embeddings, attention, etc.)
+            # TODO(karan): allow outputs to generically contain side information (
+            #  embeddings, attention, etc.)
             with torch.no_grad():
                 outputs = self.model(**input_batch)
 
             # The logits are at the 0th index
             logits = outputs[0]
 
-            # TODO(karan): these are still on GPU, do metric computation on GPU then move to CPU
+            # TODO(karan): these are still on GPU, do metric computation on GPU then
+            #  move to CPU
             # TODO(karan): incrementally compute metrics?
             if "logits" in self.outputs:
                 output_dict["logits"] = logits.to("cpu")
@@ -263,7 +273,8 @@ class HuggingfaceModel(Model):
         targets = []
 
         # Loop and apply the prediction function
-        # TODO(karan): not using .map() here in order to get more fine-grained control over devices
+        # TODO(karan): not using .map() here in order to get more fine-grained
+        #  control over devices
         for idx in range(0, len(dataset), batch_size):
             # Create the batch
             batch = dataset[idx : idx + batch_size]
@@ -306,7 +317,8 @@ class HuggingfaceModel(Model):
         # Compute the metrics
         # TODO(karan): generalize this code to support metric computation for any task
 
-        # Assumes classification, so the output_columns contains a single key for the label
+        # Assumes classification, so the output_columns contains a single key for the
+        # label
         if self.task.classification():
             assert len(output_columns) == 1  # , "Only supports classification."
             num_classes = self.task.output_schema.features[
@@ -380,6 +392,6 @@ class HuggingfaceModel(Model):
 
 
 def format_summary(x: str) -> str:
-    """Format summary text for computing rouge """
+    """Format summary text for computing rouge."""
     re.sub("<n>", "", x)  # remove pegasus newline char
     return "\n".join(nltk.sent_tokenize(x))

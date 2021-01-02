@@ -1,4 +1,7 @@
-from typing import List, Dict, Union, Optional
+from typing import Dict, List, Optional, Union
+
+from robustnessgym.core.cachedops import SingleColumnCachedOperation
+from robustnessgym.core.identifier import Identifier
 
 try:
     import textblob
@@ -6,9 +9,6 @@ except ImportError:
     _textblob_available = False
 else:
     _textblob_available = True
-
-from robustnessgym.core.cachedops import SingleColumnCachedOperation
-from robustnessgym.core.identifier import Identifier
 
 
 class TextBlob(SingleColumnCachedOperation):

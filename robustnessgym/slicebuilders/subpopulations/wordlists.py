@@ -2,8 +2,8 @@ import urllib.request
 import zipfile
 
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.subpopulations.phrase import HasAnyPhrase
 from robustnessgym.core.tools import DownloadProgressBar
+from robustnessgym.slicebuilders.subpopulations.phrase import HasAnyPhrase
 
 
 class HasCategoryPhrase(HasAnyPhrase):
@@ -57,10 +57,9 @@ class HasCategoryPhrase(HasAnyPhrase):
 
     @classmethod
     def _load_all(cls):
-        """
-        Loads wordlists.
-        Returns:
+        """Loads wordlists.
 
+        Returns:
         """
         category_to_words = {
             supercategory: {} for supercategory in ["nouns", "verbs", "adjectives"]

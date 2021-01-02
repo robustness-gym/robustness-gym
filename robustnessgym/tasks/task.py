@@ -1,8 +1,8 @@
 from collections import OrderedDict
-from typing import *
+from typing import List
 
 import cytoolz as tz
-from datasets.features import ClassLabel, Value, Sequence
+from datasets.features import ClassLabel, Sequence, Value
 
 from robustnessgym.core.dataset import Dataset
 from robustnessgym.tasks.schema import Schema
@@ -77,7 +77,10 @@ class Task:
         return False
 
     def __repr__(self):
-        return f"task: {self.identifier}\n\nInput{str(self.input_schema)}\n\nOutput{str(self.output_schema)}"
+        return (
+            f"task: {self.identifier}\n\nInput{str(self.input_schema)}\n\nOutput"
+            f"{str(self.output_schema)}"
+        )
 
 
 # class ClassificationMixin:

@@ -1,16 +1,14 @@
-"""
-Unittests for the FairseqBacktranslation class.
-"""
+"""Unittests for the FairseqBacktranslation class."""
 from unittest import TestCase
 
 import numpy as np
 import torch
+
 from robustnessgym.slicebuilders.transformations.fairseq import FairseqBacktranslation
 from tests.testbeds import MockTestBedv0
 
 
 class TestFairseqBacktranslation(TestCase):
-
     def setUp(self):
         self.testbed = MockTestBedv0()
 
@@ -23,13 +21,23 @@ class TestFairseqBacktranslation(TestCase):
         self.backtranslation = FairseqBacktranslation(
             n_src2tgt=2,
             n_tgt2src=2,
-            device='cpu',
+            device="cpu",
         )
 
         # Apply it
-        dataset, slices, slice_membership = self.backtranslation(self.testbed.dataset, columns=['text'])
+        dataset, slices, slice_membership = self.backtranslation(
+            self.testbed.dataset, columns=["text"]
+        )
 
         # Checking that the transformed text matches
-        self.assertEqual(slices[0]['text'],
-                         ['The man leaves.', 'The man runs.', 'The woman sprints.',
-                          'The Lady rests.', 'The Hobbit is flying.', 'The Hobbit floats.'])
+        self.assertEqual(
+            slices[0]["text"],
+            [
+                "The man leaves.",
+                "The man runs.",
+                "The woman sprints.",
+                "The Lady rests.",
+                "The Hobbit is flying.",
+                "The Hobbit floats.",
+            ],
+        )

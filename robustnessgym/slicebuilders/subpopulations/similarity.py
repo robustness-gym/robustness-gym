@@ -3,12 +3,13 @@ from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 from numpy.linalg import norm
-from robustnessgym.cachedops.similarity import RougeScore, RougeMatrix
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
-from robustnessgym.core.tools import strings_as_json
 from scipy.linalg import svd
 from scipy.stats import spearmanr
+
+from robustnessgym.cachedops.similarity import RougeMatrix, RougeScore
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import strings_as_json
+from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 
 class RougeScoreSubpopulation(ScoreSubpopulation):

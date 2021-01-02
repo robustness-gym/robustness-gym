@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -10,7 +10,6 @@ try:
     from morpheus import (
         MorpheusHuggingfaceNLI,
         MorpheusHuggingfaceQA,
-        MorpheusHuggingfaceSummarization,
     )
 except ImportError:
     _morpheus_available = False

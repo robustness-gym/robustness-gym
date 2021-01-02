@@ -1,7 +1,8 @@
 from functools import partial
-from typing import List, Tuple, Sequence
+from typing import List, Sequence, Tuple
 
 import numpy as np
+
 from robustnessgym.cachedops.similarity import RougeMatrix
 from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.dataset import Batch
@@ -38,7 +39,8 @@ class RougeMatrixSentenceTransformation(Transformation):
             proc_fns=partial(RougeMatrix.select, metric=self.metric),
         )[strings_as_json(columns)]
 
-        # Find max value along each row, remove rows that have max value below a threshold
+        # Find max value along each row, remove rows that have max value below a
+        # threshold
         rows_to_keep = [
             (m / (m.sum(axis=0) + 1e-5)).max(axis=1) >= self.threshold for m in matrices
         ]

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import itertools
 import shutil
 from collections import defaultdict
@@ -14,6 +13,8 @@ import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+
+# fmt: off
 
 
 class ReportColumn:
@@ -64,7 +65,8 @@ class Report:
     @classmethod
     def load(cls, path: str) -> Report:
         obj = dill.load(open(path, 'rb'))
-        assert isinstance(obj, Report), f"dill loaded an instance of {type(obj)}, must load {cls.__name__}."
+        assert isinstance(obj, Report), f"dill loaded an instance of {type(obj)}, " \
+                                        f"must load {cls.__name__}."
         return obj
 
     def save(self, path: str):
@@ -76,7 +78,8 @@ class Report:
     def figures(self, show_title=False):
 
         # TODO(karan): move this out to be configurable
-        score_colors = [self.score_colors[:i] for i in range(1, len(self.score_colors) + 1)]
+        score_colors = [self.score_colors[:i]
+                        for i in range(1, len(self.score_colors) + 1)]
         # score_colors = [['#3499EC'],
         #                 ['#EC7734', '#3499EC'],
         #                 ['#EC7734', '#3499EC', '#ec34c1'],
@@ -97,7 +100,8 @@ class Report:
         category_padding = 24
         header_padding = 80
         n_rows = sum(category_sizes)
-        height = n_rows * row_height + len(categories) * category_padding + header_padding
+        height = n_rows * row_height + len(
+            categories) * category_padding + header_padding
         col_widths = []
         for col in self.columns:
             if isinstance(col, ScoreColumn):
@@ -108,16 +112,18 @@ class Report:
                 col_width = 0.25
             col_widths.append(col_width)
 
-        fig_detail = make_subplots(rows=len(categories),
-                                   row_titles=categories,
-                                   cols=len(self.columns),
-                                   shared_yaxes=True,
-                                   subplot_titles=[col.name.replace('_', ' ').title() for col in self.columns],
-                                   horizontal_spacing=col_spacing,
-                                   vertical_spacing=category_padding / height,
-                                   row_width=list(reversed(category_sizes)),  # ,
-                                   column_width=col_widths
-                                   )
+        fig_detail = make_subplots(
+            rows=len(categories),
+            row_titles=categories,
+            cols=len(self.columns),
+            shared_yaxes=True,
+            subplot_titles=[col.name.replace('_', ' ').title()
+                            for col in self.columns],
+            horizontal_spacing=col_spacing,
+            vertical_spacing=category_padding / height,
+            row_width=list(reversed(category_sizes)),  # ,
+            column_width=col_widths
+        )
 
         summary_data = defaultdict(dict)
         score_cols = [col for col in self.columns if isinstance(col, ScoreColumn)]
@@ -141,7 +147,8 @@ class Report:
                             x=x,
                             y=slice_names,
                             orientation='h',
-                            marker=dict(color=score_colors[len(score_cols) - 1][score_col_ndx]),
+                            marker=dict(
+                                color=score_colors[len(score_cols) - 1][score_col_ndx]),
                             showlegend=False,
                             text=[f'{x_i:.1f}' for x_i in x],
                             textposition='inside',
@@ -166,11 +173,15 @@ class Report:
                     summary_data[col.name][category] = min(x)
                     score_col_ndx += 1
                 elif isinstance(col, ClassDistributionColumn):
-                    annotation_text = [[f"{int(round(z * 100)):d}" for z in rw] for rw in x]
-                    hm = ff.create_annotated_heatmap(x, x=col.class_codes, xgap=1, ygap=1,
-                                                     annotation_text=annotation_text,
-                                                     colorscale=distribution_color_scale,
-                                                     zmin=0, zmax=1)
+                    annotation_text = [[f"{int(round(z * 100)):d}" for z in rw] for rw
+                                       in x]
+                    hm = ff.create_annotated_heatmap(
+                        x, x=col.class_codes, xgap=1,
+                        ygap=1,
+                        annotation_text=annotation_text,
+                        colorscale=distribution_color_scale,
+                        zmin=0, zmax=1
+                    )
                     hms.append(hm)
                     # Save annotation data for special code related to heatmaps at end
                     coords.append(len(self.columns) * (category_ndx - 1) + col_ndx)
@@ -207,12 +218,16 @@ class Report:
             for col_ndx, col in enumerate(self.columns, start=1):
                 fig_detail.update_yaxes(autorange='reversed', automargin=True)
                 if isinstance(col, ScoreColumn):
-                    fig_detail.update_xaxes(range=[col.min, col.max], row=category_ndx, col=col_ndx,
-                                            tickvals=[col.min, col.max], showticklabels=show_x_axis)
+                    fig_detail.update_xaxes(range=[col.min, col.max], row=category_ndx,
+                                            col=col_ndx,
+                                            tickvals=[col.min, col.max],
+                                            showticklabels=show_x_axis)
                 elif isinstance(col, ClassDistributionColumn):
-                    fig_detail.update_xaxes(row=category_ndx, col=col_ndx, showticklabels=show_x_axis)
+                    fig_detail.update_xaxes(row=category_ndx, col=col_ndx,
+                                            showticklabels=show_x_axis)
                 elif isinstance(col, NumericColumn):
-                    fig_detail.update_xaxes(range=[0, 1], row=category_ndx, col=col_ndx, showticklabels=False)
+                    fig_detail.update_xaxes(range=[0, 1], row=category_ndx, col=col_ndx,
+                                            showticklabels=False)
 
         fig_detail.update_layout(height=height,
                                  width=960,
@@ -238,8 +253,10 @@ class Report:
                 a['font'] = dict(size=14)  # Adjust font size for non-category labels
 
         # Due to a bug in plotly, need to do some special low-level coding
-        # Code from https://community.plotly.com/t/how-to-create-annotated-heatmaps-in-subplots/36686/25
-        newfont = [go.layout.Annotation(font_size=14)] * len(fig_detail.layout.annotations)
+        # Code from https://community.plotly.com/t/how-to-create-annotated-heatmaps
+        # -in-subplots/36686/25
+        newfont = [go.layout.Annotation(font_size=14)] * len(
+            fig_detail.layout.annotations)
         fig_annots = [newfont] + [hm.layout.annotations for hm in hms]
         for col_ndx in range(1, len(fig_annots)):
             for k in range(len(fig_annots[col_ndx])):
@@ -263,30 +280,35 @@ class Report:
 
         # Generate summary figure
         if len(categories) >= 3:
-            fig_summary = make_subplots(rows=1,
-                                        cols=len(score_cols),
-                                        # subplot_titles=score_names,
-                                        specs=[[{'type': 'polar'}] * len(score_cols)],
-                                        horizontal_spacing=.2,
-                                        # column_width=[.35] * n_cols,
-                                        )
+            fig_summary = make_subplots(
+                rows=1,
+                cols=len(score_cols),
+                # subplot_titles=score_names,
+                specs=[[{'type': 'polar'}] * len(score_cols)],
+                horizontal_spacing=.2,
+                # column_width=[.35] * n_cols,
+            )
             for i, col in enumerate(score_cols):
                 # TODO Convention for the baseline blank category
-                include_categories = [category for category in categories if category != '']
-                category_scores = [summary_data[col.name][category] for category in include_categories]
+                include_categories = [category for category in categories if
+                                      category != '']
+                category_scores = [summary_data[col.name][category] for category in
+                                   include_categories]
                 fig_summary.add_trace(go.Scatterpolar(
                     name=col.name,
                     r=category_scores,
                     theta=include_categories,
-                    line=go.scatterpolar.Line(color=score_colors[len(score_cols) - 1][i])
+                    line=go.scatterpolar.Line(
+                        color=score_colors[len(score_cols) - 1][i])
                 ), 1, i + 1)
             fig_summary.update_traces(fill='toself')
             if show_title:
-                title = {'text': f"{self.dataset_name} {self.model_name} Robustness Report",
-                         'y': .98,
-                         'x': 0.5,
-                         'xanchor': 'center',
-                         'yanchor': 'top'}
+                title = {
+                    'text': f"{self.dataset_name} {self.model_name} Robustness Report",
+                    'y': .98,
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'yanchor': 'top'}
             else:
                 title = None
             fig_summary.update_layout(height=330,
@@ -352,10 +374,10 @@ class Report:
 \\begin{{center}}
     \\includegraphics[width=\\linewidth]{{../images/robustness_gym_detail.pdf}}
 \\end{{center}}
-\\caption{{Robustness report for {self.model_name} model on {self.dataset_name} dataset. Summary view (top) shows the minimum score within
- each robustness category for each metric. Detail view (bottom) reports score for each robustness test, broken out by
- category. Tests include: {refs}}}.
- \end{{figure}}"""
+\\caption{{Robustness report for {self.model_name} model on {self.dataset_name}
+dataset. Summary view (top) shows the minimum score within each robustness category
+for each metric. Detail view (bottom) reports score for each robustness test,
+broken out by category. Tests include: {refs}}}. \\end{{figure}}"""
         return conf_to_latex
 
     def write_appendix(self, outdir):
@@ -378,258 +400,274 @@ def human_format(num):
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'),
+                         ['', 'K', 'M', 'B', 'T'][magnitude])
 
-
-if __name__ == "__main__":
-    # import streamlit as st
-    test_data = True
-    if test_data:
-        data = [
-            # First group
-
-            {'group': 'sub',  # Name of group
-             'slice_name': [
-                 'sub', 'abc', 'def', 'sfdfdfsdfsd'],  # Tests/slices for group
-             'data': {  # Data, indexed by column name
-                 'Rouge1': [.55, .23, .56, .56],
-                 'Rouge2': [.45, .23, .78, .12],
-                 'Precision': [.45, .11, .34, .12],
-                 # 'Class %': [
-                 #     [0.3, 0.4, 0.3]
-                 # ],
-                 # 'Pred. Class %': [
-                 #     [0.27, 0.43, 0.3]
-                 # ],
-                 'Size': [1, 4, 9, 3]
-             }
-             },
-            {'group': 'sudsfdsfsdfb',  # Name of group
-             'slice_name': [
-                 'sub', 'abc', 'def', 'sfdfdfsdfsd'],  # Tests/slices for group
-             'data': {  # Data, indexed by column name
-                 'Rouge1': [.55, .23, .56, .56],
-                 'Rouge2': [.45, .23, .78, .12],
-                 'Precision': [.45, .11, .34, .12],
-                 # 'Class %': [
-                 #     [0.3, 0.4, 0.3]
-                 # ],
-                 # 'Pred. Class %': [
-                 #     [0.27, 0.43, 0.3]
-                 # ],
-                 'Size': [1, 4, 9, 3]
-             }
-             },
-            {'group': 'curated',  # Name of group
-             'slice_name': [
-                 'cnn_dailymail(split=test[:10], version=3.0.0)-LengthSubpopulation(gte90%, lte100, reduction_fn=numpy.sum)()'[
-                 :5], 'fdsfs'],  # Tests/slices for group
-             'data': {  # Data, indexed by column name
-                 'Rouge1': [.55, .34],
-                 'Rouge2': [.45, .22],
-                 'Precision': [.45, .11],
-                 # 'Class %': [
-                 #     [0.3, 0.4, 0.3]
-                 # ],
-                 # 'Pred. Class %': [
-                 #     [0.27, 0.43, 0.3]
-                 # ],
-                 'Size': [1, 3]
-             }
-             },
-
-            # Second group, etc.
-            # {'group': 'slice_name',
-            #  'slice_name': ['Negation', 'Contains -ing', 'Temporal preposition', 'Ends with verb', 'slice 5',
-            #                 'slice 6', 'slice 7'],
-            #  'data': {
-            #      'Accuracy': [50, 40, 30, 20, 10, 30, 20],
-            #      'F1': [20, 30, 10, 75, 80, 75, 80],
-            #      'Precision': [20, 30, 10, 75, 80, 75, 80],
-            #      'Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.2, 0.4, 0.4],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6]
-            #      ],
-            #      'Pred. Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.3, 0.4, 0.4],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #      ],
-            #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-            #  }
-            #  },
-            # {'group': 'Augmentations',
-            #  'slice_name': ['Augmentation 1', 'Augmentation 2', 'Augmentation 3',
-            #                 'Augmentation 4', 'Augmentation 5', 'Augmentation 6', 'Augmentation 7'],
-            #  'data': {
-            #      'Accuracy': [50, 40, 30, 20, 50, 20, 40],
-            #      'F1': [50, 50, 60, 75, 80, 75, 80],
-            #      'Precision': [50, 50, 60, 75, 80, 75, 80],
-            #      'Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.1, 0.6, 0.3],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6]
-            #      ],
-            #      'Pred. Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.2, 0.5, 0.3],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6]
-            #      ],
-            #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-            #  }
-            #  },
-            # {'group': 'TextAttack',
-            #  'slice_name': ['Textfooler', 'Hotflip', 'Morpheus', 'Seq2Sick', 'Hotflip 2',
-            #                 'Morpheus 2', 'Seq2Sick 2'],
-            #  'data': {
-            #      'Accuracy': [50, 40, 30, 40, 40, 50, 70],
-            #      'F1': [60, 50, 40, 75, 80, 40, 75, 80],
-            #      'Precision': [60, 50, 40, 75, 80, 40, 75, 80],
-            #      'Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.8, 0.1, 0.1],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #      ],
-            #      'Pred. Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.3, 0.4, 0.2],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.1, 0.8],
-            #          [0.1, 0.3, 0.6],
-            #      ],
-            #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-            #  }
-            #  },
-            # {'group': 'Eval Sets',
-            #  'slice_name': ['Eval set 1 dfsdf dsfsdf sdfdf fsfds ()[]100', 'Eval set 2', 'Eval set 3', 'Eval set 4', 'Eval set 5',
-            #                 'Eval set 6', 'Eval set 7'],
-            #  'data': {
-            #      'Accuracy': [50, 40, 30, 20, 10, 20, 10],
-            #      'F1': [20, 30, 10, 75, 80, 10, 75, 80],
-            #      'Precision': [20, 30, 10, 75, 80, 10, 75, 80],
-            #      'Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.2, 0.6, 0.2],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #      ],
-            #      'Pred. Class %': [
-            #          [0.1, 0.3, 0.6],
-            #          [0.3, 0.5, 0.2],
-            #          [0.4, 0.4, 0.2],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #          [0.1, 0.3, 0.6],
-            #      ],
-            #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-            #  }
-            #  }
-        ]
-
-        # cols = [
-        #     {'type': 'score', 'name': 'Accuracy', 'min': 0, 'max': 100},
-        #     {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N', 'C']},
-        #     {'type': 'distribution', 'name': 'Pred. Class %', 'class_codes': ['E', 'N', 'C']},
-        #     {'type': 'text', 'name': 'Size'},
-        # ]
-
-        cols = [
-            ScoreColumn('Rouge1', 0, 100),
-            ScoreColumn('Rouge2', 0, 100),
-            # ClassDistributionColumn('Class %', ['E', 'N', 'C']),
-            # ClassDistributionColumn('Pred. Class %', ['E', 'N', 'C']),
-            NumericColumn('Size')
-        ]
-
-        col_values = defaultdict(list)
-        for row_ndx, row in enumerate(data):
-            group_name = row['group']
-            num_slices = None
-            for col_ndx, col in enumerate(cols):
-                x = row['data'][col.name]
-                col_values[col.name].extend(x)
-                if num_slices is None:
-                    num_slices = len(x)
-                else:
-                    assert num_slices == len(x)
-            col_values['category'].extend([group_name] * num_slices)
-            col_values['slice_name'].extend(row['slice_name'])
-
-        df = pd.DataFrame(col_values,
-                          columns=['category'] + ['slice_name'] + [col.name for col in cols])
-        print(df)
-        report = Report(df, cols, 'SNLI', 'BERT-Base')
-        figure1, figure2 = report.figures()
-        if figure1:
-            figure1.show()
-        figure2.show()
-        figure2.write_image('testing2.png')
-        print(report.latex)
-    else:
-        import robustnessgym as rg
-
-        model_identifier = 'huggingface/textattack/bert-base-uncased-snli'
-        task = rg.TernaryNaturalLanguageInference()
-        if model_identifier.split("/")[0] == 'huggingface':
-            model = rg.Model.huggingface(
-                identifier="/".join(model_identifier.split("/")[1:]),
-                task=task,
-            )
-        else:
-            raise NotImplementedError
-
-        # Create the test bench
-        testbench = rg.TestBench(
-            identifier='snli-nli-0.0.1dev',
-            task=task,
-            slices=[
-                rg.Slice.from_dataset(identifier='snli-train',
-                                      dataset=rg.Dataset.load_dataset('snli', split='train[:128]')).filter(
-                    lambda example: example['label'] != -1),
-                rg.Slice.from_dataset(identifier='snli-val',
-                                      dataset=rg.Dataset.load_dataset('snli', split='validation[:128]')).filter(
-                    lambda example: example['label'] != -1),
-                rg.Slice.from_dataset(identifier='snli-test',
-                                      dataset=rg.Dataset.load_dataset('snli', split='test[:128]')).filter(
-                    lambda example: example['label'] != -1),
-            ],
-            dataset_id='snli'
-        )
-
-        # Create the report
-        report = testbench.create_report(model=model,
-                                         coerce_fn=functools.partial(rg.Model.remap_labels, label_map=[1, 2, 0]), )
-        figure1, figure2 = report.figures
-        # if figure1:
-        #     figure1.show()
-        # figure2.show()
-        figure2.write_image('testing2.png')
-    # st.write(figure1)
-    # st.write(figure2)
+# if __name__ == "__main__":
+#     # import streamlit as st
+#     test_data = True
+#     if test_data:
+#         data = [
+#             # First group
+#
+#             {'group': 'sub',  # Name of group
+#              'slice_name': [
+#                  'sub', 'abc', 'def', 'sfdfdfsdfsd'],  # Tests/slices for group
+#              'data': {  # Data, indexed by column name
+#                  'Rouge1': [.55, .23, .56, .56],
+#                  'Rouge2': [.45, .23, .78, .12],
+#                  'Precision': [.45, .11, .34, .12],
+#                  # 'Class %': [
+#                  #     [0.3, 0.4, 0.3]
+#                  # ],
+#                  # 'Pred. Class %': [
+#                  #     [0.27, 0.43, 0.3]
+#                  # ],
+#                  'Size': [1, 4, 9, 3]
+#              }
+#              },
+#             {'group': 'sudsfdsfsdfb',  # Name of group
+#              'slice_name': [
+#                  'sub', 'abc', 'def', 'sfdfdfsdfsd'],  # Tests/slices for group
+#              'data': {  # Data, indexed by column name
+#                  'Rouge1': [.55, .23, .56, .56],
+#                  'Rouge2': [.45, .23, .78, .12],
+#                  'Precision': [.45, .11, .34, .12],
+#                  # 'Class %': [
+#                  #     [0.3, 0.4, 0.3]
+#                  # ],
+#                  # 'Pred. Class %': [
+#                  #     [0.27, 0.43, 0.3]
+#                  # ],
+#                  'Size': [1, 4, 9, 3]
+#              }
+#              },
+#             {'group': 'curated',  # Name of group
+#              'slice_name': [
+#                  'cnn_dailymail(split=test[:10], version=3.0.0)-LengthSubpopulation('
+#                  'gte90%, lte100, reduction_fn=numpy.sum)()'[
+#                  :5], 'fdsfs'],  # Tests/slices for group
+#              'data': {  # Data, indexed by column name
+#                  'Rouge1': [.55, .34],
+#                  'Rouge2': [.45, .22],
+#                  'Precision': [.45, .11],
+#                  # 'Class %': [
+#                  #     [0.3, 0.4, 0.3]
+#                  # ],
+#                  # 'Pred. Class %': [
+#                  #     [0.27, 0.43, 0.3]
+#                  # ],
+#                  'Size': [1, 3]
+#              }
+#              },
+#
+#             # Second group, etc.
+#             # {'group': 'slice_name',
+#             #  'slice_name': ['Negation', 'Contains -ing', 'Temporal preposition',
+#             #  'Ends with verb', 'slice 5',
+#             #                 'slice 6', 'slice 7'],
+#             #  'data': {
+#             #      'Accuracy': [50, 40, 30, 20, 10, 30, 20],
+#             #      'F1': [20, 30, 10, 75, 80, 75, 80],
+#             #      'Precision': [20, 30, 10, 75, 80, 75, 80],
+#             #      'Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.2, 0.4, 0.4],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6]
+#             #      ],
+#             #      'Pred. Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.3, 0.4, 0.4],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #      ],
+#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
+#             #  }
+#             #  },
+#             # {'group': 'Augmentations',
+#             #  'slice_name': ['Augmentation 1', 'Augmentation 2', 'Augmentation 3',
+#             #                 'Augmentation 4', 'Augmentation 5', 'Augmentation 6',
+#             #                 'Augmentation 7'],
+#             #  'data': {
+#             #      'Accuracy': [50, 40, 30, 20, 50, 20, 40],
+#             #      'F1': [50, 50, 60, 75, 80, 75, 80],
+#             #      'Precision': [50, 50, 60, 75, 80, 75, 80],
+#             #      'Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.1, 0.6, 0.3],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6]
+#             #      ],
+#             #      'Pred. Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.2, 0.5, 0.3],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6]
+#             #      ],
+#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
+#             #  }
+#             #  },
+#             # {'group': 'TextAttack',
+#             #  'slice_name': ['Textfooler', 'Hotflip', 'Morpheus', 'Seq2Sick',
+#             #  'Hotflip 2',
+#             #                 'Morpheus 2', 'Seq2Sick 2'],
+#             #  'data': {
+#             #      'Accuracy': [50, 40, 30, 40, 40, 50, 70],
+#             #      'F1': [60, 50, 40, 75, 80, 40, 75, 80],
+#             #      'Precision': [60, 50, 40, 75, 80, 40, 75, 80],
+#             #      'Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.8, 0.1, 0.1],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #      ],
+#             #      'Pred. Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.3, 0.4, 0.2],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.1, 0.8],
+#             #          [0.1, 0.3, 0.6],
+#             #      ],
+#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
+#             #  }
+#             #  },
+#             # {'group': 'Eval Sets',
+#             #  'slice_name': ['Eval set 1 dfsdf dsfsdf sdfdf fsfds ()[]100',
+#             #  'Eval set 2', 'Eval set 3', 'Eval set 4', 'Eval set 5',
+#             #                 'Eval set 6', 'Eval set 7'],
+#             #  'data': {
+#             #      'Accuracy': [50, 40, 30, 20, 10, 20, 10],
+#             #      'F1': [20, 30, 10, 75, 80, 10, 75, 80],
+#             #      'Precision': [20, 30, 10, 75, 80, 10, 75, 80],
+#             #      'Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.2, 0.6, 0.2],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #      ],
+#             #      'Pred. Class %': [
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.3, 0.5, 0.2],
+#             #          [0.4, 0.4, 0.2],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #          [0.1, 0.3, 0.6],
+#             #      ],
+#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
+#             #  }
+#             #  }
+#         ]
+#
+#         # cols = [
+#         #     {'type': 'score', 'name': 'Accuracy', 'min': 0, 'max': 100},
+#         #     {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N',
+#         #     'C']},
+#         #     {'type': 'distribution', 'name': 'Pred. Class %', 'class_codes': ['E',
+#         #     'N', 'C']},
+#         #     {'type': 'text', 'name': 'Size'},
+#         # ]
+#
+#         cols = [
+#             ScoreColumn('Rouge1', 0, 100),
+#             ScoreColumn('Rouge2', 0, 100),
+#             # ClassDistributionColumn('Class %', ['E', 'N', 'C']),
+#             # ClassDistributionColumn('Pred. Class %', ['E', 'N', 'C']),
+#             NumericColumn('Size')
+#         ]
+#
+#         col_values = defaultdict(list)
+#         for row_ndx, row in enumerate(data):
+#             group_name = row['group']
+#             num_slices = None
+#             for col_ndx, col in enumerate(cols):
+#                 x = row['data'][col.name]
+#                 col_values[col.name].extend(x)
+#                 if num_slices is None:
+#                     num_slices = len(x)
+#                 else:
+#                     assert num_slices == len(x)
+#             col_values['category'].extend([group_name] * num_slices)
+#             col_values['slice_name'].extend(row['slice_name'])
+#
+#         df = pd.DataFrame(col_values,
+#                           columns=['category'] + ['slice_name'] + [col.name for col in
+#                                                                    cols])
+#         print(df)
+#         report = Report(df, cols, 'SNLI', 'BERT-Base')
+#         figure1, figure2 = report.figures()
+#         if figure1:
+#             figure1.show()
+#         figure2.show()
+#         figure2.write_image('testing2.png')
+#         print(report.latex)
+#     else:
+#         import robustnessgym as rg
+#
+#         model_identifier = 'huggingface/textattack/bert-base-uncased-snli'
+#         task = rg.TernaryNaturalLanguageInference()
+#         if model_identifier.split("/")[0] == 'huggingface':
+#             model = rg.Model.huggingface(
+#                 identifier="/".join(model_identifier.split("/")[1:]),
+#                 task=task,
+#             )
+#         else:
+#             raise NotImplementedError
+#
+#         # Create the test bench
+#         testbench = rg.TestBench(
+#             identifier='snli-nli-0.0.1dev',
+#             task=task,
+#             slices=[
+#                 rg.Slice.from_dataset(
+#                     identifier='snli-train',
+#                     dataset=rg.Dataset.load_dataset('snli',
+#                                                     split='train[:128]')).filter(
+#                     lambda example: example['label'] != -1),
+#                 rg.Slice.from_dataset(
+#                     identifier='snli-val',
+#                     dataset=rg.Dataset.load_dataset('snli',
+#                                                     split='validation[:128]')).filter(
+#                     lambda example: example['label'] != -1),
+#                 rg.Slice.from_dataset(
+#                     identifier='snli-test',
+#                     dataset=rg.Dataset.load_dataset('snli',
+#                                                     split='test[:128]')).filter(
+#                     lambda example: example['label'] != -1),
+#             ],
+#             dataset_id='snli'
+#         )
+#
+#         # Create the report
+#         report = testbench.create_report(model=model,
+#                                          coerce_fn=functools.partial(
+#                                              rg.Model.remap_labels,
+#                                              label_map=[1, 2, 0]), )
+#         figure1, figure2 = report.figures
+#         # if figure1:
+#         #     figure1.show()
+#         # figure2.show()
+#         figure2.write_image('testing2.png')
+#     # st.write(figure1)
+#     # st.write(figure2)

@@ -1,3 +1,4 @@
+"""Cachedop with Spacy."""
 import json
 from typing import List
 
@@ -11,9 +12,7 @@ from robustnessgym.core.dataset import BatchOrDataset
 
 
 class Spacy(SingleColumnCachedOperation):
-    """
-    Class for running the Spacy pipeline using a CachedOperation.
-    """
+    """Class for running the Spacy pipeline using a CachedOperation."""
 
     def __init__(
         self,
@@ -36,8 +35,8 @@ class Spacy(SingleColumnCachedOperation):
             spacy.prefer_gpu(
                 gpu_id=0 if ":" not in device else int(device.split(":")[1])
             )
-            # Spacy sets the default torch float Tensor to torch.cuda.FloatTensor, which causes other
-            # GPU cachedops to crash.
+            # Spacy sets the default torch float Tensor to torch.cuda.FloatTensor,
+            # which causes other GPU cachedops to crash.
             torch.set_default_tensor_type("torch.FloatTensor")
             self._on_gpu = True
 
@@ -60,26 +59,24 @@ class Spacy(SingleColumnCachedOperation):
         else:
             super(Spacy, self).__init__(
                 lang=nlp.lang,
-                # No need to pass in neuralcoref separately, it's already in the pipeline if neuralcoref=True
+                # No need to pass in neuralcoref separately, it's already in the
+                # pipeline if neuralcoref=True
                 pipeline=nlp.pipe_names,
                 *args,
                 **kwargs,
             )
             print(
-                "Warning: Spacy.encode does not support arbitrary nlp pipelines so information "
-                "stored in the Doc object may be lost in encoding."
+                "Warning: Spacy.encode does not support arbitrary nlp pipelines so "
+                "information stored in the Doc object may be lost in encoding."
             )
 
-    def _load_spacy(self, lang: str = "en_core_web_sm"):
-        """
-        Load the Spacy nlp pipeline.
-        """
+    @staticmethod
+    def _load_spacy(lang: str = "en_core_web_sm"):
+        """Load the Spacy nlp pipeline."""
         return spacy.load(lang)
 
     def _add_neuralcoref(self):
-        """
-        Add the neuralcoref pipeline to Spacy.
-        """
+        """Add the neuralcoref pipeline to Spacy."""
         if self.neuralcoref:
             try:
                 import neuralcoref as nc
@@ -104,10 +101,18 @@ class Spacy(SingleColumnCachedOperation):
 
     @property
     def nlp(self):
+        """Return the nlp pipeline."""
         return self._nlp
 
     @classmethod
     def encode(cls, obj: Doc) -> str:
+        """Encode the Doc object.
+
+        Args:
+            obj:
+
+        Returns:
+        """
         # JSON dump the Doc
         doc_json = obj.to_json()
 
@@ -119,14 +124,16 @@ class Spacy(SingleColumnCachedOperation):
                 "text": span.text,
             }
 
-            # Create a helper function that converts a Cluster (output of neuralcoref) into a dictionary
+            # Create a helper function that converts a Cluster (output of
+            # neuralcoref) into a dictionary
             cluster_to_dict = lambda cluster: {
                 "i": cluster.i,
                 "main": span_to_dict(cluster.main),
                 "mentions": [span_to_dict(span) for span in cluster.mentions],
             }
 
-            # Apply the helper functions to construct a dictionary for the neuralcoref information
+            # Apply the helper functions to construct a dictionary for the
+            # neuralcoref information
             neuralcoref_dict = {
                 "neuralcoref": [
                     cluster_to_dict(cluster) for cluster in obj._.coref_clusters
@@ -140,6 +147,15 @@ class Spacy(SingleColumnCachedOperation):
         return json.dumps(doc_json)
 
     def single_column_apply(self, column_batch: List, *args, **kwargs) -> List:
+        """Apply to a single column.
+
+        Args:
+            column_batch:
+            *args:
+            **kwargs:
+
+        Returns:
+        """
         if self._on_gpu:
             # Adjust the default Tensor type: this is instantaneous
             torch.set_default_tensor_type("torch.cuda.FloatTensor")
@@ -155,11 +171,12 @@ class Spacy(SingleColumnCachedOperation):
 
     @classmethod
     def tokens(cls, decoded_batch: List) -> List[List[str]]:
-        """
-        For each example, returns the list of tokens extracted by Spacy for each key.
+        """For each example, returns the list of tokens extracted by Spacy for
+        each key.
 
-        Spacy stores the span of each token under the "tokens" key.
-        This function extracts the tokens from the text using the span of each token.
+        Spacy stores the span of each token under the "tokens" key. This
+        function extracts the tokens from the text using the span of
+        each token.
         """
 
         token_batch = []
@@ -175,16 +192,14 @@ class Spacy(SingleColumnCachedOperation):
 
     @classmethod
     def entities(cls, decoded_batch: List) -> List[List[dict]]:
-        """
-        For each example, returns the list of entity extracted by Spacy for each column.
-        """
+        """For each example, returns the list of entity extracted by Spacy for
+        each column."""
         return [doc_dict["ents"] for doc_dict in decoded_batch]
 
     @classmethod
     def sentences(cls, decoded_batch: List) -> List[List[str]]:
-        """
-        For each example, returns the list of sentences extracted by Spacy for each column.
-        """
+        """For each example, returns the list of sentences extracted by Spacy
+        for each column."""
         return [
             [
                 doc_dict["text"][sent["start"] : sent["end"]]
@@ -195,7 +210,6 @@ class Spacy(SingleColumnCachedOperation):
 
     @classmethod
     def num_tokens(cls, decoded_batch: List) -> List[int]:
-        """
-        For each example, returns the length or the number of tokens extracted by Spacy for each column.
-        """
+        """For each example, returns the length or the number of tokens
+        extracted by Spacy for each column."""
         return [len(doc_dict["tokens"]) for doc_dict in decoded_batch]

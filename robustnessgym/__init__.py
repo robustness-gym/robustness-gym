@@ -1,30 +1,28 @@
-"""
-Import common classes.
-"""
-
+"""Import common classes."""
+# flake8: noqa
 from robustnessgym.cachedops.allen.allen_predictor import AllenPredictor
 from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
 from robustnessgym.cachedops.allen.dependency_parser import AllenDependencyParser
 from robustnessgym.cachedops.allen.semantic_role_labeler import AllenSemanticRoleLabeler
 from robustnessgym.cachedops.bootleg import Bootleg
 from robustnessgym.cachedops.similarity import (
-    SentenceSimilarityMatrix,
     RougeMatrix,
     RougeScore,
+    SentenceSimilarityMatrix,
 )
+from robustnessgym.cachedops.spacy import Spacy
+from robustnessgym.cachedops.strip_text import StripText
+from robustnessgym.cachedops.textblob import TextBlob
+from robustnessgym.core.cachedops import (
+    CachedOperation,
+    SingleColumnCachedOperation,
+    stow,
+)
+from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import Slice
+from robustnessgym.core.testbench import TestBench
 from robustnessgym.slicebuilders.attacks.textattack import TextAttack
-from robustnessgym.slicebuilders.transformations.fairseq import (
-    FairseqBacktranslation,
-)
-from robustnessgym.slicebuilders.transformations.eda import (
-    EasyDataAugmentation,
-)
-from robustnessgym.slicebuilders.transformations.nlpaug import (
-    NlpAugTransformation,
-)
-from robustnessgym.slicebuilders.transformations.similarity import (
-    RougeMatrixSentenceTransformation,
-)
 from robustnessgym.slicebuilders.slicebuilder import (
     SliceBuilder,
     SliceBuilderCollection,
@@ -34,101 +32,91 @@ from robustnessgym.slicebuilders.subpopulations.constituency_overlap import (
     ConstituencySubtreeSubpopulation,
     FuzzyConstituencySubtreeSubpopulation,
 )
+from robustnessgym.slicebuilders.subpopulations.entity_frequency import EntityFrequency
+from robustnessgym.slicebuilders.subpopulations.hans import (
+    HansAdjectives,
+    HansAdjectivesCompEnt,
+    HansAdjectivesCompNonEnt,
+    HansAdverbs,
+    HansAdvsEntailed,
+    HansAdvsNonEntailed,
+    HansAllPhrases,
+    HansCalledObjects,
+    HansConjs,
+    HansConstAdv,
+    HansConstQuotEntailed,
+    HansEntComplementNouns,
+    HansFoodWords,
+    HansIntransitiveVerbs,
+    HansLocationNounsA,
+    HansLocationNounsB,
+    HansNonEntComplementNouns,
+    HansNonEntQuotVerbs,
+    HansNPSVerbs,
+    HansNPZVerbs,
+    HansPassiveVerbs,
+    HansPastParticiples,
+    HansPluralNouns,
+    HansPluralNPZVerbs,
+    HansPrepositions,
+    HansQuestionEmbeddingVerbs,
+    HansQuestions,
+    HansReadWroteObjects,
+    HansRelations,
+    HansSingularNouns,
+    HansToldObjects,
+    HansTransitiveVerbs,
+    HansUnderstoodArgumentVerbs,
+    HansWonObjects,
+)
+from robustnessgym.slicebuilders.subpopulations.length import LengthSubpopulation
 from robustnessgym.slicebuilders.subpopulations.lexical_overlap import (
     LexicalOverlapSubpopulation,
 )
-from robustnessgym.slicebuilders.subpopulations.length import LengthSubpopulation
-from robustnessgym.slicebuilders.subpopulations.entity_frequency import EntityFrequency
-from robustnessgym.slicebuilders.subpopulations.hans import (
-    HansAllPhrases,
-    HansSingularNouns,
-    HansPluralNouns,
-    HansTransitiveVerbs,
-    HansPassiveVerbs,
-    HansIntransitiveVerbs,
-    HansNPSVerbs,
-    HansNPZVerbs,
-    HansPluralNPZVerbs,
-    HansPrepositions,
-    HansConjs,
-    HansPastParticiples,
-    HansUnderstoodArgumentVerbs,
-    HansNonEntQuotVerbs,
-    HansQuestionEmbeddingVerbs,
-    HansCalledObjects,
-    HansToldObjects,
-    HansFoodWords,
-    HansLocationNounsA,
-    HansLocationNounsB,
-    HansWonObjects,
-    HansReadWroteObjects,
-    HansAdjectives,
-    HansAdjectivesCompNonEnt,
-    HansAdjectivesCompEnt,
-    HansAdverbs,
-    HansConstAdv,
-    HansConstQuotEntailed,
-    HansRelations,
-    HansQuestions,
-    HansNonEntComplementNouns,
-    HansEntComplementNouns,
-    HansAdvsNonEntailed,
-    HansAdvsEntailed,
-)
 from robustnessgym.slicebuilders.subpopulations.phrase import (
     AhoCorasick,
-    HasPhrase,
-    HasAnyPhrase,
     HasAllPhrases,
-    HasNegation,
-    HasTemporalPreposition,
+    HasAnyPhrase,
     HasComparison,
-    HasQuantifier,
     HasDefiniteArticle,
     HasIndefiniteArticle,
+    HasNegation,
+    HasPhrase,
     HasPosessivePreposition,
+    HasQuantifier,
+    HasTemporalPreposition,
 )
+from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 from robustnessgym.slicebuilders.subpopulations.similarity import (
-    RougeScoreSubpopulation,
-    RougeMatrixScoreSubpopulation,
     Abstractiveness,
+    Dispersion,
     Distillation,
     Ordering,
-    Dispersion,
     Position,
+    RougeMatrixScoreSubpopulation,
+    RougeScoreSubpopulation,
 )
-from robustnessgym.core.testbench import TestBench
-from robustnessgym.core.cachedops import (
-    CachedOperation,
-    SingleColumnCachedOperation,
-    stow,
-)
-from robustnessgym.cachedops.strip_text import StripText
-from robustnessgym.cachedops.spacy import Spacy
-from robustnessgym.cachedops.textblob import TextBlob
-from robustnessgym.core.dataset import Dataset
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.slice import Slice
-from .slicebuilders.attack import Attack
-from .slicebuilders.curator import Curator
-from .slicebuilders.subpopulation import (
-    Subpopulation,
-    SubpopulationCollection,
-)
-from robustnessgym.slicebuilders.subpopulations.score import (
-    ScoreSubpopulation,
+from robustnessgym.slicebuilders.transformations.eda import EasyDataAugmentation
+from robustnessgym.slicebuilders.transformations.fairseq import FairseqBacktranslation
+from robustnessgym.slicebuilders.transformations.nlpaug import NlpAugTransformation
+from robustnessgym.slicebuilders.transformations.similarity import (
+    RougeMatrixSentenceTransformation,
 )
 from robustnessgym.tasks.task import (
-    Task,
-    NaturalLanguageInference,
     BinaryNaturalLanguageInference,
-    TernaryNaturalLanguageInference,
-    Summarization,
-    Sentiment,
     BinarySentiment,
-    QuestionAnswering,
     ExtractiveQuestionAnswering,
+    NaturalLanguageInference,
+    QuestionAnswering,
+    Sentiment,
+    Summarization,
+    Task,
+    TernaryNaturalLanguageInference,
 )
+
+from .slicebuilders.attack import Attack
+from .slicebuilders.curator import Curator
+from .slicebuilders.subpopulation import Subpopulation, SubpopulationCollection
 
 # from .attacks import *
 # from .augmentations import *

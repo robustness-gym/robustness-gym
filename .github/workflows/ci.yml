@@ -1,0 +1,52 @@
+name: robustnessgym
+
+on:
+    push:
+        branches: [ $default-branch ]
+    pull_request:
+        branches: [ $default-branch ]
+
+jobs:
+    build:
+        
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                os: [ubuntu-latest, macos-latest]
+                python-version: ['3.8']
+        
+        steps:
+            -   uses: actions/checkout@v2
+            
+            -   name: Set up Python ${{ matrix.python-version }}
+                uses: actions/setup-python@v2
+                with:
+                    python-version: ${{ matrix.python-version }}
+            
+            -   name: Install dependencies
+                run: |
+                    python -m pip install --upgrade pip
+                    make dev
+                    python -m pip install poetry
+                    poetry install
+            
+            -   name: Lint with isort, black, docformatter, flake8
+                run: |
+                    make autoformat
+                    make lint
+            
+            -   name: Test with pytest
+                run: |
+                    make test-cov
+            
+            -   name: Generate docs
+                run: |
+                    make docs
+            
+            -   name: Upload to codecov.io
+                uses: codecov/codecov-action@v1
+                with:
+                    file: ./coverage.xml
+                    flags: unittests
+                    name: codecov-umbrella
+                    fail_ci_if_error: true

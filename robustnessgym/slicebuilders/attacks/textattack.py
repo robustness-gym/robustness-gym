@@ -1,14 +1,15 @@
 from collections import OrderedDict
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 import cytoolz as tz
 import numpy as np
 import textattack.attack_recipes as attack_recipes
+from textattack.attack_recipes import AttackRecipe
+from textattack.models.wrappers import HuggingFaceModelWrapper, ModelWrapper
+
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.model import Model
 from robustnessgym.slicebuilders.attack import Attack
-from textattack.attack_recipes import AttackRecipe
-from textattack.models.wrappers import ModelWrapper, HuggingFaceModelWrapper
 
 
 class TextAttack(Attack):
@@ -73,7 +74,8 @@ class TextAttack(Attack):
                     # TODO(karan): support num_attacked_texts > 1
                     skeleton_batches[0][key][i] = val
 
-                # # Fill the perturbed output: *this was incorrect, removing this statement*
+                # # Fill the perturbed output: *this was incorrect, removing this
+                # statement*
                 # # TODO(karan): delete this snippet
                 # skeleton_batches[0][columns[-1]][i] = output.perturbed_result.output
             else:

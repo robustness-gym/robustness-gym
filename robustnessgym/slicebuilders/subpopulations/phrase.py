@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Dict, Any, Sequence
+from typing import Any, Dict, List, Sequence
 
 import cytoolz as tz
 import numpy as np
-from ahocorasick import Automaton
 
+from ahocorasick import Automaton
 from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
@@ -69,25 +69,19 @@ class HasPhrase(
 
     @classmethod
     def from_file(cls, path: str) -> Subpopulation:
-        """
-        Load phrases from a file, one per line.
-        """
+        """Load phrases from a file, one per line."""
         with open(path) as f:
             phrases = [line.strip() for line in f.readlines()]
         return cls(phrases=phrases)
 
     @classmethod
     def default(cls) -> Subpopulation:
-        """
-        A default vocabulary of phrases to search.
-        """
+        """A default vocabulary of phrases to search."""
         return cls(phrases=[])
 
     @classmethod
     def join(cls, *slicers: HasPhrase) -> Sequence[HasPhrase]:
-        """
-        Join to combine multiple HasPhrase slicers.
-        """
+        """Join to combine multiple HasPhrase slicers."""
         return [
             HasPhrase(phrases=list(tz.concat([slicer.phrases for slicer in slicers])))
         ]

@@ -1,6 +1,6 @@
 from typing import List
 
-from robustnessgym import SliceBuilder, Identifier
+from robustnessgym import Identifier, SliceBuilder
 from robustnessgym.core.constants import CURATION
 
 

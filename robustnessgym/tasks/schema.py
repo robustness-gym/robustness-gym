@@ -1,6 +1,7 @@
-from typing import OrderedDict, Dict, Collection, Callable
+from typing import Callable, Collection, Dict, OrderedDict
 
 from datasets.features import FeatureType
+
 from robustnessgym.core.tools import get_all_paths
 
 
@@ -24,13 +25,15 @@ class Schema:
         Returns: (grounding, reversed_grounding)
 
         """
-        # For features, get the path to the leaves in the (potentially nested) features dictionary
+        # For features, get the path to the leaves in the (potentially nested)
+        # features dictionary
         flat_columns = get_all_paths(features)
         flat_columns = {
             tuple(path) if len(path) > 1 else path[0] for path in flat_columns
         }
 
-        # Figure out the (reversed) grounding: map columns in the dataset to keys in the schema
+        # Figure out the (reversed) grounding: map columns in the dataset to keys in
+        # the schema
         reversed_grounding = {}
         for k in self.reversed_grounding_candidates:
             if ((isinstance(k, tuple) or isinstance(k, str)) and k in flat_columns) or (

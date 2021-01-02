@@ -1,8 +1,9 @@
-from typing import List, Dict
+from typing import Dict, List
 
 import fuzzywuzzy.fuzz as fuzz
 import numpy as np
 from nltk import Tree
+
 from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
 from robustnessgym.core.decorators import prerequisites
 from robustnessgym.core.identifier import Identifier
@@ -114,7 +115,8 @@ class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation):
             for tree_0 in trees_0
         ]
 
-        # Output a fuzzy score if the tree corresponding to key 1 is similar to any subtree
+        # Output a fuzzy score if the tree corresponding to key 1 is similar to any
+        # subtree
         return np.array(
             [
                 max(

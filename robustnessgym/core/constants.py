@@ -7,5 +7,3 @@ ATTACK = "attack"
 AUGMENTATION = "augmentation"
 TRANSFORMATION = "transformation"
 CURATION = "curated"
-
-USE_NLP = False
