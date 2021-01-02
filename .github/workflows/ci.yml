@@ -25,11 +25,22 @@ jobs:
                 uses: actions/setup-python@v2
                 with:
                     python-version: ${{ matrix.python-version }}
-            
-            -   name: Install dependencies
+                    
+#            -   name: Set up Poetry cache for Python dependencies
+#                uses: actions/cache@v2
+#                if: startsWith(runner.os, 'Linux')
+#                with:
+#                    path: ~/.cache/pypoetry
+#                    key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+#                    restore-keys: ${{ runner.os }}-poetry-
+                    
+            -   name: Install Poetry
                 run: |
-                    python -m pip install --upgrade pip
-                    make poetry
+                    make poetry-setup
+            
+            -   name: Install Dependencies
+                run: |
+                    make poetry-install
                     make dev
 #                    python -m pip install poetry
 #                    poetry install
