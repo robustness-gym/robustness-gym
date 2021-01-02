@@ -1,4 +1,4 @@
-name: robustnessgym
+name: ci
 
 on:
     push:
