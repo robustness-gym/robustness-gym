@@ -25,7 +25,7 @@ dev:
 
 poetry:
 	curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-	PATH="/root/.poetry/bin:$$PATH"
+	source $$HOME/.poetry/env
 	poetry install
 	poetry shell
 
