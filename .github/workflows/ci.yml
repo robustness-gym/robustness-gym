@@ -31,7 +31,6 @@ jobs:
 
             -   name: Lint with isort, black, docformatter, flake8
                 run: |
-                    make autoformat
                     make lint
     
 
@@ -39,7 +38,7 @@ jobs:
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
-                os: [ubuntu-latest, macos-latest]
+                os: [ubuntu-latest] #, macos-latest]
                 python-version: ['3.8']
         
         steps:
@@ -50,13 +49,13 @@ jobs:
                 with:
                     python-version: ${{ matrix.python-version }}
                     
-#            -   name: Set up Poetry cache for Python dependencies
-#                uses: actions/cache@v2
-#                if: startsWith(runner.os, 'Linux')
-#                with:
-#                    path: ~/.cache/pypoetry
-#                    key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
-#                    restore-keys: ${{ runner.os }}-poetry-
+            -   name: Set up Poetry cache for Python dependencies
+                uses: actions/cache@v2
+                if: startsWith(runner.os, 'Linux')
+                with:
+                    path: ~/.cache/pypoetry
+                    key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+                    restore-keys: ${{ runner.os }}-poetry-
                     
             -   name: Install Poetry
                 run: |
