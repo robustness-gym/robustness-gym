@@ -1,4 +1,5 @@
 """Unittests for the FairseqBacktranslation class."""
+import unittest
 from unittest import TestCase
 
 import numpy as np
@@ -8,6 +9,7 @@ from robustnessgym.slicebuilders.transformations.fairseq import FairseqBacktrans
 from tests.testbeds import MockTestBedv0
 
 
+@unittest.skip("Downloads fairseq models during CI, which is slow.")
 class TestFairseqBacktranslation(TestCase):
     def setUp(self):
         self.testbed = MockTestBedv0()
