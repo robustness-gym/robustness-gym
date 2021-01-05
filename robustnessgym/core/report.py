@@ -18,11 +18,14 @@ from plotly.subplots import make_subplots
 
 
 class ReportColumn:
+    """A single column in the Robustness Report."""
     def __init__(self, name: str):
         self.name = name
 
 
 class ScoreColumn(ReportColumn):
+    """A column for numeric scores in the Robustness Report, displayed as a bar
+    chart."""
     def __init__(self, name: str, min: float, max: float):
         super(ScoreColumn, self).__init__(name)
         self.min = min
@@ -30,17 +33,22 @@ class ScoreColumn(ReportColumn):
 
 
 class ClassDistributionColumn(ReportColumn):
+    """A column for discrete class distributions in the Robustness Report,
+    displayed as a heatmap."""
     def __init__(self, name: str, class_codes: List[str]):
         super(ClassDistributionColumn, self).__init__(name)
         self.class_codes = class_codes
 
 
 class NumericColumn(ReportColumn):
+    """A column for numeric data in the Robustness Report, displayed as the raw
+    value."""
     def __init__(self, name: str):
         super(NumericColumn, self).__init__(name)
 
 
 class Report:
+    """Class for Robustness Gym Report."""
 
     def __init__(self,
                  data: pd.DataFrame,
