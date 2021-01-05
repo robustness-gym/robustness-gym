@@ -20,9 +20,10 @@ docs:
 docs-check:
 	sphinx-build -b html docs/source/ docs/build/html/ -W
 
+livedocs:
+	sphinx-autobuild -b html docs/source/ docs/build/html/
+
 dev:
-	pip install black isort flake8 docformatter pytest-cov
+	pip install black isort flake8 docformatter pytest-cov sphinx-rtd-theme nbsphinx recommonmark
 
 all: autoformat lint docs test
-
-
