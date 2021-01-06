@@ -1,9 +1,11 @@
 Robustness Gym
 ================================
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/robustness-gym/robustness-gym/CI)
-[![codecov](https://codecov.io/gh/robustness-gym/robustness-gym/branch/master/graph/badge.svg?token=MOLQYUSYQU)](https://codecov.io/gh/robustness-gym/robustness-gym)
 ![GitHub](https://img.shields.io/github/license/robustness-gym/robustness-gym)
+[![codecov](https://codecov.io/gh/robustness-gym/robustness-gym/branch/master/graph/badge.svg?token=MOLQYUSYQU)](https://codecov.io/gh/robustness-gym/robustness-gym)
 [![Documentation Status](https://readthedocs.org/projects/robustnessgym/badge/?version=latest)](https://robustnessgym.readthedocs.io/en/latest/?badge=latest)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![website](https://img.shields.io/badge/website-live-brightgreen)](https://robustnessgym.com)
 
 Robustness Gym is an evaluation toolkit for natural language processing.
 
