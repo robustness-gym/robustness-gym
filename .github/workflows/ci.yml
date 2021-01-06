@@ -77,26 +77,26 @@ jobs:
                 
         steps:
             -   uses: actions/checkout@v2
-            
+    
             -   name: Set up Python ${{ matrix.python-version }}
                 uses: actions/setup-python@v2
                 with:
                     python-version: ${{ matrix.python-version }}
-                    
+    
             -   name: Install Poetry
                 uses: snok/install-poetry@v1.1.1
                 with:
                     version: 1.1.4
                     virtualenvs-create: true
                     virtualenvs-in-project: true
-                    
+    
             -   name: Set up Poetry cache for Python dependencies
                 id: cached-poetry-dependencies
                 uses: actions/cache@v2
                 with:
                     path: .venv
                     key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-                
+    
             -   name: Install Dependencies
                 if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
                 run: |
@@ -114,3 +114,11 @@ jobs:
                     flags: unittests
                     name: codecov-umbrella
                     fail_ci_if_error: true
+                    
+            -   name: Publish distribution 📦 to PyPI
+                if: startsWith(github.event.ref, 'refs/tags')
+                env:
+                    PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+                run: |
+                    poetry config pypi-token.pypi $PYPI_TOKEN
+                    poetry publish --build

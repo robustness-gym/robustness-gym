@@ -16,7 +16,7 @@ keywords = [
 classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-#documentation = ""
+documentation = "https://robustnessgym.readthedocs.io"
 
 [tool.poetry.urls]
 "Issue Tracker" = "https://github.com/robustness-gym/robustness-gym/issues"
