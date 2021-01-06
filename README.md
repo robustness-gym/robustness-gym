@@ -11,12 +11,13 @@ Robustness Gym is an evaluation toolkit for natural language processing.
 pip install robustnessgym
 ```
 
-### Robustness Gym in 30 seconds
+### Robustness Gym in 5 minutes
 
 #### Datasets that extend Huggingface `datasets`
 ```python
-# The robustnessgym.Dataset wraps datasets.Dataset
+# robustnessgym.Dataset wraps datasets.Dataset
 from robustnessgym import Dataset
+
 # Use Dataset.load_dataset(..) exactly like datasets.load_dataset(..) 
 dataset = Dataset.load_dataset('boolq')
 dataset = Dataset.load_dataset('boolq', split='train[:10]')
@@ -24,7 +25,7 @@ dataset = Dataset.load_dataset('boolq', split='train[:10]')
 
 #### Cache information
 ```python
-# Get the dataset
+# Get a dataset
 from robustnessgym import Dataset
 dataset = Dataset.load_dataset('boolq')
 
