@@ -11,6 +11,7 @@ from robustnessgym.cachedops.similarity import (
     SentenceSimilarityMatrix,
 )
 from robustnessgym.cachedops.spacy import Spacy
+from robustnessgym.cachedops.stanza import Stanza
 from robustnessgym.cachedops.strip_text import StripText
 from robustnessgym.cachedops.textblob import TextBlob
 from robustnessgym.core.cachedops import (
