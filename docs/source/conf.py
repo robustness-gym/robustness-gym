@@ -12,6 +12,12 @@
 #
 import os
 import sys
+from pathlib import Path
+
+import toml
+
+# https://github.com/python-poetry/poetry/issues/144#issuecomment-559793020
+metadata = toml.load(Path(__file__).parent.parent / "pyproject.toml")["tool"]["poetry"]
 
 sys.path.insert(0, os.path.abspath(""))
 sys.path.insert(0, os.path.abspath(".."))
@@ -25,7 +31,8 @@ copyright = "2020 Robustness Gym"
 author = "Robustness Gym"
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.0dev"
+# release = "0.0.0dev"
+version = release = metadata["version"]
 
 # -- General configuration ---------------------------------------------------
 
