@@ -21,8 +21,8 @@ sys.setrecursionlimit(1500)
 # -- Project information -----------------------------------------------------
 
 project = "Robustness Gym"
-copyright = "2020 Stanford Hazy Research, Salesforce Research"
-author = "Stanford Hazy Research, Salesforce Research"
+copyright = "2020 Robustness Gym"
+author = "Robustness Gym"
 
 # The full version, including alpha/beta/rc tags
 release = "0.0.0dev"
