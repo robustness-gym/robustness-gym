@@ -2,7 +2,8 @@
 Setup script for the Robustness Gym library.
 """
 import os
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 
 # Utility function to read the README file.
@@ -19,6 +20,6 @@ setup(
     description="Robustness Gym is an evaluation toolkit for natural language processing.",
     keywords="nlp ml ai deep learning evaluation robustness",
     url="https://github.com/robustness-gym/robustness-gym",
-    packages=['robustnessgym'],
-    long_description=read('README.md'),
+    packages=["robustnessgym"],
+    long_description=read("README.md"),
 )
