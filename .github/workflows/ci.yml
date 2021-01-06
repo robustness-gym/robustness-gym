@@ -89,17 +89,6 @@ jobs:
                     version: 1.1.4
                     virtualenvs-create: true
                     virtualenvs-in-project: true
-
-#            -   name: Install Poetry
-#                run: |
-#                    curl -fsS -o get-poetry.py https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py
-#                    python get-poetry.py -y
-#                    echo "$HOME/.poetry/bin" >> $GITHUB_PATH
-            
-#            -   name: Poetry Virtual Environment Setting
-#                run: |
-#                    poetry config virtualenvs.create true
-#                    poetry config virtualenvs.in-project true
                     
             -   name: Set up Poetry cache for Python dependencies
                 id: cached-poetry-dependencies
