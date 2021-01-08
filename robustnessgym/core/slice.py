@@ -16,7 +16,7 @@ class Slice(Dataset):
         if dataset is not None:
             # Create a Slice directly from the Dataset object
             self.__dict__ = dataset.__dict__.copy()
-            self._identifier = dataset.identifier
+            self._identifier = identifier or dataset.identifier
             self.lineage = [(str(Dataset.__name__), dataset.identifier)]
         else:
             super(Slice, self).__init__(*args, **kwargs)

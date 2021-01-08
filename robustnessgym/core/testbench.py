@@ -28,24 +28,6 @@ from robustnessgym.core.tools import persistent_hash
 from robustnessgym.core.version import SemanticVersionerMixin
 from robustnessgym.tasks.task import Task
 
-TEST = "test"
-category_to_label = {
-    TEST: "Test Set",
-    GENERIC: "Slice",
-    SUBPOPULATION: "SubPop",
-    ATTACK: "Attack",
-    AUGMENTATION: "Augment",
-    CURATION: "Eval",
-}
-category_to_order = {
-    TEST: 0,
-    SUBPOPULATION: 1,
-    AUGMENTATION: 2,
-    CURATION: 3,
-    ATTACK: 4,
-    GENERIC: 5,
-}
-
 
 # TODO(karan): make the TestBench hashable
 class TestBench(SemanticVersionerMixin):
@@ -271,28 +253,26 @@ class TestBench(SemanticVersionerMixin):
         # TODO(karan): make this more general
         self._human_readable_identifiers()
 
-        data = []
-        for sl in self.slices:
-            row = {
-                "category_order": category_to_order[sl.category],
-                "category": category_to_label.get(
-                    sl.category, sl.category.capitalize()
-                ),
-                "slice_name": self.ident_mapping[sl.identifier],  # str(sl.identifier),
-                "Size": len(sl),
-            }
-            slice_metrics = model_metrics[sl.identifier]
-            row.update(slice_metrics)
-            data.append(row)
-            if metric_ids is None:
-                metric_ids = list(slice_metrics.keys())
+        # If metrics ids not specified, use sorted metric ids from one slice
+        if metric_ids is None:
+            sample_slice = list(self.slices)[0].identifier
+            metric_ids = list(model_metrics[sample_slice].keys())
+            sorted_metric_ids = sorted(
+                [
+                    metric_id
+                    for metric_id in metric_ids
+                    if metric_id not in ("class_dist", "pred_dist")
+                ]
+            )
+            if "class_dist" in metric_ids:
+                sorted_metric_ids.append("class_dist")
+            if "pred_dist" in metric_ids:
+                sorted_metric_ids.append("pred_dist")
+            metric_ids = sorted_metric_ids
 
-        df = pd.DataFrame(data)
-        df = df.sort_values(["category_order", "slice_name"])
-
+        # Populate columns
         columns = []
         for metric_id in metric_ids:
-            # TODO store these min and max values somewhere
             if metric_id in ("class_dist", "pred_dist"):
                 class_names = self.task.output_schema.features[
                     list(self.task.output_schema.keys())[0]
@@ -301,11 +281,38 @@ class TestBench(SemanticVersionerMixin):
                 if len(set(class_inits)) == len(class_inits):
                     columns.append(ClassDistributionColumn(metric_id, class_inits))
             else:
-                columns.append(ScoreColumn(metric_id, 0.0, 100.0))
-        # if self.task.classification() and
-        # columns.append(ClassDistributionColumn())
+                columns.append(
+                    ScoreColumn(metric_id, min_val=0, max_val=1, is_0_to_1=True)
+                )
         columns.append(NumericColumn("Size"))
-        # Aggregate: convert list of dicts -> dict with aggregated values
+
+        category_names = {
+            GENERIC: "Slice",
+            SUBPOPULATION: "SubPop",
+            ATTACK: "Attack",
+            AUGMENTATION: "Augment",
+            CURATION: "Eval",
+        }
+
+        # Populate data
+        data = []
+        for sl in self.slices:
+            slice_name = self.ident_mapping[sl.identifier]
+            slice_size = len(sl)
+            slice_category = category_names.get(sl.category, sl.category.capitalize())
+            row = []
+            row.append(slice_category)
+            row.append(slice_name)
+            if sl.identifier not in model_metrics:
+                raise ValueError(
+                    f"Metrics for model {model} and slice {sl.identifier} have not yet been computed."
+                )
+            slice_metrics = model_metrics[sl.identifier]
+            for metric_id in metric_ids:
+                row.append(slice_metrics[metric_id])
+            row.append(slice_size)
+            data.append(row)
+
         # TODO(karan): generalize aggregation
         # slice_metrics = tz.merge_with(np.mean, slice_metrics)
         # Task-dependent model predictions
@@ -314,7 +321,23 @@ class TestBench(SemanticVersionerMixin):
         # Task-dependent sl information
         # TODO(karan): e.g. class distribution
 
-        return Report(df, columns, model.identifier, self.dataset_id)
+        df = pd.DataFrame(data)
+
+        report = Report(
+            data=df,
+            columns=columns,
+            model_name=model.identifier,
+            dataset_name=self.dataset_id,
+        )
+        report.sort(
+            category_order=dict(
+                (cat, i)
+                for i, cat in enumerate(
+                    [SUBPOPULATION, AUGMENTATION, CURATION, ATTACK, GENERIC]
+                )
+            )
+        )
+        return report
 
     def set_schema(self, schema_type: str):
         assert schema_type in {"default", "task"}
@@ -448,7 +471,7 @@ class TestBench(SemanticVersionerMixin):
 
         # Load version info
         with open(str(savedir / "version.dill"), "rb") as f:
-            testbench._load_version(f.read())
+            testbench._loads_version(f.read())
 
         return testbench
 

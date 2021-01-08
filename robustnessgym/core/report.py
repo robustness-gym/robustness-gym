@@ -19,50 +19,199 @@ from plotly.subplots import make_subplots
 
 class ReportColumn:
     """A single column in the Robustness Report."""
-    def __init__(self, name: str):
-        self.name = name
+    def __init__(self, title: str):
+        self.title = title
+
+    def set_title(self, title: str):
+        self.title = title
 
 
 class ScoreColumn(ReportColumn):
     """A column for numeric scores in the Robustness Report, displayed as a bar
     chart."""
-    def __init__(self, name: str, min: float, max: float):
-        super(ScoreColumn, self).__init__(name)
-        self.min = min
-        self.max = max
+    def __init__(
+        self, title: str, min_val: float, max_val: float, is_0_to_1: bool = False
+    ):
+        super(ScoreColumn, self).__init__(title)
+        self.min_val = min_val
+        self.max_val = max_val
+        self.is_0_to_1 = is_0_to_1
+
+    def set_min(self, min_val: float):
+        self.min_val = min_val
+
+    def set_max(self, max_val: float):
+        self.max_val = max_val
 
 
 class ClassDistributionColumn(ReportColumn):
     """A column for discrete class distributions in the Robustness Report,
     displayed as a heatmap."""
-    def __init__(self, name: str, class_codes: List[str]):
-        super(ClassDistributionColumn, self).__init__(name)
+    def __init__(self, title: str, class_codes: List[str]):
+        super(ClassDistributionColumn, self).__init__(title)
+        self.class_codes = class_codes
+
+    def set_class_codes(self, class_codes: List[str]):
         self.class_codes = class_codes
 
 
 class NumericColumn(ReportColumn):
     """A column for numeric data in the Robustness Report, displayed as the raw
     value."""
-    def __init__(self, name: str):
-        super(NumericColumn, self).__init__(name)
+    def __init__(self, title: str):
+        super(NumericColumn, self).__init__(title)
 
 
 class Report:
-    """Class for Robustness Gym Report."""
+    """Class for Robustness Gym Report.
+    Args:
+        data: Pandas dataframe in the following format:
+            column 1: category name
+            column 2: slice name
+            columns 3-N: data corresponding to passed columns parameter
+        columns: ReportColumn objects specifying format of columns 3-N in data
+        model_name (optional): model name to show in report
+        dataset_name (optional): dataset name to show in report
+        **kwargs (optional): any additional config paramters
+    """
 
-    def __init__(self,
-                 data: pd.DataFrame,
-                 columns: List,
-                 model_name,
-                 dataset_name):
-        self.data = data
+    def __init__(
+        self,
+        data: pd.DataFrame,
+        columns: List[ReportColumn],
+        model_name: str = None,
+        dataset_name: str = None,
+        **kwargs,
+    ):
+
+        # Make a copy of data since may be modified by methods below
+        self.data = data.copy()
+
         self.columns = columns
         self.model_name = model_name
         self.dataset_name = dataset_name
 
-        self.score_colors = [
-            '#ec7734', '#3499ec', '#ec34c1', '#9cec34',
-        ]
+        self.config = {
+            "color_scheme": ["#ec7734", "#3499ec", "#ec34c1", "#9cec34"],
+            "score_color_complement": "#F3F4F7",
+            "text_fill_color": "#F3F4F7",
+            "text_border_color": "#BEC4CE",
+            "distribution_color_scale": [[0.0, "#FBF5F2"], [1.0, "#EC7734"]],
+            "col_spacing": 0.035,
+            "row_height": 24,
+            "category_padding": 24,
+            "header_padding": 80,
+            "score_col_width": 0.6,
+            "class_dist_col_width": 0.35,
+            "numeric_col_width": 0.25,
+            "layout_width": 960,
+            "font_size_dist": 12,
+            "font_size_data": 13,
+            "font_size_heading": 14,
+            "font_size_category": 14,
+        }
+
+        self.update_config(**kwargs)
+
+    @classmethod
+    def load(cls, path: str) -> Report:
+        obj = dill.load(open(path, "rb"))
+        assert isinstance(obj, Report), (
+            f"dill loaded an instance of {type(obj)}, " f"must load {cls.__name__}."
+        )
+        return obj
+
+    def sort(
+        self, category_order: Dict[str, int] = None, slice_order: Dict[str, int] = None
+    ):
+        """Sort rows in report by category / slice alphabetically, or using specified order.
+        Args:
+          category_order (optional): map from category name to sorting rank. If None, sort categories
+              alphabetically.
+          slice_order (optional): map from slice name to sorting rank. If None, sort slices alphabetically
+              (within a category).
+        """
+
+        if category_order is None:
+            category_order = {}
+
+        if slice_order is None:
+            slice_order = {}
+
+        for col_name in ["sort-order-category", "sort-order-slice"]:
+            if col_name in self.data:
+                raise ValueError(f"Column name '{col_name}' is reserved")
+
+        self.data["sort-order-category"] = self.data[0].map(
+            lambda x: (category_order.get(x, 2 ** 10000), x)
+        )
+        self.data["sort-order-slice"] = self.data[1].map(
+            lambda x: (slice_order.get(x, 2 ** 10000), x)
+        )
+
+        self.data = self.data.sort_values(
+            by=["sort-order-category", "sort-order-slice"]
+        ).drop(["sort-order-category", "sort-order-slice"], axis="columns")
+
+        self.data.reset_index(inplace=True, drop=True)
+
+    def filter(self, categories: List[str] = None, slices: List[str] = None):
+        """Filter report to specific categories AND slices
+        Args:
+          categories (optional): list of category names to filter by
+          slices (optional):list of slice names to filter by
+        """
+        if categories is not None:
+            # self.data = self.data.loc(self.data[0].isin(categories))
+            self.data = self.data[self.data[0].isin(categories)]
+        if slices is not None:
+            self.data = self.data[self.data[1].isin(slices)]
+        self.data.reset_index(inplace=True, drop=True)
+
+    def rename(self, category_map: Dict[str, str], slice_map: Dict[str, str]):
+        """Rename categories, slices
+        Args:
+            category_map (optional): map from old to new category name
+            slice_map (optional): map from old to new slice name
+        """
+        if category_map is not None:
+            self.data[0] = self.data[0].map(lambda x: category_map.get(x, x))
+        if slice_map is not None:
+            self.data[1] = self.data[1].map(lambda x: slice_map.get(x, x))
+
+    def set_class_codes(self, class_cds: List[str]):
+        """Set single-letter class codes used for class distribution columns"""
+        for col in self.columns:
+            if isinstance(col, ClassDistributionColumn):
+                col.set_class_codes(class_cds)
+
+    def set_model_name(self, model_name):
+        """Set model name displayed on report"""
+        self.model_name = model_name
+
+    def set_dataset_name(self, dataset_name):
+        """Set dataset name displayed on report"""
+        self.dataset_name = dataset_name
+
+    def set_range(self, col_title: str, min_val: float = None, max_val: float = None):
+        """Set min and max values for score columns
+        Args:
+            col_title: title of column to update
+            min_val: minimum value
+            max_val: maximum value
+        """
+        for col in self.columns:
+            if isinstance(col, ScoreColumn) and col.title == col_title:
+                if min_val is not None:
+                    col.min_val = min_val
+                if max_val is not None:
+                    col.max_val = max_val
+
+    def update_config(self, **kwargs):
+        for k, v in kwargs.items():
+            if k not in self.config:
+                raise ValueError(f"Invalid config param: '{k}'")
+            self.config[k] = v
 
     def round(self):
         # Round everything
@@ -78,144 +227,150 @@ class Report:
         return obj
 
     def save(self, path: str):
-        return dill.dump(self, open(path, 'wb'))
+        return dill.dump(self, open(path, "wb"))
 
-    def set_score_colors(self, colors: List[str]):
-        self.score_colors = colors
+    def figure(self, show_title=False) -> Figure:
 
-    def figures(self, show_title=False):
-
-        # TODO(karan): move this out to be configurable
-        score_colors = [self.score_colors[:i]
-                        for i in range(1, len(self.score_colors) + 1)]
-        # score_colors = [['#3499EC'],
-        #                 ['#EC7734', '#3499EC'],
-        #                 ['#EC7734', '#3499EC', '#ec34c1'],
-        #                 ['#EC7734', '#3499EC', '#ec34c1', '#9cec34'],
-        #                 ]
-        score_color_complement = '#F3F4F7'
-        text_fill_color = '#F3F4F7'
-        text_border_color = '#BEC4CE'
-        distribution_color_scale = [[0.0, '#FBF5F2'], [1.0, '#EC7734']]
-        col_spacing = 0.035
+        # Verify that rows are grouped by category
+        row_categories = self.data[0].tolist()
+        save_cat_groups = set()  # Previous category groupings already encountered
+        prev_cat = None
+        # Loop through each row and see if a category is encountered outside of first identified group for that category
+        for cat in row_categories:
+            if cat != prev_cat:  # category changes
+                if cat in save_cat_groups:  # if new category previously encountered
+                    raise ValueError("Rows must be grouped by category.")
+                prev_cat = cat
+                save_cat_groups.add(cat)
 
         categories = []
         category_sizes = []  # Num rows in each category
-        for category, group in itertools.groupby(self.data['category']):
+        for category, group in itertools.groupby(self.data[0]):  # column 0 is category
             categories.append(category)
             category_sizes.append(len(list(group)))
-        row_height = 24
-        category_padding = 24
-        header_padding = 80
         n_rows = sum(category_sizes)
-        height = n_rows * row_height + len(
-            categories) * category_padding + header_padding
+        height = (
+            n_rows * self.config["row_height"]
+            + len(categories) * self.config["category_padding"]
+            + self.config["header_padding"]
+        )
         col_widths = []
         for col in self.columns:
             if isinstance(col, ScoreColumn):
-                col_width = 0.6
+                col_width = self.config["score_col_width"]
             elif isinstance(col, ClassDistributionColumn):
-                col_width = 0.35
+                col_width = self.config["class_dist_col_width"]
             else:
-                col_width = 0.25
+                col_width = self.config["numeric_col_width"]
             col_widths.append(col_width)
 
-        fig_detail = make_subplots(
+        fig = make_subplots(
             rows=len(categories),
             row_titles=categories,
             cols=len(self.columns),
             shared_yaxes=True,
-            subplot_titles=[col.name.replace('_', ' ').title()
-                            for col in self.columns],
-            horizontal_spacing=col_spacing,
-            vertical_spacing=category_padding / height,
-            row_width=list(reversed(category_sizes)),  # ,
-            column_width=col_widths
+            subplot_titles=[col.title for col in self.columns],
+            horizontal_spacing=self.config["col_spacing"],
+            vertical_spacing=self.config["category_padding"] / height,
+            row_width=list(reversed(category_sizes)),
+            column_width=col_widths,
         )
-
-        summary_data = defaultdict(dict)
-        score_cols = [col for col in self.columns if isinstance(col, ScoreColumn)]
-        # n_scores = len(score_cols)
 
         hms = []
         coords = []
         category_ndx = 1
-        for category, category_data in self.data.groupby('category', sort=False):
+        # Group data by category
+        for category, category_data in self.data.groupby(0, sort=False):
             score_col_ndx = 0
-            slice_names = [s + '   ' for s in category_data['slice_name']]
-            for col_ndx, col in enumerate(self.columns, start=1):
-                x = category_data[col.name].tolist()
+            slice_names = category_data[1]
+            slice_names = [s + " " * 3 for s in slice_names]
+            for col_ndx, col in enumerate(self.columns):
+                df_col_ndx = (
+                    col_ndx + 2
+                )  # Dataframe has two leading columns with category, slice
+                fig_col_ndx = col_ndx + 1  # figure columns are 1-indexed
+                x = category_data[df_col_ndx].tolist()
                 if isinstance(col, ScoreColumn):
-                    # HACK
-                    if col.name.lower() in ('f1', 'accuracy', 'precision', 'recall') \
-                            or col.name.lower().startswith('rouge'):
+                    if col.is_0_to_1:
                         x = [100 * x_i for x_i in x]
-                    fig_detail.add_trace(
+                    col_max = col.max_val
+                    if col.is_0_to_1:
+                        col_max = 100 * col.max_val
+                    fig.add_trace(
                         go.Bar(
                             x=x,
                             y=slice_names,
-                            orientation='h',
-                            marker=dict(
-                                color=score_colors[len(score_cols) - 1][score_col_ndx]),
+                            orientation="h",
+                            marker=dict(color=self.get_color(score_col_ndx)),
                             showlegend=False,
-                            text=[f'{x_i:.1f}' for x_i in x],
-                            textposition='inside',
-                            width=.95,
-                            textfont=dict(color='white')
+                            text=[f"{x_i:.1f}" for x_i in x],
+                            textposition="inside",
+                            width=0.95,
+                            textfont=dict(color="white"),
                         ),
-                        row=category_ndx, col=col_ndx
+                        row=category_ndx,
+                        col=fig_col_ndx,
                     )
                     # Add marker for gray fill
-                    fig_detail.add_trace(
+                    fig.add_trace(
                         go.Bar(
-                            x=[col.max - x_i for x_i in x],
+                            x=[col_max - x_i for x_i in x],
                             y=slice_names,
-                            orientation='h',
-                            marker=dict(color=score_color_complement),
+                            orientation="h",
+                            marker=dict(color=self.config["score_color_complement"]),
                             showlegend=False,
-                            width=.9
+                            width=0.9,
                         ),
-                        row=category_ndx, col=col_ndx
+                        row=category_ndx,
+                        col=fig_col_ndx,
                     )
-                    # Accumulate summary statistics
-                    summary_data[col.name][category] = min(x)
                     score_col_ndx += 1
                 elif isinstance(col, ClassDistributionColumn):
-                    annotation_text = [[f"{int(round(z * 100)):d}" for z in rw] for rw
-                                       in x]
+                    annotation_text = [
+                        [f"{int(round(z * 100)):d}" for z in rw] for rw in x
+                    ]
                     hm = ff.create_annotated_heatmap(
-                        x, x=col.class_codes, xgap=1,
+                        x,
+                        x=col.class_codes,
+                        xgap=1,
                         ygap=1,
                         annotation_text=annotation_text,
-                        colorscale=distribution_color_scale,
-                        zmin=0, zmax=1
+                        colorscale=self.config["distribution_color_scale"],
+                        zmin=0,
+                        zmax=1,
                     )
                     hms.append(hm)
                     # Save annotation data for special code related to heatmaps at end
-                    coords.append(len(self.columns) * (category_ndx - 1) + col_ndx)
-                    fig_detail.add_trace(
+                    coords.append(len(self.columns) * (category_ndx - 1) + fig_col_ndx)
+                    fig.add_trace(
                         hm.data[0],
-                        row=category_ndx, col=col_ndx,
+                        row=category_ndx,
+                        col=fig_col_ndx,
                     )
                 elif isinstance(col, NumericColumn):
                     # Repurpose bar chart as text field.
-                    fig_detail.add_trace(
+                    fig.add_trace(
                         go.Bar(
                             x=[1] * len(x),
                             y=slice_names,
-                            orientation='h',
-                            marker=dict(color=text_fill_color,
-                                        line=dict(width=0, color=text_border_color)),
+                            orientation="h",
+                            marker=dict(
+                                color=self.config["text_fill_color"],
+                                line=dict(
+                                    width=0, color=self.config["text_border_color"]
+                                ),
+                            ),
                             showlegend=False,
                             text=[human_format(x_i) for x_i in x],
-                            textposition='inside',
-                            insidetextanchor='middle',
-                            width=.9
+                            textposition="inside",
+                            insidetextanchor="middle",
+                            width=0.9,
                         ),
-                        row=category_ndx, col=col_ndx
+                        row=category_ndx,
+                        col=fig_col_ndx,
                     )
                 else:
-                    raise ValueError('Invalid col type')
+                    raise ValueError("Invalid col type")
             category_ndx += 1
 
         for category_ndx in range(1, len(categories) + 1):
@@ -223,55 +378,71 @@ class Report:
                 show_x_axis = True
             else:
                 show_x_axis = False
-            for col_ndx, col in enumerate(self.columns, start=1):
-                fig_detail.update_yaxes(autorange='reversed', automargin=True)
+            for col_ndx, col in enumerate(self.columns):
+                fig_col_ndx = col_ndx + 1  # plotly cols are 1-indexed
+                fig.update_yaxes(autorange="reversed", automargin=True)
                 if isinstance(col, ScoreColumn):
-                    fig_detail.update_xaxes(range=[col.min, col.max], row=category_ndx,
-                                            col=col_ndx,
-                                            tickvals=[col.min, col.max],
-                                            showticklabels=show_x_axis)
-                elif isinstance(col, ClassDistributionColumn):
-                    fig_detail.update_xaxes(row=category_ndx, col=col_ndx,
-                                            showticklabels=show_x_axis)
-                elif isinstance(col, NumericColumn):
-                    fig_detail.update_xaxes(range=[0, 1], row=category_ndx, col=col_ndx,
-                                            showticklabels=False)
+                    if col.is_0_to_1:
+                        col_min, col_max = 100 * col.min_val, 100 * col.max_val
+                    else:
+                        col_min, col_max = col.min_val, col.max_val
 
-        fig_detail.update_layout(height=height,
-                                 width=960,
-                                 barmode='stack',
-                                 plot_bgcolor='rgba(0, 0, 0, 0)',
-                                 paper_bgcolor='rgba(0, 0, 0, 0)',
-                                 font=dict(size=13),
-                                 yaxis={'autorange': 'reversed'},
-                                 margin=go.layout.Margin(
-                                     # l=0,  # left margin
-                                     r=0,  # right margin
-                                     b=0,  # bottom margin
-                                     t=20  # top margin
-                                 )
-                                 )
+                    fig.update_xaxes(
+                        range=[col_min, col_max],
+                        row=category_ndx,
+                        col=fig_col_ndx,
+                        tickvals=[col_min, col_max],
+                        showticklabels=show_x_axis,
+                    )
+                elif isinstance(col, ClassDistributionColumn):
+                    fig.update_xaxes(
+                        row=category_ndx, col=fig_col_ndx, showticklabels=show_x_axis
+                    )
+                elif isinstance(col, NumericColumn):
+                    fig.update_xaxes(
+                        range=[0, 1],
+                        row=category_ndx,
+                        col=fig_col_ndx,
+                        showticklabels=False,
+                    )
+
+        fig.update_layout(
+            height=height,
+            width=self.config["layout_width"],
+            barmode="stack",
+            plot_bgcolor="rgba(0, 0, 0, 0)",
+            paper_bgcolor="rgba(0, 0, 0, 0)",
+            font=dict(size=self.config["font_size_data"]),
+            yaxis={"autorange": "reversed"},
+            margin=go.layout.Margin(
+                r=0, b=0, t=20  # right margin  # bottom margin  # top margin
+            ),
+        )
 
         # Use low-level plotly interface to update padding / font size
-        for a in fig_detail['layout']['annotations']:
+        for a in fig["layout"]["annotations"]:
             # If label for group
-            if a['text'] in categories:
-                a['x'] = .99  # Add padding
+            if a["text"] in categories:
+                a["x"] = 0.99  # Add padding
+                a["font"] = dict(size=self.config["font_size_category"])
             else:
-                a['font'] = dict(size=14)  # Adjust font size for non-category labels
+                a["font"] = dict(
+                    size=self.config["font_size_heading"]
+                )  # Adjust font size for non-category labels
 
-        # Due to a bug in plotly, need to do some special low-level coding
+        # Due to a quirk in plotly, need to do some special low-level coding
         # Code from https://community.plotly.com/t/how-to-create-annotated-heatmaps
         # -in-subplots/36686/25
-        newfont = [go.layout.Annotation(font_size=14)] * len(
-            fig_detail.layout.annotations)
+        newfont = [
+            go.layout.Annotation(font_size=self.config["font_size_heading"])
+        ] * len(fig.layout.annotations)
         fig_annots = [newfont] + [hm.layout.annotations for hm in hms]
         for col_ndx in range(1, len(fig_annots)):
             for k in range(len(fig_annots[col_ndx])):
                 coord = coords[col_ndx - 1]
-                fig_annots[col_ndx][k]['xref'] = f'x{coord}'
-                fig_annots[col_ndx][k]['yref'] = f'y{coord}'
-                fig_annots[col_ndx][k]['font_size'] = 11
+                fig_annots[col_ndx][k]["xref"] = f"x{coord}"
+                fig_annots[col_ndx][k]["yref"] = f"y{coord}"
+                fig_annots[col_ndx][k]["font_size"] = self.config["font_size_dist"]
 
         def recursive_extend(mylist, nr):
             # mylist is a list of lists
@@ -284,398 +455,35 @@ class Report:
             return result
 
         new_annotations = recursive_extend(fig_annots[::-1], len(fig_annots))
-        fig_detail.update_layout(annotations=new_annotations)
+        fig.update_layout(annotations=new_annotations)
 
-        # Generate summary figure
-        if len(categories) >= 3:
-            fig_summary = make_subplots(
-                rows=1,
-                cols=len(score_cols),
-                # subplot_titles=score_names,
-                specs=[[{'type': 'polar'}] * len(score_cols)],
-                horizontal_spacing=.2,
-                # column_width=[.35] * n_cols,
-            )
-            for i, col in enumerate(score_cols):
-                # TODO Convention for the baseline blank category
-                include_categories = [category for category in categories if
-                                      category != '']
-                category_scores = [summary_data[col.name][category] for category in
-                                   include_categories]
-                fig_summary.add_trace(go.Scatterpolar(
-                    name=col.name,
-                    r=category_scores,
-                    theta=include_categories,
-                    line=go.scatterpolar.Line(
-                        color=score_colors[len(score_cols) - 1][i])
-                ), 1, i + 1)
-            fig_summary.update_traces(fill='toself')
-            if show_title:
-                title = {
-                    'text': f"{self.dataset_name} {self.model_name} Robustness Report",
-                    'y': .98,
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'yanchor': 'top'}
-            else:
-                title = None
-            fig_summary.update_layout(height=330,
-                                      width=960,
-                                      margin=go.layout.Margin(
-                                          # l=0,  # left margin
-                                          # r=0,  # right margin
-                                          b=60,  # bottom margin
-                                          t=60  # top margin
-                                      ),
-                                      polar=dict(
-                                          radialaxis=dict(
-                                              visible=True,
-                                              range=[col.min, col.max]
-                                          )
-                                      ),
-                                      polar2=dict(
-                                          radialaxis=dict(
-                                              visible=True,
-                                              range=[col.min, col.max]
-                                          )
-                                      ),
-                                      polar3=dict(
-                                          radialaxis=dict(
-                                              visible=True,
-                                              range=[col.min, col.max]
-                                          )
-                                      ),
-                                      title=title
-                                      )
-
-            fig_summary.update_yaxes(automargin=True)
+        if show_title:
+            title = {
+                "text": f"{self.dataset_name or ''} {self.model_name or ''} Robustness Report",
+                "x": 0.5,
+                "xanchor": "center",
+            }
         else:
-            fig_summary = None
-            if show_title:
-                title = {
-                    'text': f"{self.dataset_name} {self.model_name} Robustness Report",
-                    # 'y': .98,
-                    'x': 0.5,
-                    'xanchor': 'center', }
-                # 'yanchor': 'top'
-            else:
-                title = None
-            fig_detail.update_layout(
-                title=title,
-                margin=go.layout.Margin(
-                    # l=0,  # left margin
-                    r=0,  # right margin
-                    b=0,  # bottom margin
-                    t=80  # top margin
-                )
-            )
+            title = None
+        fig.update_layout(
+            title=title,
+            margin=go.layout.Margin(
+                r=0, b=0, t=80  # right margin  # bottom margin  # top margin
+            ),
+        )
 
-        self._figures = fig_summary, fig_detail
-        return self._figures
+        return fig
 
-    def latex(self):
-        conf_to_latex = {}
-        refs = "TextAttack (Morris 2020), TextFooler (Jin 2019))"
-        conf_to_latex['iclr2021'] = f"""\
-\\section{{Appendix}}
-\\begin{{figure}}[h]
-\\begin{{center}}
-    \\includegraphics[width=\\linewidth]{{../images/robustness_gym_detail.pdf}}
-\\end{{center}}
-\\caption{{Robustness report for {self.model_name} model on {self.dataset_name}
-dataset. Summary view (top) shows the minimum score within each robustness category
-for each metric. Detail view (bottom) reports score for each robustness test,
-broken out by category. Tests include: {refs}}}. \\end{{figure}}"""
-        return conf_to_latex
-
-    def write_appendix(self, outdir):
-        reports_path = Path(__file__).parent.parent / 'reports'
-        shutil.copytree(reports_path / 'template', outdir)
-        image_path = outdir / 'images'
-        image_path.mkdir(parents=True, exist_ok=True)
-        fig_summary, fig_detail = self.figures(show_title=True)
-        if fig_summary is not None:
-            fig_summary.write_image(str(image_path / 'robustness_gym_summary.pdf'))
-        fig_detail.write_image(str(image_path / 'robustness_gym_detail.pdf'))
-        for conf_id, latex in self.latex().items():
-            with open(outdir / conf_id / 'robustness_gym_appendix.tex', 'w') as f:
-                f.write(latex)
+    def get_color(self, col_ndx):
+        return self.config["color_scheme"][col_ndx % len(self.config["color_scheme"])]
 
 
 def human_format(num):
-    num = float('{:.3g}'.format(num))
+    num = float("{:.3g}".format(num))
     magnitude = 0
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'),
-                         ['', 'K', 'M', 'B', 'T'][magnitude])
-
-# if __name__ == "__main__":
-#     # import streamlit as st
-#     test_data = True
-#     if test_data:
-#         data = [
-#             # First group
-#
-#             {'group': 'sub',  # Name of group
-#              'slice_name': [
-#                  'sub', 'abc', 'def', 'sfdfdfsdfsd'],  # Tests/slices for group
-#              'data': {  # Data, indexed by column name
-#                  'Rouge1': [.55, .23, .56, .56],
-#                  'Rouge2': [.45, .23, .78, .12],
-#                  'Precision': [.45, .11, .34, .12],
-#                  # 'Class %': [
-#                  #     [0.3, 0.4, 0.3]
-#                  # ],
-#                  # 'Pred. Class %': [
-#                  #     [0.27, 0.43, 0.3]
-#                  # ],
-#                  'Size': [1, 4, 9, 3]
-#              }
-#              },
-#             {'group': 'sudsfdsfsdfb',  # Name of group
-#              'slice_name': [
-#                  'sub', 'abc', 'def', 'sfdfdfsdfsd'],  # Tests/slices for group
-#              'data': {  # Data, indexed by column name
-#                  'Rouge1': [.55, .23, .56, .56],
-#                  'Rouge2': [.45, .23, .78, .12],
-#                  'Precision': [.45, .11, .34, .12],
-#                  # 'Class %': [
-#                  #     [0.3, 0.4, 0.3]
-#                  # ],
-#                  # 'Pred. Class %': [
-#                  #     [0.27, 0.43, 0.3]
-#                  # ],
-#                  'Size': [1, 4, 9, 3]
-#              }
-#              },
-#             {'group': 'curated',  # Name of group
-#              'slice_name': [
-#                  'cnn_dailymail(split=test[:10], version=3.0.0)-LengthSubpopulation('
-#                  'gte90%, lte100, reduction_fn=numpy.sum)()'[
-#                  :5], 'fdsfs'],  # Tests/slices for group
-#              'data': {  # Data, indexed by column name
-#                  'Rouge1': [.55, .34],
-#                  'Rouge2': [.45, .22],
-#                  'Precision': [.45, .11],
-#                  # 'Class %': [
-#                  #     [0.3, 0.4, 0.3]
-#                  # ],
-#                  # 'Pred. Class %': [
-#                  #     [0.27, 0.43, 0.3]
-#                  # ],
-#                  'Size': [1, 3]
-#              }
-#              },
-#
-#             # Second group, etc.
-#             # {'group': 'slice_name',
-#             #  'slice_name': ['Negation', 'Contains -ing', 'Temporal preposition',
-#             #  'Ends with verb', 'slice 5',
-#             #                 'slice 6', 'slice 7'],
-#             #  'data': {
-#             #      'Accuracy': [50, 40, 30, 20, 10, 30, 20],
-#             #      'F1': [20, 30, 10, 75, 80, 75, 80],
-#             #      'Precision': [20, 30, 10, 75, 80, 75, 80],
-#             #      'Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.2, 0.4, 0.4],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6]
-#             #      ],
-#             #      'Pred. Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.3, 0.4, 0.4],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #      ],
-#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-#             #  }
-#             #  },
-#             # {'group': 'Augmentations',
-#             #  'slice_name': ['Augmentation 1', 'Augmentation 2', 'Augmentation 3',
-#             #                 'Augmentation 4', 'Augmentation 5', 'Augmentation 6',
-#             #                 'Augmentation 7'],
-#             #  'data': {
-#             #      'Accuracy': [50, 40, 30, 20, 50, 20, 40],
-#             #      'F1': [50, 50, 60, 75, 80, 75, 80],
-#             #      'Precision': [50, 50, 60, 75, 80, 75, 80],
-#             #      'Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.1, 0.6, 0.3],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6]
-#             #      ],
-#             #      'Pred. Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.2, 0.5, 0.3],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6]
-#             #      ],
-#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-#             #  }
-#             #  },
-#             # {'group': 'TextAttack',
-#             #  'slice_name': ['Textfooler', 'Hotflip', 'Morpheus', 'Seq2Sick',
-#             #  'Hotflip 2',
-#             #                 'Morpheus 2', 'Seq2Sick 2'],
-#             #  'data': {
-#             #      'Accuracy': [50, 40, 30, 40, 40, 50, 70],
-#             #      'F1': [60, 50, 40, 75, 80, 40, 75, 80],
-#             #      'Precision': [60, 50, 40, 75, 80, 40, 75, 80],
-#             #      'Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.8, 0.1, 0.1],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #      ],
-#             #      'Pred. Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.3, 0.4, 0.2],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.1, 0.8],
-#             #          [0.1, 0.3, 0.6],
-#             #      ],
-#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-#             #  }
-#             #  },
-#             # {'group': 'Eval Sets',
-#             #  'slice_name': ['Eval set 1 dfsdf dsfsdf sdfdf fsfds ()[]100',
-#             #  'Eval set 2', 'Eval set 3', 'Eval set 4', 'Eval set 5',
-#             #                 'Eval set 6', 'Eval set 7'],
-#             #  'data': {
-#             #      'Accuracy': [50, 40, 30, 20, 10, 20, 10],
-#             #      'F1': [20, 30, 10, 75, 80, 10, 75, 80],
-#             #      'Precision': [20, 30, 10, 75, 80, 10, 75, 80],
-#             #      'Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.2, 0.6, 0.2],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #      ],
-#             #      'Pred. Class %': [
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.3, 0.5, 0.2],
-#             #          [0.4, 0.4, 0.2],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #          [0.1, 0.3, 0.6],
-#             #      ],
-#             #      'Size': [15216, 18812, 123, 4321, 1234567, 40000, 15216],
-#             #  }
-#             #  }
-#         ]
-#
-#         # cols = [
-#         #     {'type': 'score', 'name': 'Accuracy', 'min': 0, 'max': 100},
-#         #     {'type': 'distribution', 'name': 'Class %', 'class_codes': ['E', 'N',
-#         #     'C']},
-#         #     {'type': 'distribution', 'name': 'Pred. Class %', 'class_codes': ['E',
-#         #     'N', 'C']},
-#         #     {'type': 'text', 'name': 'Size'},
-#         # ]
-#
-#         cols = [
-#             ScoreColumn('Rouge1', 0, 100),
-#             ScoreColumn('Rouge2', 0, 100),
-#             # ClassDistributionColumn('Class %', ['E', 'N', 'C']),
-#             # ClassDistributionColumn('Pred. Class %', ['E', 'N', 'C']),
-#             NumericColumn('Size')
-#         ]
-#
-#         col_values = defaultdict(list)
-#         for row_ndx, row in enumerate(data):
-#             group_name = row['group']
-#             num_slices = None
-#             for col_ndx, col in enumerate(cols):
-#                 x = row['data'][col.name]
-#                 col_values[col.name].extend(x)
-#                 if num_slices is None:
-#                     num_slices = len(x)
-#                 else:
-#                     assert num_slices == len(x)
-#             col_values['category'].extend([group_name] * num_slices)
-#             col_values['slice_name'].extend(row['slice_name'])
-#
-#         df = pd.DataFrame(col_values,
-#                           columns=['category'] + ['slice_name'] + [col.name for col in
-#                                                                    cols])
-#         print(df)
-#         report = Report(df, cols, 'SNLI', 'BERT-Base')
-#         figure1, figure2 = report.figures()
-#         if figure1:
-#             figure1.show()
-#         figure2.show()
-#         figure2.write_image('testing2.png')
-#         print(report.latex)
-#     else:
-#         import robustnessgym as rg
-#
-#         model_identifier = 'huggingface/textattack/bert-base-uncased-snli'
-#         task = rg.TernaryNaturalLanguageInference()
-#         if model_identifier.split("/")[0] == 'huggingface':
-#             model = rg.Model.huggingface(
-#                 identifier="/".join(model_identifier.split("/")[1:]),
-#                 task=task,
-#             )
-#         else:
-#             raise NotImplementedError
-#
-#         # Create the test bench
-#         testbench = rg.TestBench(
-#             identifier='snli-nli-0.0.1dev',
-#             task=task,
-#             slices=[
-#                 rg.Slice.from_dataset(
-#                     identifier='snli-train',
-#                     dataset=rg.Dataset.load_dataset('snli',
-#                                                     split='train[:128]')).filter(
-#                     lambda example: example['label'] != -1),
-#                 rg.Slice.from_dataset(
-#                     identifier='snli-val',
-#                     dataset=rg.Dataset.load_dataset('snli',
-#                                                     split='validation[:128]')).filter(
-#                     lambda example: example['label'] != -1),
-#                 rg.Slice.from_dataset(
-#                     identifier='snli-test',
-#                     dataset=rg.Dataset.load_dataset('snli',
-#                                                     split='test[:128]')).filter(
-#                     lambda example: example['label'] != -1),
-#             ],
-#             dataset_id='snli'
-#         )
-#
-#         # Create the report
-#         report = testbench.create_report(model=model,
-#                                          coerce_fn=functools.partial(
-#                                              rg.Model.remap_labels,
-#                                              label_map=[1, 2, 0]), )
-#         figure1, figure2 = report.figures
-#         # if figure1:
-#         #     figure1.show()
-#         # figure2.show()
-#         figure2.write_image('testing2.png')
-#     # st.write(figure1)
-#     # st.write(figure2)
+    return "{}{}".format(
+        "{:f}".format(num).rstrip("0").rstrip("."), ["", "K", "M", "B", "T"][magnitude]
+    )
