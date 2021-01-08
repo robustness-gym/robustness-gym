@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import Callable, Collection, Dict, List, Optional, Union
+from typing import Callable, Collection, Dict, List, Optional, Union, Sequence
 
 import dill
 import pandas as pd
+import torch
 from fuzzywuzzy import process
 from tqdm import tqdm
 
@@ -16,6 +17,7 @@ from robustnessgym.core.constants import (
     GENERIC,
     SUBPOPULATION,
 )
+from robustnessgym.core.metrics import compute_metric
 from robustnessgym.core.model import Model
 from robustnessgym.core.report import (
     ClassDistributionColumn,
@@ -38,6 +40,7 @@ class TestBench(SemanticVersionerMixin):
         slices: Collection[Slice] = None,
         version: str = "0.0.1",
         dataset_id: str = None,
+        class_names: Collection[str] = None,
     ):
 
         # Call the superclass
@@ -67,6 +70,8 @@ class TestBench(SemanticVersionerMixin):
 
         self.dataset_id = dataset_id
 
+        self.class_names = class_names
+
     def digest(self) -> str:
         return json.dumps([str(sl) for sl in self.slices])
 
@@ -84,15 +89,16 @@ class TestBench(SemanticVersionerMixin):
         Returns:
         """
 
-        # Infer the task from the dataset
-        inferred_task = Task.lookup(dataset=dataset)()
-
-        # Check that the inferred task matches the task argument
-        if task is not None and task != inferred_task:
-            raise AssertionError(
-                f"Dataset {dataset} is only compatible with {inferred_task}, "
-                f"not {task}."
-            )
+        inferred_task = None
+        if task is not None:
+            # Infer the task from the dataset
+            inferred_task = Task.lookup(dataset=dataset)()
+            # Check that the inferred task matches the task argument
+            if task is not None and task != inferred_task:
+                raise AssertionError(
+                    f"Dataset {dataset} is only compatible with {inferred_task}, "
+                    f"not {task}."
+                )
 
         return TestBench(
             identifier=f"{dataset}-{task}-{version}",
@@ -181,22 +187,37 @@ class TestBench(SemanticVersionerMixin):
                 self._slice_table[sl.identifier] = sl
 
     def evaluate(
-        self, model: Model, batch_size: int = 32, coerce_fn: Callable = None
+        self,
+        model: Model,
+        batch_size: int = 32,
+        coerce_fn: Callable = None,
+        input_columns: List[str] = None,
+        output_columns: List[str] = None,
     ) -> Dict:
-        """Evaluate a model using the test bench.
+        """Evaluate a model using the test bench and cache results.
 
         Args:
             model: model to evaluate
             batch_size: batch size for inference
-            coerce_fn: function to coerce the model's outputs. Useful if the model's
-            outputs cannot directly be compared
-            to the targets.
+            coerce_fn: function to coerce the model's outputs. Useful if the model's outputs cannot directly be compared
+                to the targets.
+            input_columns: columns for input schema. Required if task is None.
+            output_columns: columns for output schema. Required if task is None.
 
         Returns: dict mapping slice identifiers to evaluation metrics.
         """
 
-        # Set the schema using the task
-        self.set_schema("task")
+        if self.task is None:
+            if input_columns is None or output_columns is None:
+                raise ValueError(
+                    "Input and output columns required when no task specified."
+                )
+        else:
+            # Set the schema using the task
+            # TODO Is the remapping required when not using a task
+            self.set_schema("task")
+            input_columns = self.task.input_schema.keys()
+            output_columns = self.task.output_schema.keys()
 
         # TODO(karan): Uncomment and fix this assert on the type of outputs that
         #  model(..) returns
@@ -223,37 +244,131 @@ class TestBench(SemanticVersionerMixin):
         for sl in tqdm(self.slices):
             if sl.identifier not in self.metrics[model.identifier]:
                 # Evaluate on the slice
+                # TODO Why not update existing results?
                 self.metrics[model.identifier][sl.identifier] = model.evaluate(
                     dataset=sl,
-                    input_columns=self.task.input_schema.keys(),
-                    output_columns=self.task.output_schema.keys(),
+                    input_columns=input_columns,
+                    output_columns=output_columns,
                     batch_size=batch_size,
                     coerce_fn=coerce_fn,
                 )
 
         return self.metrics[model.identifier]
 
+    def add_predictions(
+        self,
+        model: Union[Model, str],
+        predictions: Dict[str, Union[Sequence, torch.Tensor]],
+        output_columns: List[str] = None,
+        num_classes=None,
+        metrics: List[str] = None,
+    ) -> Dict:
+        """Compute and cache metrics for pre-computed model predictions
+        Args:
+            model: Model or model id
+            predictions: Map from slice id to sequence or torch Tensor of predictions
+            metric (optional): list of metrics. If None, use the metrics specified in the task.
+            output_columns (optional): names of output columns. Required if testbench does not have associated task.
+            num_classes (optional): number of classes. Required if testbench does not have associated task.
+        Returns: computed metrics
+        """
+
+        if self.task is None:
+            if output_columns is None:
+                raise ValueError(
+                    "'output_columns' is required if testbench does not have associated task."
+                )
+            if num_classes is None:
+                raise ValueError(
+                    "'num_classes' is required if testbench does not have associated task."
+                )
+            if metrics is None:
+                raise ValueError(
+                    "'metrics' is required if testbench does not have associated task."
+                )
+        else:
+            output_columns = self.task.output_schema.keys()
+            num_classes = self.task.output_schema.features[
+                list(self.task.output_schema.keys())[0]
+            ].num_classes
+            if self.task.classification():
+                assert len(output_columns) == 1  # , "Only supports classification."
+            if metrics is None:
+                metrics = self.task.metrics
+
+        if len(output_columns) > 1:
+            raise NotImplementedError("Only single output column supported")
+
+        if isinstance(model, Model):
+            model = model.identifier
+        if model not in self.metrics:
+            self.metrics[model] = {}
+        for sl in tqdm(self.slices):
+            if sl.identifier not in self.metrics[model]:
+                # Evaluate on the slice
+                # TODO Why not update existing results?
+                # slice_predictions = predictions[sl.identifier]
+                evaluation_dict = {}
+                # Temporarily expose prediction columns
+                # sl.set_format(columns=output_columns()
+                # slice_predictions = predictions[sl.identifier]
+                # TODO Optimize
+                # labels = list(zip(*[sl[col] for col in output_columns]))
+                labels = sl[output_columns[0]]
+                for metric in metrics:
+                    evaluation_dict[metric] = compute_metric(
+                        metric=metric,
+                        predictions=predictions[sl.identifier],
+                        labels=labels,
+                        num_classes=num_classes,
+                    )
+                # sl.reset_format()
+                self.metrics[model][sl.identifier] = evaluation_dict
+
+        return evaluation_dict
+
+    def add_metrics(self, model: Union[Model, str], metrics: Dict[str, float]):
+        """Cache pre-computed metrics for model
+        Args:
+            model: Model or model id.
+            metrics: map from metric name to value
+        """
+        if isinstance(model, Model):
+            model = model.identifier
+        self.metrics[model] = metrics
+
     def create_report(
         self,
-        model: Model,
-        batch_size: int = 32,
-        coerce_fn: Callable = None,
+        model: Union[Model, str],
         metric_ids: List[str] = None,
     ) -> Report:
-        """Generate a report for a model."""
+        """Generate report from cached metrics for a model
+        Args:
+            model: Model or model id. Metrics must have already been computed for this model.
+            metric_ids (optional): list of metric ids to include in desired order. If None, take metrics from
+             sample slice.
+        Returns:
+            report
+        """
 
-        # Grab the metrics
-        # TODO(karan): ask the model to return side-information (probs, logits,
-        #  embeddings)
-        model_metrics = self.evaluate(
-            model=model, batch_size=batch_size, coerce_fn=coerce_fn
-        )
+        if len(self.slices) == 0:
+            raise ValueError("Cannot create report for empty testbench")
 
-        # Create a consolidated "report"
-        # TODO(karan): make this more general
+        if isinstance(model, Model):
+            model = model.identifier
+        if model not in self.metrics:
+            raise ValueError(
+                f"Metrics for model {model} have not been computed yet. You must first execute one of "
+                "the following methods for this model: 'evaluate', 'add_predictions', 'add_metrics'"
+            )
+
+        # TODO(Jesse): Need a category for test set
+
+        model_metrics = self.metrics[model]
+
+        # TODO(Jesse): where to put this? Should only need to be called once
         self._human_readable_identifiers()
 
-        # If metrics ids not specified, use sorted metric ids from one slice
         if metric_ids is None:
             sample_slice = list(self.slices)[0].identifier
             metric_ids = list(model_metrics[sample_slice].keys())
@@ -274,12 +389,14 @@ class TestBench(SemanticVersionerMixin):
         columns = []
         for metric_id in metric_ids:
             if metric_id in ("class_dist", "pred_dist"):
-                class_names = self.task.output_schema.features[
-                    list(self.task.output_schema.keys())[0]
-                ].names
-                class_inits = [name[0].upper() for name in class_names]
-                if len(set(class_inits)) == len(class_inits):
-                    columns.append(ClassDistributionColumn(metric_id, class_inits))
+                if self.task is None:
+                    class_cds = None
+                else:
+                    class_names = self.task.output_schema.features[
+                        list(self.task.output_schema.keys())[0]
+                    ].names
+                    class_cds = [name[0].upper() for name in class_names]
+                columns.append(ClassDistributionColumn(metric_id, class_cds))
             else:
                 columns.append(
                     ScoreColumn(metric_id, min_val=0, max_val=1, is_0_to_1=True)
@@ -324,10 +441,7 @@ class TestBench(SemanticVersionerMixin):
         df = pd.DataFrame(data)
 
         report = Report(
-            data=df,
-            columns=columns,
-            model_name=model.identifier,
-            dataset_name=self.dataset_id,
+            data=df, columns=columns, model_name=model, dataset_name=self.dataset_id
         )
         report.sort(
             category_order=dict(

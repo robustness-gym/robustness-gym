@@ -16,6 +16,7 @@ from transformers import (
 )
 
 from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.metrics import compute_metric
 from robustnessgym.tasks.task import Task
 
 
@@ -27,6 +28,7 @@ class Model:
         model=None,
         evaluation_fn=None,
         device: str = None,
+        is_classifier: bool = None,
     ):
 
         # TODO(karan): improve this wrapper around models
@@ -38,7 +40,13 @@ class Model:
         if evaluation_fn is not None:
             self.evaluate = evaluation_fn
 
-        if self.task.classification():
+        if self.task is None:
+            if is_classifier is None:
+                raise ValueError("'is_classifier' required when task not passed")
+        else:
+            is_classifier = self.task.classification()
+
+        if is_classifier:
             self.outputs = {
                 "probs",
                 "logits",
@@ -89,9 +97,10 @@ class Model:
     def huggingface(
         cls,
         identifier: str,
-        task: Task,
+        task: Task = None,
         model: Optional[AutoModel] = None,
         tokenizer: Optional[AutoTokenizer] = None,
+        is_classifier=None,
     ):
         """
 
@@ -112,7 +121,11 @@ class Model:
         """
 
         return HuggingfaceModel(
-            identifier=identifier, task=task, model=model, tokenizer=tokenizer
+            identifier=identifier,
+            task=task,
+            model=model,
+            tokenizer=tokenizer,
+            is_classifier=is_classifier,
         )
 
     def forward(self, input_batch: Dict) -> Dict:
@@ -157,16 +170,15 @@ class HuggingfaceModel(Model):
     def __init__(
         self,
         identifier: str,
-        task: Task,
+        task: Task = None,
         model: Optional[AutoModel] = None,
         tokenizer: Optional[AutoTokenizer] = None,
         device: str = None,
+        is_classifier=None,
     ):
 
         super(HuggingfaceModel, self).__init__(
-            identifier=identifier,
-            task=task,
-            device=device,
+            identifier=identifier, task=task, device=device, is_classifier=is_classifier
         )
 
         self.tokenizer = tokenizer
@@ -177,7 +189,12 @@ class HuggingfaceModel(Model):
         self.model = model
         if model is None:
             # Load the model
-            if task.classification():
+            if self.task is None:
+                if is_classifier is None:
+                    raise ValueError("'is_classifier' required when task not specified")
+            else:
+                is_classifier = self.task.classification()
+            if is_classifier:
                 self.model = AutoModelForSequenceClassification.from_pretrained(
                     self.identifier
                 )
@@ -256,6 +273,7 @@ class HuggingfaceModel(Model):
         input_columns: List[str],
         output_columns: List[str],
         batch_size: int = 32,
+        metrics: List[str] = None,
         coerce_fn: Callable = None,
     ):
 
@@ -327,63 +345,20 @@ class HuggingfaceModel(Model):
 
         labels = targets[list(targets.keys())[0]]
 
-        # TODO(karan): make this easier
-        # TODO(karan): move to the right device
-        evaluation_dict = {}
-        for metric in self.task.metrics:
-            if metric == "accuracy":
-                # Calculate the accuracy
-                evaluation_dict[metric] = lightning_metrics.accuracy(
-                    pred=predictions["pred"].to(self.device),
-                    target=labels.to(self.device),
-                    num_classes=num_classes,
-                ).item()
-
-            elif metric == "f1":
-                # Calculate the f1
-                evaluation_dict[metric] = lightning_metrics.f1_score(
-                    pred=predictions["pred"].to(self.device),
-                    target=labels.to(self.device),
-                    num_classes=num_classes,
-                ).item()
-
-            elif metric in ("rouge1", "rouge2", "rougeLsum"):
-                if metric == "rouge1":
-                    metric_name = "Rouge-1"
-                elif metric == "rouge2":
-                    metric_name = "Rouge-2"
-                else:
-                    metric_name = "Rouge-L"
-                scorer = rouge_scorer.RougeScorer([metric], use_stemmer=True)
-                evaluation_dict[metric_name] = statistics.mean(
-                    scorer.score(format_summary(reference), format_summary(pred))[
-                        metric
-                    ].fmeasure
-                    for reference, pred in zip(labels, predictions["pred"])
+        if metrics is None:
+            if self.task is None:
+                raise ValueError(
+                    "Must specify metrics if model not associated with task"
                 )
+            metrics = self.task.metrics
 
-            elif metric == "class_dist":
-                # Calculate class distribution
-                evaluation_dict[metric] = (
-                    lightning_metrics.to_onehot(tensor=labels, num_classes=num_classes)
-                    .double()
-                    .mean(dim=0)
-                    .tolist()
-                )
+        pred = predictions["pred"].to(self.device)
+        target = labels.to(self.device)
 
-            elif metric == "pred_dist":
-                # Calculate predicted class distribution
-                evaluation_dict[metric] = (
-                    lightning_metrics.to_onehot(
-                        tensor=predictions["pred"], num_classes=num_classes
-                    )
-                    .double()
-                    .mean(dim=0)
-                    .tolist()
-                )
-
-            else:
-                raise NotImplementedError
+        evaluation_dict = {
+            metric: compute_metric(metric, pred, target, num_classes)
+            for metric in metrics
+        }
 
         # Reset the data format
         dataset.reset_format()
