@@ -19,10 +19,10 @@ def compute_metric(
     """Compute metric given predictions and target labels
     Args:
         metric: name of metric
-        predictions: A sequence of predictions (rouge metrics) or a torch Tensor (other metrics) containing
-            predictions
-        labels: A sequence of labels (rouge metrics) or a torch Tensor (other metrics) containing target
-            labels
+        predictions: A sequence of predictions (rouge metrics) or a torch Tensor
+        (other metrics) containing predictions
+        labels: A sequence of labels (rouge metrics) or a torch Tensor (other metrics)
+        containing target labels
         num_classes: number of classes
     """
 

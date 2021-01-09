@@ -1,24 +1,21 @@
 from __future__ import annotations
 
 import itertools
-import shutil
-from collections import defaultdict
 from functools import partial
-from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 import dill
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+from plotly.graph_objs import Figure
 from plotly.subplots import make_subplots
-
-# fmt: off
 
 
 class ReportColumn:
     """A single column in the Robustness Report."""
+
     def __init__(self, title: str):
         self.title = title
 
@@ -29,6 +26,7 @@ class ReportColumn:
 class ScoreColumn(ReportColumn):
     """A column for numeric scores in the Robustness Report, displayed as a bar
     chart."""
+
     def __init__(
         self, title: str, min_val: float, max_val: float, is_0_to_1: bool = False
     ):
@@ -47,6 +45,7 @@ class ScoreColumn(ReportColumn):
 class ClassDistributionColumn(ReportColumn):
     """A column for discrete class distributions in the Robustness Report,
     displayed as a heatmap."""
+
     def __init__(self, title: str, class_codes: List[str]):
         super(ClassDistributionColumn, self).__init__(title)
         self.class_codes = class_codes
@@ -58,6 +57,7 @@ class ClassDistributionColumn(ReportColumn):
 class NumericColumn(ReportColumn):
     """A column for numeric data in the Robustness Report, displayed as the raw
     value."""
+
     def __init__(self, title: str):
         super(NumericColumn, self).__init__(title)
 
@@ -113,23 +113,17 @@ class Report:
 
         self.update_config(**kwargs)
 
-    @classmethod
-    def load(cls, path: str) -> Report:
-        obj = dill.load(open(path, "rb"))
-        assert isinstance(obj, Report), (
-            f"dill loaded an instance of {type(obj)}, " f"must load {cls.__name__}."
-        )
-        return obj
-
     def sort(
         self, category_order: Dict[str, int] = None, slice_order: Dict[str, int] = None
     ):
-        """Sort rows in report by category / slice alphabetically, or using specified order.
+        """Sort rows in report by category / slice alphabetically, or using
+        specified order.
+
         Args:
-          category_order (optional): map from category name to sorting rank. If None, sort categories
-              alphabetically.
-          slice_order (optional): map from slice name to sorting rank. If None, sort slices alphabetically
-              (within a category).
+          category_order (optional): map from category name to sorting rank. If None,
+          sort categories alphabetically.
+          slice_order (optional): map from slice name to sorting rank. If None, sort
+          slices alphabetically (within a category).
         """
 
         if category_order is None:
@@ -180,17 +174,18 @@ class Report:
             self.data[1] = self.data[1].map(lambda x: slice_map.get(x, x))
 
     def set_class_codes(self, class_cds: List[str]):
-        """Set single-letter class codes used for class distribution columns"""
+        """Set single-letter class codes used for class distribution
+        columns."""
         for col in self.columns:
             if isinstance(col, ClassDistributionColumn):
                 col.set_class_codes(class_cds)
 
     def set_model_name(self, model_name):
-        """Set model name displayed on report"""
+        """Set model name displayed on report."""
         self.model_name = model_name
 
     def set_dataset_name(self, dataset_name):
-        """Set dataset name displayed on report"""
+        """Set dataset name displayed on report."""
         self.dataset_name = dataset_name
 
     def set_range(self, col_title: str, min_val: float = None, max_val: float = None):
@@ -221,9 +216,10 @@ class Report:
 
     @classmethod
     def load(cls, path: str) -> Report:
-        obj = dill.load(open(path, 'rb'))
-        assert isinstance(obj, Report), f"dill loaded an instance of {type(obj)}, " \
-                                        f"must load {cls.__name__}."
+        obj = dill.load(open(path, "rb"))
+        assert isinstance(obj, Report), (
+            f"dill loaded an instance of {type(obj)}, " f"must load {cls.__name__}."
+        )
         return obj
 
     def save(self, path: str):
@@ -235,7 +231,8 @@ class Report:
         row_categories = self.data[0].tolist()
         save_cat_groups = set()  # Previous category groupings already encountered
         prev_cat = None
-        # Loop through each row and see if a category is encountered outside of first identified group for that category
+        # Loop through each row and see if a category is encountered outside of first
+        # identified group for that category
         for cat in row_categories:
             if cat != prev_cat:  # category changes
                 if cat in save_cat_groups:  # if new category previously encountered
@@ -285,9 +282,8 @@ class Report:
             slice_names = category_data[1]
             slice_names = [s + " " * 3 for s in slice_names]
             for col_ndx, col in enumerate(self.columns):
-                df_col_ndx = (
-                    col_ndx + 2
-                )  # Dataframe has two leading columns with category, slice
+                df_col_ndx = col_ndx + 2
+                # Dataframe has two leading columns with category, slice
                 fig_col_ndx = col_ndx + 1  # figure columns are 1-indexed
                 x = category_data[df_col_ndx].tolist()
                 if isinstance(col, ScoreColumn):
@@ -459,7 +455,8 @@ class Report:
 
         if show_title:
             title = {
-                "text": f"{self.dataset_name or ''} {self.model_name or ''} Robustness Report",
+                "text": f"{self.dataset_name or ''} {self.model_name or ''} "
+                f"Robustness Report",
                 "x": 0.5,
                 "xanchor": "center",
             }

@@ -1,13 +1,10 @@
 import itertools
 import re
-import statistics
 from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
 import nltk
-import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
-from rouge_score import rouge_scorer
 from transformers import (
     AutoModel,
     AutoModelForSeq2SeqLM,

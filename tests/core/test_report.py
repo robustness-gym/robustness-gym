@@ -11,9 +11,6 @@ from robustnessgym.core.report import (
 )
 
 
-# isort: skip_file
-
-
 class TestReport(TestCase):
     def setUp(self):
         self.cols = [

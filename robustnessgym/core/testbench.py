@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import Callable, Collection, Dict, List, Optional, Union, Sequence
+from typing import Callable, Collection, Dict, List, Optional, Sequence, Union
 
 import dill
 import pandas as pd
@@ -199,8 +199,8 @@ class TestBench(SemanticVersionerMixin):
         Args:
             model: model to evaluate
             batch_size: batch size for inference
-            coerce_fn: function to coerce the model's outputs. Useful if the model's outputs cannot directly be compared
-                to the targets.
+            coerce_fn: function to coerce the model's outputs. Useful if the model's
+            outputs cannot directly be compared to the targets.
             input_columns: columns for input schema. Required if task is None.
             output_columns: columns for output schema. Required if task is None.
 
@@ -267,20 +267,25 @@ class TestBench(SemanticVersionerMixin):
         Args:
             model: Model or model id
             predictions: Map from slice id to sequence or torch Tensor of predictions
-            metric (optional): list of metrics. If None, use the metrics specified in the task.
-            output_columns (optional): names of output columns. Required if testbench does not have associated task.
-            num_classes (optional): number of classes. Required if testbench does not have associated task.
+            metric (optional): list of metrics. If None, use the metrics specified in
+            the task.
+            output_columns (optional): names of output columns. Required if testbench
+            does not have associated task.
+            num_classes (optional): number of classes. Required if testbench does not
+            have associated task.
         Returns: computed metrics
         """
 
         if self.task is None:
             if output_columns is None:
                 raise ValueError(
-                    "'output_columns' is required if testbench does not have associated task."
+                    "'output_columns' is required if testbench does not have "
+                    "associated task."
                 )
             if num_classes is None:
                 raise ValueError(
-                    "'num_classes' is required if testbench does not have associated task."
+                    "'num_classes' is required if testbench does not have associated "
+                    "task."
                 )
             if metrics is None:
                 raise ValueError(
@@ -344,9 +349,10 @@ class TestBench(SemanticVersionerMixin):
     ) -> Report:
         """Generate report from cached metrics for a model
         Args:
-            model: Model or model id. Metrics must have already been computed for this model.
-            metric_ids (optional): list of metric ids to include in desired order. If None, take metrics from
-             sample slice.
+            model: Model or model id. Metrics must have already been computed for
+            this model.
+            metric_ids (optional): list of metric ids to include in desired order.
+            If None, take metrics from sample slice.
         Returns:
             report
         """
@@ -358,8 +364,10 @@ class TestBench(SemanticVersionerMixin):
             model = model.identifier
         if model not in self.metrics:
             raise ValueError(
-                f"Metrics for model {model} have not been computed yet. You must first execute one of "
-                "the following methods for this model: 'evaluate', 'add_predictions', 'add_metrics'"
+                f"Metrics for model {model} have not been computed yet."
+                f" You must first execute one of "
+                "the following methods for this model: 'evaluate', "
+                "'add_predictions', 'add_metrics'"
             )
 
         # TODO(Jesse): Need a category for test set
@@ -422,7 +430,8 @@ class TestBench(SemanticVersionerMixin):
             row.append(slice_name)
             if sl.identifier not in model_metrics:
                 raise ValueError(
-                    f"Metrics for model {model} and slice {sl.identifier} have not yet been computed."
+                    f"Metrics for model {model} and slice {sl.identifier}"
+                    f"have not yet been computed."
                 )
             slice_metrics = model_metrics[sl.identifier]
             for metric_id in metric_ids:

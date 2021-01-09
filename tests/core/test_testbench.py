@@ -1,19 +1,16 @@
-"""Unittests for TestBench"""
+"""Unittests for TestBench."""
 
 import functools
 from unittest import TestCase, skip
 
 import torch
 
-from robustnessgym import Dataset, TestBench, Slice, Task
+from robustnessgym import Dataset, Slice, Task, TestBench
 from robustnessgym.core.model import Model
 
 
-# fmt: off
-
-
 class TestTestbench(TestCase):
-    #TODO add NLG test cases
+    # TODO add NLG test cases
 
     @skip("Long-running test")
     def test_evaluate(self):
@@ -29,14 +26,11 @@ class TestTestbench(TestCase):
         self.assertIn(model.identifier, testbench.metrics)
         self.assertSetEqual(
             set(testbench.metrics[model.identifier].keys()),
-            set(sl.identifier for sl in testbench.slices)
+            set(sl.identifier for sl in testbench.slices),
         )
         for sl in testbench.slices:
             eval_dict = testbench.metrics[model.identifier][sl.identifier]
-            self.assertSetEqual(
-                set(eval_dict.keys()),
-                set(testbench.task.metrics)
-            )
+            self.assertSetEqual(set(eval_dict.keys()), set(testbench.task.metrics))
             for value in eval_dict.values():
                 self.assertIsNotNone(value)
 
@@ -44,7 +38,8 @@ class TestTestbench(TestCase):
 
         testbench = self._get_testbench()
         model = self._get_model(is_classifier=True)
-        # Check that it raises exception if input_columns, output_columns not specified in absence of task
+        # Check that it raises exception if input_columns,
+        # output_columns not specified in absence of task
         self.assertRaises(
             ValueError,
             testbench.evaluate,
@@ -58,34 +53,26 @@ class TestTestbench(TestCase):
         testbench.evaluate(
             model=model,
             coerce_fn=functools.partial(Model.remap_labels, label_map=[1, 2, 0]),
-            input_columns=['sentence1', 'sentence2'],
-            output_columns=['label']
+            input_columns=["sentence1", "sentence2"],
+            output_columns=["label"],
         )
         self.assertIn(model.identifier, testbench.metrics)
         self.assertSetEqual(
             set(testbench.metrics[model.identifier].keys()),
-            set(sl.identifier for sl in testbench.slices)
+            set(sl.identifier for sl in testbench.slices),
         )
         for sl in testbench.slices:
             eval_dict = testbench.metrics[model.identifier][sl.identifier]
-            self.assertSetEqual(
-                set(eval_dict.keys()),
-                set(testbench.task.metrics)
-            )
+            self.assertSetEqual(set(eval_dict.keys()), set(testbench.task.metrics))
             for value in eval_dict.values():
                 self.assertIsNotNone(value)
 
     @skip("Long-running test")
     def test_add_metrics(self):
         testbench = self._get_testbench()
-        metrics = {
-            'snli_1': {'f1': 0.1, 'accuracy': 0.3}
-        }
-        testbench.add_metrics(
-            'bert',
-            metrics
-        )
-        self.assertEqual(testbench.metrics['bert'], metrics)
+        metrics = {"snli_1": {"f1": 0.1, "accuracy": 0.3}}
+        testbench.add_metrics("bert", metrics)
+        self.assertEqual(testbench.metrics["bert"], metrics)
 
     @skip("Long-running test")
     def test_add_predictions(self):
@@ -97,13 +84,13 @@ class TestTestbench(TestCase):
         for sl in testbench.slices:
             predictions[sl.identifier] = torch.randint(high=3, size=(len(sl),))
 
-        testbench.add_predictions(
-            model=model,
-            predictions=predictions
-        )
+        testbench.add_predictions(model=model, predictions=predictions)
 
         self.assertIn(model, testbench.metrics)
-        self.assertSetEqual(set(testbench.metrics[model].keys()), set(sl.identifier for sl in testbench.slices))
+        self.assertSetEqual(
+            set(testbench.metrics[model].keys()),
+            set(sl.identifier for sl in testbench.slices),
+        )
         for sl in testbench.slices:
             eval_dict = testbench.metrics[model][sl.identifier]
             self.assertSetEqual(set(eval_dict.keys()), set(testbench.task.metrics))
@@ -122,7 +109,6 @@ class TestTestbench(TestCase):
         report = testbench.create_report(model)
         fig = report.figure()
         self.assertIsNotNone(fig)
-
 
     @skip("Manual test")
     def test_display_report(self):
@@ -146,10 +132,7 @@ class TestTestbench(TestCase):
         predictions = {}
         for sl in testbench.slices:
             predictions[sl.identifier] = torch.randint(high=3, size=(len(sl),))
-        testbench.add_predictions(
-            model="bert-base",
-            predictions=predictions
-        )
+        testbench.add_predictions(model="bert-base", predictions=predictions)
         report = testbench.create_report("bert-base")
         fig = report.figure()
         fig.show()
@@ -157,15 +140,12 @@ class TestTestbench(TestCase):
         # Create report using add_metrics
         testbench = self._get_testbench()
         metrics = {
-            'snli_1': {'f1': 0.1, 'accuracy': 0.1},
-            'snli_2': {'f1': 0.5, 'accuracy': 0.5},
-            'snli_3': {'f1': 0.9, 'accuracy': 0.4}
+            "snli_1": {"f1": 0.1, "accuracy": 0.1},
+            "snli_2": {"f1": 0.5, "accuracy": 0.5},
+            "snli_3": {"f1": 0.9, "accuracy": 0.4},
         }
-        testbench.add_metrics(
-            model,
-            metrics
-        )
-        report = testbench.create_report(model, metric_ids=['f1', 'accuracy'])
+        testbench.add_metrics(model, metrics)
+        report = testbench.create_report(model, metric_ids=["f1", "accuracy"])
         fig = report.figure()
         fig.show()
 
@@ -179,10 +159,7 @@ class TestTestbench(TestCase):
         # TODO have a proper mock model
         # Create model
         model_identifier = "textattack/bert-base-uncased-snli"
-        model = Model.huggingface(
-            identifier=model_identifier,
-            **kwargs
-        )
+        model = Model.huggingface(identifier=model_identifier, **kwargs)
         return model
 
     def _get_testbench(self, task=None):
