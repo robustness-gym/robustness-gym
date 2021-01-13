@@ -22,6 +22,9 @@ class TestConstituencyOverlap(TestCase):
         cos = ConstituencyOverlapSubpopulation(
             intervals=[(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)]
         )
+        print(self.testbed.dataset[:])
+        print(len(self.testbed.dataset), self.testbed.dataset)
+        print(cos.score(self.testbed.dataset[:], columns=["text_a", "text_b"]))
         self.assertTrue(
             np.allclose(
                 cos.score(self.testbed.dataset[:], columns=["text_a", "text_b"]),

@@ -26,18 +26,22 @@ class Identifier:
 
     @property
     def name(self):
+        """Base name."""
         return self._name
 
     @property
     def index(self):
+        """Index associated with the identifier."""
         return self._index
 
     @property
     def parameters(self):
+        """Additional parameters contained in the identifier."""
         return self._parameters
 
     @classmethod
     def range(cls, n: int, _name: str, **kwargs) -> List[Identifier]:
+        """Create a list of identifiers, with index varying from 1 to `n`."""
 
         if n > 1:
             return [cls(_name=_name, _index=i, **kwargs) for i in range(1, n + 1)]
@@ -56,14 +60,16 @@ class Identifier:
     def __hash__(self):
         return persistent_hash(str(self))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Union[Identifier, str]):
         return str(self) == str(other)
 
     def dumps(self):
+        """Dump the identifier to JSON."""
         return json.dumps(self.__dict__)
 
     @classmethod
     def loads(cls, s: str):
+        """Load the identifier from JSON."""
         identifier = Identifier(_name="")
         identifier.__dict__ = json.loads(s)
         return identifier

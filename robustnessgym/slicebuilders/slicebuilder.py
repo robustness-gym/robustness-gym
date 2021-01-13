@@ -384,7 +384,6 @@ class SliceBuilder(StorageMixin):
                     for batch in dataset.batch(batch_size)
                 ]
             )
-
             # Update the dataset efficiently by reusing all_batches
             dataset = dataset.map(
                 lambda examples, indices: all_batches[indices[0] // batch_size],

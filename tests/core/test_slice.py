@@ -14,7 +14,7 @@ class TestSlice(TestCase):
         sl = Slice.from_dataset(self.testbed.dataset)
         # Compare the slice identifier
         self.assertEqual(
-            str(sl), "Slice[category: curated, num_rows: 6](MockDataset(version=1.0))"
+            str(sl), "RobustnessGymSlice[num_rows: 6](MockDataset(version=1.0))"
         )
         # Length of the slice
         self.assertEqual(len(sl), 6)

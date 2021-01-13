@@ -3,9 +3,15 @@ from typing import Dict, List, Tuple
 
 import cytoolz as tz
 import numpy as np
-import textattack.attack_recipes as attack_recipes
-from textattack.attack_recipes import AttackRecipe
-from textattack.models.wrappers import HuggingFaceModelWrapper, ModelWrapper
+
+try:
+    import textattack.attack_recipes as attack_recipes
+    from textattack.attack_recipes import AttackRecipe
+    from textattack.models.wrappers import HuggingFaceModelWrapper, ModelWrapper
+except ImportError:
+    _textattack_available = False
+else:
+    _textattack_available = True
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.model import Model
@@ -13,10 +19,15 @@ from robustnessgym.slicebuilders.attack import Attack
 
 
 class TextAttack(Attack):
+    """Class for TextAttack."""
+
     def __init__(
         self,
         attack: AttackRecipe,
     ):
+        if not _textattack_available:
+            raise ImportError("Textattack not found. Please `pip install textattack`.")
+
         super(TextAttack, self).__init__(
             identifiers=[
                 Identifier(

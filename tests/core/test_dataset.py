@@ -48,9 +48,9 @@ class TestDataset(TestCase):
         self.assertEqual(set(dataset.column_names), {"a", "b", "c", "d", "index"})
         self.assertEqual(len(dataset), 9)
 
-    def test_from_json(self):
+    def test_from_jsonl(self):
         # Create a temporary directory
-        os.mkdir("tmp")
+        os.makedirs("tmp", exist_ok=True)
 
         # Create a json file with data
         with jsonlines.open("tmp/data.jsonl", "w") as writer:
@@ -66,7 +66,7 @@ class TestDataset(TestCase):
             )
 
         # Load the dataset
-        dataset = Dataset.from_json(
+        dataset = Dataset.from_jsonl(
             json_path="tmp/data.jsonl",
             identifier=Identifier(_name="MockJSONDataset"),
         )
@@ -79,13 +79,13 @@ class TestDataset(TestCase):
 
     def test_save_load(self):
         # Create a temporary directory
-        os.mkdir("tmp")
+        os.makedirs("tmp", exist_ok=True)
 
         # Save the dataset to disk
-        self.testbed.dataset.save(path="tmp")
+        self.testbed.dataset.save_to_disk(path="tmp")
 
         # Load the dataset from disk
-        dataset = Dataset.load(path="tmp")
+        dataset = Dataset.load_from_disk(path="tmp")
 
         # Remove the temporary directory
         shutil.rmtree("tmp")
