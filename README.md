@@ -25,7 +25,7 @@ Robustness Gym is being developed to address challenges in evaluating machine
 
 The Robustness Gym project is an ongoing collaboration between [Stanford Hazy
  Research](https://hazyresearch.stanford.edu), [Salesforce Research](https://einstein.ai
- ) and [UNC Chapel-Hill](https://cs.unc.edu). 
+ ) and [UNC Chapel-Hill](http://murgelab.cs.unc.edu/). 
 
 _Note: Robustness Gym is in alpha, so expect frequent updates in the coming weeks and 
 months. Reach out to kgoel [at] cs [dot] stanford [dot] edu if you'd like to become an active contributor, 
