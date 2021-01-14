@@ -1,4 +1,6 @@
-Robustness Gym
+
+
+<img src="docs/logo.png" width="50" height="50" alt="Robustness Gym logo"/> Robustness Gym
 ================================
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/robustness-gym/robustness-gym/CI)
 ![GitHub](https://img.shields.io/github/license/robustness-gym/robustness-gym)
@@ -7,9 +9,28 @@ Robustness Gym
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![website](https://img.shields.io/badge/website-live-brightgreen)](https://robustnessgym.com)
 
-Robustness Gym is a evaluation toolkit for natural language processing in Python.
+Robustness Gym is a Python evaluation toolkit for natural language processing. 
 
-## 
+#### Coming Soon
+- Examples & tutorials
+- More documentation
+- Contributing guidelines
+
+
+### About
+Robustness Gym is being developed to address challenges in evaluating machine
+ learning models today. You can read more about the ideas underlying Robustness Gym
+  in our paper on [arXiv](https://arxiv.org/pdf/2101.04840.pdf). We also have a
+   [website](https://robustnessgym.com).
+
+The Robustness Gym project is an ongoing collaboration between [Stanford Hazy
+ Research](https://hazyresearch.stanford.edu), [Salesforce Research](https://einstein.ai
+ ) and [UNC Chapel-Hill](https://cs.unc.edu). 
+
+_Note: Robustness Gym is in alpha, so expect frequent updates in the coming weeks and 
+months. Reach out to kgoel [at] cs [dot] stanford [dot] edu if you'd like to become an active contributor, 
+or if you work on an interesting NLP task that you'd like to see supported. 
+Feel free to raise issues on GitHub for bugs/feature requests._
 
 ### Installation
 ```
@@ -111,9 +132,7 @@ capitalizations = silly_op.retrieve(
 #### Create subpopulations
 ```python
 from robustnessgym import Spacy, ScoreSubpopulation
-from robustnessgym.core.decorators import singlecolumn
 
-@singlecolumn
 def length(batch, columns):
     """
     Length using cached Spacy tokenization.
