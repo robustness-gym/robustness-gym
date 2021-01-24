@@ -3,297 +3,189 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-import pickle
 from copy import deepcopy
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import cytoolz as tz
 import datasets
 from datasets import Features
-from datasets.arrow_writer import ArrowWriter
 from pyarrow import json as jsonarrow
 from pyarrow import table
-from tqdm import tqdm
 
-from robustnessgym.core.constants import (
-    ATTACK,
-    CACHEDOPS,
-    SLICEBUILDERS,
-    SUBPOPULATION,
-    TRANSFORMATION,
-)
+from robustnessgym.core.dataformats.inmemory import InMemoryDataset
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tools import persistent_hash, strings_as_json
-
-
-class InteractionTape:
-    def __init__(self):
-        # Keep track of the history
-        self.history = {}
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(interactions={len(self.history)})"
-
-    def __hash__(self):
-        val = 0
-        for (identifier, json_columns) in self.history:
-            val ^= persistent_hash(str(identifier) + str(json_columns))
-        return val
-
-    def dumps(self):
-        return json.dumps(
-            {
-                json.dumps((identifier.dumps(), json_columns)): idx
-                for (identifier, json_columns), idx in self.history.items()
-            }
-        )
-
-    @classmethod
-    def loads(cls, s: str):
-        tape = InteractionTape()
-        history = json.loads(s)
-        history = {
-            tuple(json.loads(json_tuple)): idx for json_tuple, idx in history.items()
-        }
-        tape.history = {
-            (Identifier.loads(identifier), json_columns): idx
-            for (identifier, json_columns), idx in history.items()
-        }
-
-        return tape
-
-    def update(self, identifier: Union[str, Identifier], columns: List[str]) -> None:
-        """Update the interaction tape with information about an interaction.
-
-        Args:
-            identifier: Identifier for the interaction used.
-            columns: list of columns on which the interaction was applied.
-
-        Returns: True if the interaction was added to the tape, False if it was
-        already applied before.
-        """
-        if isinstance(identifier, str):
-            identifier = Identifier(_name=identifier)
-        elif isinstance(identifier, Identifier):
-            pass
-        else:
-            raise ValueError(
-                f"Parameter `identifier` should be an instance of class Identifier "
-                f"or str, "
-                f"not {type(identifier)}."
-            )
-
-        # Dump the column names to JSON
-        json_columns = strings_as_json(strings=columns)
-
-        # Check if the entry is not in the history
-        if (identifier, json_columns) not in self.history:
-            # Give it the next index
-            self.history[(identifier, json_columns)] = len(self.history)
-
-    def check(self, identifier: Union[str, Identifier], columns: List[str]) -> bool:
-        """
-
-        Args:
-            identifier:
-            columns:
-
-        Returns:
-
-        """
-        if not (isinstance(identifier, str) or isinstance(identifier, Identifier)):
-            raise ValueError(
-                f"Parameter `identifier` should be an instance of class Identifier "
-                f"or str, "
-                f"not {type(identifier)}."
-            )
-
-        # Dump the column names to JSON
-        json_columns = strings_as_json(strings=columns)
-
-        # Check if the entry is already in the history
-        if (identifier, json_columns) in self.history:
-            return True
-        return False
-
-
-class InteractionTapeHierarchyMixin:
-    def __init__(self):
-        self.interactions = {
-            CACHEDOPS: InteractionTape(),
-            SLICEBUILDERS: {
-                SUBPOPULATION: InteractionTape(),
-                TRANSFORMATION: InteractionTape(),
-                ATTACK: InteractionTape(),
-            },
-        }
-
-    def hash_interactions(self):
-        v = 0
-        for path in [
-            [CACHEDOPS],
-            [SLICEBUILDERS, SUBPOPULATION],
-            [SLICEBUILDERS, TRANSFORMATION],
-            [SLICEBUILDERS, ATTACK],
-        ]:
-            v ^= self.fetch_tape(path=path).__hash__()
-        return v
-
-    def dumps_interactions(self):
-        return json.dumps(
-            {
-                CACHEDOPS: self.interactions[CACHEDOPS].dumps(),
-                SLICEBUILDERS: {
-                    SUBPOPULATION: self.interactions[SLICEBUILDERS][
-                        SUBPOPULATION
-                    ].dumps(),
-                    TRANSFORMATION: self.interactions[SLICEBUILDERS][
-                        TRANSFORMATION
-                    ].dumps(),
-                    ATTACK: self.interactions[SLICEBUILDERS][ATTACK].dumps(),
-                },
-            }
-        )
-
-    @classmethod
-    def loads_interactions(cls, s: str) -> InteractionTapeHierarchyMixin:
-        tape_hierarchy = InteractionTapeHierarchyMixin()
-        interactions = json.loads(s)
-        tape_hierarchy.interactions = {
-            CACHEDOPS: InteractionTape.loads(interactions[CACHEDOPS]),
-            SLICEBUILDERS: {
-                SUBPOPULATION: InteractionTape.loads(
-                    interactions[SLICEBUILDERS][SUBPOPULATION]
-                ),
-                TRANSFORMATION: InteractionTape.loads(
-                    interactions[SLICEBUILDERS][TRANSFORMATION]
-                ),
-                ATTACK: InteractionTape.loads(interactions[SLICEBUILDERS][ATTACK]),
-            },
-        }
-        return tape_hierarchy
-
-    def update_tape(
-        self,
-        path: List[str],
-        identifiers: Union[Identifier, List[Identifier]],
-        columns: List[str],
-    ):
-        """Update the tape.
-
-        Args:
-            path: Location of the InteractionTape in the hierarchy.
-            identifiers:
-            columns:
-
-        Returns:
-        """
-        # Fetch the tape
-        tape = self.fetch_tape(path=path)
-
-        # Update it
-        if isinstance(identifiers, Identifier) or isinstance(identifiers, str):
-            return tape.update(identifier=identifiers, columns=columns)
-        else:
-            return [
-                tape.update(identifier=identifier, columns=columns)
-                for identifier in identifiers
-            ]
-
-    def check_tape(
-        self,
-        path: List[str],
-        identifiers: Union[Identifier, List[Identifier]],
-        columns: List[str],
-    ):
-        """Check the tape.
-
-        Args:
-
-            path:
-            identifiers:
-            columns:
-
-        Returns:
-        """
-        # Fetch the tape
-        tape = self.fetch_tape(path=path)
-
-        # Check it
-        if isinstance(identifiers, Identifier) or isinstance(identifiers, str):
-            return tape.check(identifier=identifiers, columns=columns)
-        else:
-            return [
-                tape.check(identifier=identifier, columns=columns)
-                for identifier in identifiers
-            ]
-
-    def fetch_tape(self, path: List[str]) -> InteractionTape:
-        """Fetch an InteractionTape.
-
-        Args:
-            path:
-
-        Returns:
-        """
-        return tz.get_in(path, self.interactions)
-
+from robustnessgym.core.tape import InteractionTapeHierarchyMixin
 
 Batch = Dict[str, List]
 BatchOrDataset = Union[Batch, "Dataset"]
 
 
-class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
+class Dataset(
+    InteractionTapeHierarchyMixin,
+):
+    """RobustnessGym Dataset class."""
+
     # Path to a log directory
     logdir: pathlib.Path = pathlib.Path.home() / "robustnessgym/datasets/"
 
     # Create a directory
     logdir.mkdir(parents=True, exist_ok=True)
 
-    def __init__(self, *args, identifier: Identifier = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        identifier: Identifier = None,
+        dataset_fmt: str = None,
+        **kwargs,
+    ):
 
+        # Internally, keep track of data inside a dataset
+        self._dataset = None
+
+        # Set a default dataset_fmt
         if len(args) == 1 and isinstance(args[0], datasets.Dataset):
-            # Create a Dataset directly from an datasets.Dataset object
-            self.__dict__ = args[0].__dict__.copy()
+            # If no `dataset_fmt` is passed in with a datasets.Dataset, just assume
+            # `dataset_fmt` should be 'datasets'
+            dataset_fmt = "datasets" if dataset_fmt is None else dataset_fmt
         else:
-            super(Dataset, self).__init__(*args, **kwargs)
+            # Default to `in_memory`, unless a dataset_fmt is passed in explicitly
+            dataset_fmt = "in_memory" if dataset_fmt is None else dataset_fmt
 
-        # Call the superclass constructor
+        # InMemoryDataset
+        if dataset_fmt == "in_memory":
+            if len(args) == 1 and isinstance(args[0], InMemoryDataset):
+                # Assign the dataset directly
+                self._dataset = args[0]
+            else:
+                # Assign the dataset after converting to an InMemoryDataset
+                self._dataset = InMemoryDataset(*args, **kwargs)
+
+        # datasets.Dataset
+        elif dataset_fmt == "datasets":
+            if len(args) == 1 and isinstance(args[0], datasets.Dataset):
+                # Assign the dataset directly
+                self._dataset = args[0]
+            else:
+                # Assign the dataset after converting to a datasets.Dataset
+                self._dataset = datasets.Dataset(*args, **kwargs)
+
+        else:
+            raise NotImplementedError(
+                "`dataset_fmt` must be one of ['in_memory', 'datasets']."
+            )
+
+        # Store the dataset format
+        self._dataset_fmt = dataset_fmt
+
+        # Call the InteractionTapeHierarchyMixin constructor
         InteractionTapeHierarchyMixin.__init__(self)
 
-        self.identifier = (
-            Identifier(
-                _name=self.info.builder_name,
-                split=str(self.split),
-                version=self.version,
-            )
-            if not identifier
-            else identifier
+        # Create an identifier
+        self._identifier = (
+            self._autobuild_identifier() if not identifier else identifier
         )
 
-        # Keep track of the original dataset keys
-        self.original_columns = list(self.features.keys())
+        # Create logging directory
+        self._create_logdir()
 
         # Add an index to the dataset
-        dataset = self.map(self.add_index, with_indices=True)
-        self.__dict__.update(dataset.__dict__)
+        self._dataset = self._dataset.map(self.add_index, with_indices=True)
 
-        # TODO(karan): fix the identifier settings for Dataset
-        if self.identifier is not None and not str(self.identifier).startswith("None"):
-            self.logdir /= str(self.identifier)
-            self.logdir.mkdir(parents=True, exist_ok=True)
+    @property
+    def identifier(self):
+        """Identifier."""
+        return self._identifier
+
+    @property
+    def dataset_fmt(self):
+        """Dataset format, one of ['in_memory', 'datasets']."""
+        return self._dataset_fmt
+
+    @property
+    def features(self):
+        """Dataset features."""
+        return self._dataset.features
+
+    @property
+    def info(self):
+        """Dataset info."""
+        return self._dataset.info
+
+    @property
+    def split(self):
+        """Dataset split."""
+        return self._dataset.split
+
+    @property
+    def num_rows(self):
+        """Number of rows in the dataset."""
+        return self._dataset.num_rows
+
+    def set_format(self, columns: List[str]):
+        """Set the dataset format."""
+        return self._dataset.set_format(columns=columns)
+
+    def reset_format(self):
+        """Set the dataset format."""
+        return self._dataset.reset_format()
 
     @staticmethod
     def add_index(example, index):
+        """Add an index to the dataset."""
         if "index" not in example:
             example["index"] = str(index)
         return example
 
+    def _create_logdir(self):
+        """Create and assign a directory for logging this dataset's files."""
+        if self.identifier.name == "RGDataset":
+            # TODO(karan): handle temporarily constructed datasets differently
+            self.logdir /= str(self.identifier)
+            self.logdir.mkdir(parents=True, exist_ok=True)
+        else:
+            self.logdir /= str(self.identifier)
+            self.logdir.mkdir(parents=True, exist_ok=True)
+
+    def _autobuild_identifier(self) -> Identifier:
+        """Automatically build an identifier for the dataset using available
+        information."""
+        # Look for a name, otherwise assign a default
+        _name = (
+            self._dataset.info.builder_name
+            if self._dataset.info.builder_name
+            else "RGDataset"
+        )
+
+        # Check for split, version information
+        split = str(self._dataset.split) if self._dataset.split else None
+        version = self._dataset.version if self._dataset.version else None
+
+        # Add all available information to kwargs dict
+        kwargs = {}
+        if split:
+            kwargs["split"] = split
+        if version:
+            kwargs["version"] = version
+
+        # Create identifier
+        return Identifier(_name=_name, **kwargs)
+
+    def __len__(self):
+        return len(self._dataset)
+
+    def __getitem__(self, index):
+        return self._dataset[index]
+
     def __repr__(self):
         return (
-            f"RobustnessGym{self.__class__.__name__}(num_rows: {self.num_rows}, "
-            f"interactions: {self.interactions})"
+            f"RobustnessGym{self.__class__.__name__}"
+            f"(num_rows: {self._dataset.num_rows})"
         )
+
+    @property
+    def column_names(self):
+        """Name of the columns in the dataset."""
+        return self._dataset.column_names
 
     @classmethod
     def uncached_batch(cls, batch: Batch, copy=True) -> Batch:
@@ -311,23 +203,24 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         )
 
     @classmethod
-    def from_huggingface(cls, dataset: datasets.Dataset):
-        """Create a Dataset from a Huggingface datasets.Dataset."""
-        return cls(dataset.info.builder_name, dataset)
-
-    @classmethod
     def list_datasets(cls) -> List[str]:
-        """List datasets on Huggingface.
+        """List datasets on Huggingface datasets.
 
         Returns: list of datasets
         """
         return datasets.list_datasets()
 
     @classmethod
-    def load_dataset(cls, *args, **kwargs):
-        """Create a Dataset from any Huggingface nlp dataset source.
+    def load_dataset(
+        cls,
+        *args,
+        dataset_fmt: str = "datasets",
+        **kwargs,
+    ):
+        """Create a Dataset using Huggingface datasets.load_dataset(..). Loads
+        any dataset available in Huggingface Dataset Hub.
 
-        Use this instead of datasets.load_dataset, so that
+        Use this instead of datasets.load_dataset, so
 
         dict_of_datasets = datasets.load_dataset('boolq')
 
@@ -341,59 +234,107 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         if isinstance(dataset, dict):
             return dict(
                 map(
-                    lambda t: (
-                        t[0],
-                        cls(
-                            t[1],
-                            identifier=Identifier(
-                                _name=t[1].info.builder_name,
-                                split=str(t[1].split),
-                                version=t[1].version,
-                            ),
-                        ),
-                    ),
+                    lambda t: (t[0], cls(t[1], dataset_fmt=dataset_fmt)),
                     dataset.items(),
                 )
             )
         else:
-            return cls(
-                dataset,
-                identifier=Identifier(
-                    _name=dataset.info.builder_name,
-                    split=str(dataset.split),
-                    version=dataset.version,
-                ),
-            )
+            return cls(dataset, dataset_fmt=dataset_fmt)
 
     @classmethod
-    def from_json(cls, json_path: str, identifier: Identifier) -> Dataset:
-        """Load a dataset from a JSON file on disk, where each line of the json
-        file consists of a single example."""
+    def from_datasets(
+        cls,
+        dataset: datasets.Dataset,
+        identifier: Identifier = None,
+        dataset_fmt: str = None,
+    ) -> Dataset:
+        """Create a Dataset from a Huggingface datasets.Dataset."""
         return cls(
-            jsonarrow.read_json(json_path),
+            dataset,
             identifier=identifier,
+            dataset_fmt=dataset_fmt,
         )
 
     @classmethod
-    def from_slice(cls):
-        pass
+    def from_jsonl(
+        cls,
+        json_path: str,
+        identifier: Identifier = None,
+        dataset_fmt: str = "in_memory",
+    ) -> Dataset:
+        """Load a dataset from a .jsonl file on disk, where each line of the
+        json file consists of a single example."""
+
+        if dataset_fmt == "in_memory":
+            # Load the .jsonl file
+            with open(json_path) as f:
+                data = [json.loads(line) for line in f]
+
+            return cls(
+                data,
+                identifier=identifier,
+                dataset_fmt=dataset_fmt,
+            )
+
+        elif dataset_fmt == "datasets":
+            # Use jsonarrow to directly load the json
+            return cls(
+                jsonarrow.read_json(json_path),
+                identifier=identifier,
+                dataset_fmt=dataset_fmt,
+            )
+        else:
+            raise NotImplementedError
 
     @classmethod
-    def from_batch(cls, batch: Batch, identifier: Identifier) -> Dataset:
-        """Convert a batch to a Dataset.
+    def from_batch(
+        cls,
+        batch: Batch,
+        identifier: Identifier = None,
+        dataset_fmt: str = "in_memory",
+    ) -> Dataset:
+        """Convert a batch to a Dataset."""
 
-        TODO(karan): disable preprocessing in this case
-        """
-        return cls(table(batch), identifier=identifier)
+        if dataset_fmt == "in_memory":
+            return cls(batch, identifier=identifier, dataset_fmt=dataset_fmt)
+        elif dataset_fmt == "datasets":
+            return cls(table(batch), identifier=identifier, dataset_fmt=dataset_fmt)
+        else:
+            raise NotImplementedError
 
     @classmethod
     def from_batches(
-        cls, batches: Sequence[Batch], identifier: Identifier = None
+        cls,
+        batches: Sequence[Batch],
+        identifier: Identifier = None,
+        dataset_fmt: str = "in_memory",
     ) -> Dataset:
         """Convert a list of batches to a dataset."""
+
         return cls.from_batch(
-            tz.merge_with(tz.concat, *batches),
+            tz.merge_with(
+                tz.compose(list, tz.concat),
+                *batches,
+            ),
             identifier=identifier,
+            dataset_fmt=dataset_fmt,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        d: Dict,
+        identifier: Identifier = None,
+        dataset_fmt: str = "in_memory",
+    ) -> Dataset:
+        """Convert a dictionary to a dataset.
+
+        Alias for Dataset.from_batch(..).
+        """
+        return cls.from_batch(
+            batch=d,
+            identifier=identifier,
+            dataset_fmt=dataset_fmt,
         )
 
     def batch(self, batch_size: int = 32):
@@ -428,182 +369,239 @@ class Dataset(datasets.Dataset, InteractionTapeHierarchyMixin):
         new_fingerprint: Optional[str] = None,
         **kwargs,
     ) -> Dataset:
-        """Wrap map."""
+        """Map on the dataset."""
 
-        # Compute the map using datasets.Dataset's .map()
-        output = datasets.Dataset.map(
-            self,
-            function,
-            with_indices,
-            input_columns,
-            batched,
-            batch_size,
-            drop_last_batch,
-            remove_columns,
-            keep_in_memory,
-            load_from_cache_file,
-            cache_file_name,
-            writer_batch_size,
-            features,
-            disable_nullable,
-            fn_kwargs,
-            num_proc,
-            suffix_template,
-            new_fingerprint,
+        # Compute the map using the underlying dataset's .map()
+        output = self._dataset.map(
+            function=function,
+            with_indices=with_indices,
+            input_columns=input_columns,
+            batched=batched,
+            batch_size=batch_size,
+            drop_last_batch=drop_last_batch,
+            remove_columns=remove_columns,
+            keep_in_memory=keep_in_memory,
+            load_from_cache_file=load_from_cache_file,
+            cache_file_name=cache_file_name,
+            writer_batch_size=writer_batch_size,
+            features=features,
+            disable_nullable=disable_nullable,
+            fn_kwargs=fn_kwargs,
+            num_proc=num_proc,
+            suffix_template=suffix_template,
+            new_fingerprint=new_fingerprint,
         )
 
         if isinstance(output, datasets.Dataset):
             dataset = deepcopy(self)
-            dataset.__dict__ = tz.merge(dataset.__dict__, output.__dict__)
-            return dataset
+            # dataset._dataset.__dict__ = tz.merge(
+            #     dataset._dataset.__dict__,
+            #     output.__dict__,
+            # )
+            dataset._dataset = output
+        elif isinstance(output, InMemoryDataset):
+            dataset = deepcopy(self)
+            dataset._dataset = output
         else:
-            return output
+            raise NotImplementedError("Unrecognized dataset generated after .map().")
+
+        return dataset
+
+    def filter(
+        self,
+        function: Optional[Callable] = None,
+        with_indices=False,
+        input_columns: Optional[Union[str, List[str]]] = None,
+        batch_size: Optional[int] = 1000,
+        remove_columns: Optional[List[str]] = None,
+        keep_in_memory: bool = False,
+        load_from_cache_file: bool = True,
+        cache_file_name: Optional[str] = None,
+        writer_batch_size: Optional[int] = 1000,
+        fn_kwargs: Optional[dict] = None,
+        num_proc: Optional[int] = None,
+        suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
+        new_fingerprint: Optional[str] = None,
+    ) -> Dataset:
+        """Filter operation on the dataset."""
+        # Compute the filter using the underlying dataset's .filter()
+        output = self._dataset.filter(
+            function=function,
+            with_indices=with_indices,
+            input_columns=input_columns,
+            batch_size=batch_size,
+            remove_columns=remove_columns,
+            keep_in_memory=keep_in_memory,
+            load_from_cache_file=load_from_cache_file,
+            cache_file_name=cache_file_name,
+            writer_batch_size=writer_batch_size,
+            fn_kwargs=fn_kwargs,
+            num_proc=num_proc,
+            suffix_template=suffix_template,
+            new_fingerprint=new_fingerprint,
+        )
+
+        if isinstance(output, datasets.Dataset):
+            dataset = deepcopy(self)
+            dataset._dataset = output
+        elif isinstance(output, InMemoryDataset):
+            dataset = deepcopy(self)
+            dataset._dataset = output
+        else:
+            raise NotImplementedError("Unrecognized dataset generated after .filter().")
+
+        return dataset
 
     @classmethod
-    def load(cls, path: str) -> Optional[Dataset]:
-        try:
-            with open(os.path.join(path, "split.p"), "rb") as f:
-                return cls.from_file(
-                    filename=os.path.join(path, "data.arrow"),
-                    info=datasets.DatasetInfo.from_directory(path),
-                    split=pickle.load(f),
-                )
-        except:  # noqa
-            return None
+    def interleave(
+        cls,
+        datasets: List[Dataset],
+        identifier: Identifier,
+    ) -> Dataset:
 
-    # def save_to_disk(self, dataset_path: str):
-    #     return super(Dataset, self).save_to_disk(dataset_path)
+        """Interleave a list of datasets."""
+        return cls.from_batch(
+            tz.merge_with(
+                tz.compose(list, tz.interleave),
+                *[dataset[:] for dataset in datasets],
+            ),
+            identifier=identifier,
+        )
 
-    def save(self, path: str) -> None:
+    @classmethod
+    def chain(
+        cls,
+        datasets: List[Dataset],
+        identifier: Identifier,
+    ) -> Dataset:
+
+        """Chain a list of datasets."""
+        return cls.from_batch(
+            tz.merge_with(
+                tz.compose(list, tz.concat),
+                *[dataset[:] for dataset in datasets],
+            ),
+            identifier=identifier,
+        )
+
+    @classmethod
+    def load_from_disk(cls, path: str = None, identifier: Identifier = None) -> Dataset:
+        """Load a dataset stored on disk."""
+        assert (
+            path or identifier and not (path and identifier)
+        ), "Pass one of `path` or `identifier`."
+
+        if identifier:
+            # Use the default logdir to create a path to the dataset
+            path = cls.logdir / str(identifier)
+            if not os.path.exists(str(path)):
+                raise OSError(f"Path {path} does not exist.")
+
+        # Create an empty state
+        state = {}
+
+        # Load the metadata
+        metadata = json.load(open(os.path.join(path, "metadata.json")))
+
+        # Load the data
+        if metadata["_dataset_fmt"] == "in_memory":
+            state["_dataset"] = InMemoryDataset.load_from_disk(
+                os.path.join(path, "_dataset")
+            )
+        elif metadata["_dataset_fmt"] == "datasets":
+            state["_dataset"] = datasets.Dataset.load_from_disk(
+                os.path.join(path, "_dataset")
+            )
+        else:
+            raise NotImplementedError(
+                f"`dataset_fmt` {metadata['_dataset_fmt']} not recognized."
+            )
+
+        # Merge the metadata with the state
+        state = {**state, **metadata}
+
+        # Create an empty dataset
+        dataset = cls()
+        dataset.__setstate__(state)
+
+        return dataset
+
+    def save_to_disk(self, path: str = None) -> None:
+        """Save a dataset to disk."""
+        if path is None:
+            path = str(self.logdir)
+
         # Make all the directories to the path
         os.makedirs(path, exist_ok=True)
 
-        # Taken from Huggingface datasets.Dataset
-        # Prepare output buffer and batched writer in memory or on file if we update
-        # the table
-        writer = ArrowWriter(
-            features=self.features,
-            path=os.path.join(path, "data.arrow"),
-            writer_batch_size=1000,
-        )
+        # Get the dataset state
+        state = self.__getstate__()
 
-        # Loop over single examples or batches and write to buffer/file if examples
-        # are to be updated
-        for i, example in tqdm(enumerate(self)):
-            writer.write(example)
+        # Save the data to disk
+        os.makedirs(os.path.join(path, "_dataset"), exist_ok=True)
+        state["_dataset"].save_to_disk(os.path.join(path, "_dataset"))
 
-        writer.finalize()
-
-        # Write DatasetInfo
-        self.info.write_to_directory(path)
-
-        # Write split to file
-        with open(os.path.join(path, "split.p"), "wb") as f:
-            pickle.dump(self.split, f)
-
-    @classmethod
-    def from_tfds(cls):
-        # TODO(karan): v1 of robustness gym. Use it for image-based tasks, like clevr.
-        pass
-
-    @classmethod
-    def interleave(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
-        """Interleave a list of datasets."""
-        return cls.from_batch(
-            tz.merge_with(tz.interleave, *[dataset[:] for dataset in datasets]),
-            identifier=identifier,
+        # Save the metadata to disk
+        json.dump(
+            {k: v for k, v in state.items() if k != "_dataset"},
+            open(os.path.join(path, "metadata.json"), "w"),
         )
 
     @classmethod
-    def chain(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
-        """Chain a list of datasets."""
-        return cls.from_batch(
-            tz.merge_with(tz.concat, *[dataset[:] for dataset in datasets]),
-            identifier=identifier,
-        )
+    def _state_keys(cls) -> set:
+        """List of attributes that describe the state of the object."""
+        return {
+            "interactions",
+            "_identifier",
+            "_dataset",
+            "_dataset_fmt",
+        }
+
+    @classmethod
+    def _assert_state_keys(cls, state: Dict) -> None:
+        """Assert that a state contains all required keys."""
+        assert (
+            set(state.keys()) == cls._state_keys()
+        ), f"State must contain all state keys: {cls._state_keys()}."
 
     def __getstate__(self):
-        state = super(Dataset, self).__getstate__()
-        if "interactions" in state and not isinstance(state["interactions"], str):
-            state["interactions"] = self.dumps_interactions()
-        if "identifier" in state and isinstance(state["identifier"], Identifier):
-            state["identifier"] = state["identifier"].dumps()
-        if "_identifier" in state and isinstance(state["_identifier"], Identifier):
-            state["_identifier"] = state["_identifier"].dumps()
-        if "lineage" in state:
-            state["lineage"] = [
-                tuple(t[:1]) + (t[1].dumps(),) + (tuple(t[2:]) if len(t) > 2 else ())
-                for t in state["lineage"]
-            ]
-        if "logdir" in state:
-            state["logdir"] = ""
+        """Get the current state of the dataset."""
+
+        state = {
+            # Interaction state
+            "interactions": self.dumps_interactions(),
+            # Identifier
+            "_identifier": self.identifier.dumps() if self.identifier else None,
+            # Dataset
+            "_dataset": self._dataset,
+            # Dataset format
+            "_dataset_fmt": self._dataset_fmt,
+        }
+        Dataset._assert_state_keys(state)
+
         return state
 
     def __setstate__(self, state):
-        state = dict(state)
-        if "interactions" in state and isinstance(state["interactions"], str):
-            state["interactions"] = self.loads_interactions(
-                state["interactions"]
-            ).interactions
-        if "identifier" in state and isinstance(state["identifier"], str):
-            state["identifier"] = Identifier.loads(state["identifier"])
-        if "_identifier" in state:
-            try:
-                state["_identifier"] = Identifier.loads(state["_identifier"])
-            except:  # noqa
-                pass
-        if "lineage" in state:
-            try:
-                state["lineage"] = [
-                    tuple(t[:1])
-                    + (Identifier.loads(t[1]),)
-                    + (tuple(t[2:]) if len(t) > 2 else ())
-                    for t in state["lineage"]
-                ]
-            except:  # noqa
-                pass
-        if "logdir" in state:
-            try:
-                state["logdir"] = (
-                    pathlib.Path.home()
-                    / f"robustnessgym/datasets/{str(state['identifier'])}"
-                )
-            except:  # noqa
-                state["logdir"] = (
-                    pathlib.Path.home()
-                    / f"robustnessgym/datasets/{str(state['_identifier'])}"
-                )
-        super(Dataset, self).__setstate__(state)
+        """Set the current state of the dataset."""
+        # Check that the state contains all keys
+        Dataset._assert_state_keys(state)
 
-    @classmethod
-    def load_from_disk(cls, dataset_path: str) -> Dataset:
-        """Load the dataset from a dataset directory.
+        # Load the interactions
+        self.interactions = self.loads_interactions(state["interactions"]).interactions
 
-        Args:
-            dataset_path (``str``): path of the dataset directory where the dataset
-            will be loaded from
-        """
-        with open(os.path.join(dataset_path, "state.json"), "r") as state_file:
-            state = json.load(state_file)
-        with open(
-            os.path.join(dataset_path, "dataset_info.json"), "r"
-        ) as dataset_info_file:
-            dataset_info = json.load(dataset_info_file)
-        state["_info"] = json.dumps(dataset_info)
-        dataset = cls.from_dict({})
-        state = {
-            k: state[k] for k in dataset.__dict__.keys()
-        }  # in case we add new fields
-        # Change path to absolute path
-        for data_file in state.get("_data_files", []) + state.get(
-            "_indices_data_files", []
-        ):
-            data_file["filename"] = os.path.join(dataset_path, data_file["filename"])
-        dataset.__setstate__(state)
-        dataset.logdir = (
-            pathlib.Path.home() / f"robustnessgym/datasets/{str(dataset.identifier)}"
+        # Load the identifier
+        self._identifier = (
+            Identifier.loads(state["_identifier"]) if state["_identifier"] else None
         )
-        return dataset
+
+        # Load the dataset
+        self._dataset = state["_dataset"]
+
+        # Set the dataset format
+        self._dataset_fmt = state["_dataset_fmt"]
+
+        # Update the logging directory
+        self.logdir = Dataset.logdir / str(self.identifier)
 
 
 def transpose_batch(batch: Batch):

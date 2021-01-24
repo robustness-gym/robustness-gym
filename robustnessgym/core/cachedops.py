@@ -109,14 +109,17 @@ class CachedOperation(Operation):
                     # self
                     target_ident_key = str(self_or_cls.identifier)
 
-                # TODO(karan): iterate over all keys and pick the best match,
-                #  rather than breaking
+                best_match, best_distance = None, 100000000
                 for ident_key in batch["cache"][0].keys():
-                    # Pick the first key that matches the cls name or instance
-                    # identifier
-                    if ident_key.startswith(target_ident_key):
-                        identifier = ident_key
-                        break
+                    # Pick the key that best matches the cls name or instance identifier
+                    if (
+                        ident_key.startswith(target_ident_key)
+                        and len(ident_key.replace(target_ident_key, "")) < best_distance
+                    ):
+                        best_match = ident_key
+                        best_distance = len(ident_key.replace(target_ident_key, ""))
+
+                identifier = best_match
 
                 # Still no identifier
                 if not identifier:
@@ -336,7 +339,10 @@ class CachedOperation(Operation):
         return self.store(batch=batch, updates=updates)
 
     def process_dataset(
-        self, dataset: Dataset, columns: List[str], batch_size: int = 32
+        self,
+        dataset: Dataset,
+        columns: List[str],
+        batch_size: int = 32,
     ) -> Dataset:
         """Apply the cached operation to a dataset."""
 
