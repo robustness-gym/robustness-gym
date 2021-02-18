@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import copy
 import gzip
+import logging
 import os
 import pickle
-from types import SimpleNamespace
+from collections import defaultdict
 from typing import Callable, Dict, List, Mapping, Optional, Union
 
 import cytoolz as tz
 import datasets
+import numpy as np
 import pyarrow as pa
 from datasets import DatasetInfo, Features, NamedSplit
+from tqdm.auto import tqdm
 
 from robustnessgym.core.dataformats.abstract import AbstractDataset
-from robustnessgym.core.tools import recmerge
+from robustnessgym.core.tools import convert_to_batch_fn
+
+logger = logging.getLogger(__name__)
 
 Example = Dict
 Batch = Dict[str, List]
@@ -72,125 +78,81 @@ class InMemoryDataset(AbstractDataset):
         self.all_columns = list(self._data.keys())
         self.visible_columns = None
 
+        # Create attributes for visible rows
+        self.visible_rows = None
+
         # Initialization
         self._initialize_state()
 
-    def _initialize_state(self):
-        """Dataset state initialization."""
-        # Show all columns by default
-        self.visible_columns = self.all_columns
-
-        # Set the features
-        self._set_features()
+        logger.info(
+            f"Created `InMemoryDataset` with {len(self)} rows and "
+            f"{len(self.column_names)} columns."
+        )
 
     def _set_features(self):
         """Set the features of the dataset."""
-        self.info.features = Features.from_arrow_schema(
-            pa.Table.from_pydict(
-                self[:1],
-            ).schema
+        with self.format():
+            self.info.features = Features.from_arrow_schema(
+                pa.Table.from_pydict(
+                    self[:1],
+                ).schema
+            )
+
+    def add_column(self, column: str, values: List, overwrite=False) -> None:
+        """Add a column to the dataset."""
+
+        assert (
+            column not in self.all_columns
+        ) or overwrite, (
+            f"Column `{column}` already exists, set `overwrite=True` to overwrite."
+        )
+        assert len(values) == len(self), (
+            f"`add_column` failed. "
+            f"Values length {len(values)} != dataset length {len(self)}."
         )
 
-    def __repr__(self):
-        return self.__class__.__name__
+        # Add the column
+        self._data[column] = list(values)
+        self.all_columns.append(column)
+        self.visible_columns.append(column)
 
-    @classmethod
-    def _assert_columns_all_equal_length(cls, batch: Batch):
-        """Check that all columns have the same length so that the data is
-        tabular."""
-        assert cls._columns_all_equal_length(
-            batch
-        ), "All columns must have equal length."
+        # Set features
+        self._set_features()
 
-    @classmethod
-    def _columns_all_equal_length(cls, batch: Batch):
-        """Check that all columns have the same length so that the data is
-        tabular."""
-        if len(set([len(v) for k, v in batch.items()])) == 1:
-            return True
-        return False
+        logging.info(f"Added column `{column}` with length `{len(values)}`.")
 
-    def _check_columns_exist(self, columns: List[str]):
-        """Check that every column in `columns` exists."""
+    def remove_column(self, column: str) -> None:
+        """Remove a column from the dataset."""
+        assert column in self.all_columns, f"Column `{column}` does not exist."
+
+        # Remove the column
+        del self._data[column]
+        self.all_columns = [col for col in self.all_columns if col != column]
+        self.visible_columns = [col for col in self.visible_columns if col != column]
+
+        # Set features
+        self._set_features()
+
+        logging.info(f"Removed column `{column}`.")
+
+    def select_columns(self, columns: List[str]) -> Batch:
+        """Select a subset of columns."""
         for col in columns:
-            assert col in self.all_columns, f"{col} is not a valid column."
-
-    @property
-    def column_names(self):
-        """Column names in the dataset."""
-        return self.all_columns
-
-    @property
-    def columns(self):
-        """Column names in the dataset."""
-        return self.column_names
-
-    @property
-    def num_rows(self):
-        """Number of rows in the dataset."""
-        return len(self)
-
-    def set_format(self, columns: List[str]):
-        """Set the dataset format.
-
-        Only `columns` are visible after set_format is invoked.
-        """
-        # Check that the columns exist
-        self._check_columns_exist(columns)
-
-        # Set visible columns
-        self.visible_columns = columns
-
-    def reset_format(self):
-        """Reset the dataset format.
-
-        All columns are visible.
-        """
-        # All columns are visible
-        self.visible_columns = self.all_columns
-        # TODO(karan): all_columns should be updated if a column is added by map
-
-    def batch(self, batch_size: int = 32, drop_last_batch: bool = False):
-        """Batch the dataset.
-
-        Args:
-            batch_size: integer batch size
-            drop_last_batch: drop the last batch if its smaller than batch_size
-
-        Returns:
-            batches of data
-        """
-        for i in range(0, len(self), batch_size):
-            if drop_last_batch and i + batch_size > len(self):
-                continue
-            yield self[i : i + batch_size]
-
-    def _example_or_batch_to_batch(
-        self, example_or_batch: Union[Example, Batch]
-    ) -> Batch:
-
-        # Check if example_or_batch is a batch
-        is_batch = all(
-            [isinstance(v, List) for v in example_or_batch.values()]
-        ) and self._columns_all_equal_length(example_or_batch)
-
-        # Convert to a batch if not
-        if not is_batch:
-            batch = {k: [v] for k, v in example_or_batch.items()}
-        else:
-            batch = example_or_batch
-
-        return batch
+            assert col in self._data
+        return tz.keyfilter(lambda k: k in columns, self._data)
 
     def _append_to_empty_dataset(self, example_or_batch: Union[Example, Batch]) -> None:
         """Append a batch of data to the dataset when it's empty."""
         # Convert to batch
         batch = self._example_or_batch_to_batch(example_or_batch)
 
-        # Dataset is empty: just assign it to the batch
-        self._data = batch
         # TODO(karan): what other data properties need to be in sync here
-        self.all_columns = self.visible_columns = list(self._data.keys())
+        self.all_columns = self.visible_columns = list(batch.keys())
+
+        # Dataset is empty: create the columns and append the batch
+        self._data = {k: [] for k in self.column_names}
+        for k in self.column_names:
+            self._data[k].extend(batch[k])
 
     def append(
         self,
@@ -218,98 +180,200 @@ class InMemoryDataset(AbstractDataset):
         for k in self.column_names:
             self._data[k].extend(batch[k])
 
-    def __len__(self):
-        # Pick any column
-        column_names = self.column_names
-        if column_names:
-            return len(self._data[column_names[0]])
-        return 0
-
-    def __getitem__(self, index):
-        if isinstance(index, int) or isinstance(index, slice):
-            return {k: self._data[k][index] for k in self.visible_columns}
-        elif isinstance(index, tuple):
-            raise NotImplementedError("Tuple as index")
+    def _remap_index(self, index):
+        if isinstance(index, int):
+            return self.visible_rows[index].item()
+        elif isinstance(index, slice):
+            return self.visible_rows[index].tolist()
         elif isinstance(index, str):
-            if index in self.column_names:
-                return self._data[index]
-            raise AttributeError(f"Column {index} does not exist.")
-        elif isinstance(index, list) and len(index):
-            return {k: [self._data[k][i] for i in index] for k in self.visible_columns}
+            return index
+        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
+            return self.visible_rows[index].tolist()
+        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
+            return self.visible_rows[index].tolist()
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
-    @classmethod
-    def from_batch(cls, batch: Batch):
-        """Create an InMemoryDataset from a batch."""
-        return cls(batch)
+    def __getitem__(self, index):
+        if self.visible_rows is not None:
+            # Remap the index if only some rows are visible
+            index = self._remap_index(index)
 
-    @classmethod
-    def from_batches(cls, batches: List[Batch]):
-        """Create an InMemoryDataset from a list of batches."""
-        return cls.from_batch(
-            tz.merge_with(tz.concat, *batches),
-        )
+        if (
+            isinstance(index, int)
+            or isinstance(index, slice)
+            or isinstance(index, np.int)
+        ):
+            # int or slice index => standard list slicing
+            return {k: self._data[k][index] for k in self.visible_columns}
+        elif isinstance(index, str):
+            # str index => column selection
+            if index in self.column_names:
+                if self.visible_rows is not None:
+                    return [self._data[index][i] for i in self.visible_rows]
+                return self._data[index]
+            raise AttributeError(f"Column {index} does not exist.")
+        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
+            return {k: [self._data[k][i] for i in index] for k in self.visible_columns}
+        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
+            return {
+                k: [self._data[k][int(i)] for i in index] for k in self.visible_columns
+            }
+        else:
+            raise TypeError("Invalid argument type: {}".format(type(index)))
 
-    def select_columns(self, columns: List[str]) -> Batch:
-        """Select a subset of columns."""
-        for col in columns:
-            assert col in self._data
-        return tz.keyfilter(lambda k: k in columns, self._data)
-
-    def _inspect_function(
+    def update(
         self,
-        function: Callable,
+        function: Optional[Callable] = None,
         with_indices: bool = False,
+        # input_columns: Optional[Union[str, List[str]]] = None,
         batched: bool = False,
-    ) -> SimpleNamespace:
+        batch_size: Optional[int] = 1000,
+        remove_columns: Optional[List[str]] = None,
+        **kwargs,
+    ) -> Optional[InMemoryDataset]:
+        """Update the columns of the dataset."""
+        # TODO(karan): make this fn go faster
+        # most of the time is spent on the merge, speed it up further
 
-        # Initialize
-        no_output = dict_output = bool_output = False
+        # Return if the function is None
+        if function is None:
+            logger.info("`function` None, returning None.")
+            return self
 
-        # Run the function to test it
-        if batched:
-            if with_indices:
-                output = function(self[:2], range(2))
-            else:
-                output = function(self[:2])
+        # Return if `self` has no examples
+        if not len(self):
+            logger.info("Dataset empty, returning None.")
+            return self
 
+        # if isinstance(input_columns, str):
+        #     input_columns = [input_columns]
+
+        # Set the format
+        # if input_columns is not None:
+        #     previous_format = self.visible_columns
+        #     self.set_format(input_columns)
+
+        # Get some information about the function
+        function_properties = self._inspect_function(function, with_indices, batched)
+        assert (
+            function_properties.dict_output
+        ), f"`function` {function} must return dict."
+
+        if not batched:
+            # Convert to a batch function
+            function = convert_to_batch_fn(function, with_indices=with_indices)
+            logger.info(f"Converting `function` {function} to batched function.")
+
+        # Update always returns a new dataset
+        logger.info("Running update, a new dataset will be returned.")
+        if self.visible_rows is not None:
+            # Run .map() to get updated batches and pass them into a new dataset
+            new_dataset = InMemoryDataset(
+                self.map(
+                    (
+                        lambda batch, indices: self._merge_batch_and_output(
+                            batch, function(batch, indices)
+                        )
+                    )
+                    if with_indices
+                    else (
+                        lambda batch: self._merge_batch_and_output(
+                            batch, function(batch)
+                        )
+                    ),
+                    with_indices=with_indices,
+                    batched=True,
+                    batch_size=batch_size,
+                )
+            )
         else:
-            if with_indices:
-                output = function(self[0], 0)
+            if function_properties.updates_existing_column:
+                # Copy the ._data dict with a reference to the actual columns
+                new_dataset = self.copy()
+
+                # Calculate the values for the updated columns using a .map()
+                output = self.map(
+                    (
+                        lambda batch, indices:
+                        # Only merge columns that get updated
+                        self._merge_batch_and_output(
+                            {
+                                k: v
+                                for k, v in batch.items()
+                                if k in function_properties.existing_columns_updated
+                            },
+                            function(batch, indices),
+                        )
+                    )
+                    if with_indices
+                    else (
+                        lambda batch:
+                        # Only merge columns that get updated
+                        self._merge_batch_and_output(
+                            {
+                                k: v
+                                for k, v in batch.items()
+                                if k in function_properties.existing_columns_updated
+                            },
+                            function(batch),
+                        )
+                    ),
+                    with_indices=with_indices,
+                    batched=True,
+                    batch_size=batch_size,
+                )
+
+                # Add new columns / overwrite existing columns for the update
+                for col, vals in output.items():
+                    new_dataset.add_column(col, vals, overwrite=True)
             else:
-                output = function(self[0])
+                # Copy the ._data dict with a reference to the actual columns
+                new_dataset = self.copy()
 
-        if isinstance(output, Mapping):
-            dict_output = True
-        elif output is None:
-            no_output = True
-        elif isinstance(output, bool):
-            bool_output = True
-        else:
-            raise ValueError("function must return a dict or None.")
+                # Calculate the values for the new columns using a .map()
+                output = new_dataset.map(
+                    function=function,
+                    with_indices=with_indices,
+                    batched=True,
+                    batch_size=batch_size,
+                )
+                # Add new columns for the update
+                for col, vals in output.items():
+                    new_dataset.add_column(col, vals)
 
-        return SimpleNamespace(
-            dict_output=dict_output,
-            no_output=no_output,
-            bool_output=bool_output,
-        )
+        # # Update returns a new dataset
+        # new_dataset = InMemoryDataset()
+        #
+        # # Run the update
+        # for i, batch in enumerate(self.batch(batch_size)):
+        #     # Run the function to compute the update
+        #     output = (
+        #         function(
+        #             batch,
+        #             range(i * batch_size, min(len(self), (i + 1) * batch_size)),
+        #         )
+        #         if with_indices
+        #         else function(batch)
+        #     )
+        #
+        #     # Merge the output with the batch
+        #     output = self._merge_batch_and_output(batch, output)
+        #     new_dataset.append(output)
 
-    @classmethod
-    def _merge_batch_and_output(cls, batch: Batch, output: Batch):
-        """Merge an output during .map() into a batch."""
-        combined = batch
-        for k in output.keys():
-            if k not in batch:
-                combined[k] = output[k]
-            else:
-                if isinstance(batch[k][0], dict) and isinstance(output[k][0], dict):
-                    combined[k] = [
-                        recmerge(b_i, o_i) for b_i, o_i in zip(batch[k], output[k])
-                    ]
-                else:
-                    combined[k] = output[k]
-        return combined
+        # # Update the features of the dataset
+        # new_dataset._set_features()
+
+        # Remove columns
+        if remove_columns:
+            for col in remove_columns:
+                new_dataset.remove_column(col)
+            logger.info(f"Removed columns {remove_columns}.")
+        # Reset the format
+        # if input_columns:
+        #     self.set_format(previous_format)
+
+        return new_dataset
 
     def map(
         self,
@@ -319,161 +383,135 @@ class InMemoryDataset(AbstractDataset):
         batched: bool = False,
         batch_size: Optional[int] = 1000,
         drop_last_batch: bool = False,
-        remove_columns: Optional[List[str]] = None,
-        # keep_in_memory: bool = False,
-        #             # load_from_cache_file: bool = True,
-        cache_file_name: Optional[str] = None,
-        #             # writer_batch_size: Optional[int] = 1000,
-        #             # features: Optional[Features] = None,
-        #             # disable_nullable: bool = False,
-        #             # fn_kwargs: Optional[dict] = None,
-        #             # num_proc: Optional[int] = None,
-        #             # suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
-        #             # new_fingerprint: Optional[str] = None,
-        required_columns: Optional[List[str]] = None,
         **kwargs,
-    ) -> Optional[InMemoryDataset]:
+    ) -> Optional[Dict, List]:
+        """Apply a map over the dataset."""
 
-        # Set the function if it's None
+        # Just return if the function is None
         if function is None:
-            function = (lambda x, index: x) if with_indices else lambda x: x
+            logger.info("`function` None, returning None.")
+            return None
+
+        # Return if `self` has no examples
+        if not len(self):
+            logger.info("Dataset empty, returning None.")
+            return None
 
         if isinstance(input_columns, str):
             input_columns = [input_columns]
 
         # Set the format
+        previous_format = self.visible_columns
         if input_columns:
-            previous_format = self.visible_columns
             self.set_format(input_columns)
 
-        # Get some information about the function
-        function_properties = self._inspect_function(function, with_indices, batched)
-        update_dataset = function_properties.dict_output
-
-        # Return if `self` has no examples
-        if not len(self):
-            return self if update_dataset else None
-
-        # Map returns a new dataset if the function returns a dict
-        if update_dataset:
-            new_dataset = InMemoryDataset()
+        if not batched:
+            # Convert to a batch function
+            function = convert_to_batch_fn(function, with_indices=with_indices)
+            logger.info(f"Converting `function` {function} to a batched function.")
 
         # Run the map
-        if batched:
-            for i, batch in enumerate(self.batch(batch_size, drop_last_batch)):
-                output = (
-                    function(
-                        batch,
-                        range(i * batch_size, min(len(self), (i + 1) * batch_size)),
-                    )
-                    if with_indices
-                    else function(batch)
+        logger.info("Running `map`, the dataset will be left unchanged.")
+        outputs = None
+        for i, batch in tqdm(
+            enumerate(self.batch(batch_size, drop_last_batch)),
+            total=(len(self) // batch_size) + (1 - int(drop_last_batch)),
+        ):
+
+            # Run `function` on the batch
+            output = (
+                function(
+                    batch,
+                    range(i * batch_size, min(len(self), (i + 1) * batch_size)),
                 )
+                if with_indices
+                else function(batch)
+            )
 
-                if update_dataset:
-                    # TODO(karan): check that this has the correct behavior
-                    output = self._merge_batch_and_output(batch, output)
-                    # output = recmerge(batch, output, merge_sequences=True)
-                    new_dataset.append(output)
+            if i == 0:
+                # Create an empty dict or list for the outputs
+                outputs = defaultdict(list) if isinstance(output, Mapping) else []
 
-        else:
-            for i, example in enumerate(self):
-                output = function(example, i) if with_indices else function(example)
-
-                if update_dataset:
-                    # TODO(karan): check that this has the correct behavior
-                    output = recmerge(example, output)
-                    new_dataset.append(output)
+            # Append the output
+            if output is not None:
+                if isinstance(output, Mapping):
+                    for k in output.keys():
+                        outputs[k].extend(output[k])
+                else:
+                    outputs.extend(output)
 
         # Reset the format
         if input_columns:
             self.set_format(previous_format)
 
-        if update_dataset:
-            new_dataset._set_features()
-            return new_dataset
-        return None
-
-    @classmethod
-    def _mask_batch(cls, batch: Batch, boolean_mask: List[bool]):
-        """Remove elements in `batch` that are masked by `boolean_mask`."""
-        return {
-            k: [e for i, e in enumerate(v) if boolean_mask[i]] for k, v in batch.items()
-        }
+        if not len(outputs):
+            return None
+        elif isinstance(outputs, dict):
+            return dict(outputs)
+        return outputs
 
     def filter(
         self,
         function: Optional[Callable] = None,
         with_indices=False,
         input_columns: Optional[Union[str, List[str]]] = None,
+        batched: bool = False,
         batch_size: Optional[int] = 1000,
-        remove_columns: Optional[List[str]] = None,
-        # keep_in_memory: bool = False,
-        # load_from_cache_file: bool = True,
-        cache_file_name: Optional[str] = None,
-        # writer_batch_size: Optional[int] = 1000,
-        # fn_kwargs: Optional[dict] = None,
-        # num_proc: Optional[int] = None,
-        # suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
-        # new_fingerprint: Optional[str] = None,
+        drop_last_batch: bool = False,
         **kwargs,
-    ):
-        # Set the function if it's None
+    ) -> Optional[InMemoryDataset]:
+        """Apply a filter over the dataset."""
+        # Just return if the function is None
         if function is None:
-            function = lambda *args, **kwargs: True
+            logger.info("`function` None, returning None.")
+            return None
 
-        if isinstance(input_columns, str):
-            input_columns = [input_columns]
-
-        # Set the format
-        if input_columns:
-            previous_format = self.visible_columns
-            self.set_format(input_columns)
+        # Return if `self` has no examples
+        if not len(self):
+            logger.info("Dataset empty, returning None.")
+            return None
 
         # Get some information about the function
-        # TODO(karan): extend to handle batched functions
         function_properties = self._inspect_function(
             function,
             with_indices,
-            batched=False,
+            batched=batched,
         )
         assert function_properties.bool_output, "function must return boolean."
 
-        # Run the filter
-        indices = []
-        for i, example in enumerate(self):
-            output = (
-                function(
-                    example,
-                    i,
-                )
-                if with_indices
-                else function(example)
-            )
-            assert isinstance(output, bool), "function must return boolean."
+        # Map to get the boolean outputs and indices
+        logger.info("Running `filter`, a new dataset will be returned.")
+        outputs = self.map(
+            function=function,
+            with_indices=with_indices,
+            input_columns=input_columns,
+            batched=batched,
+            batch_size=batch_size,
+            drop_last_batch=drop_last_batch,
+        )
+        indices = np.where(outputs)[0]
 
-            # Add in the index
-            if output:
-                indices.append(i)
-
-        # Reset the format, to set visible columns for the filter
-        self.reset_format()
-
-        # Filter returns a new dataset
-        new_dataset = InMemoryDataset()
-        if indices:
-            new_dataset = InMemoryDataset.from_batch(self[indices])
-
-        # Set the format back to what it was before the filter was applied
-        if input_columns:
-            self.set_format(previous_format)
+        # Reset the format to set visible columns for the filter
+        with self.format():
+            # Filter returns a new dataset
+            new_dataset = self.copy()
+            new_dataset.set_visible_rows(indices)
 
         return new_dataset
+
+    def copy(self, deepcopy=False):
+        """Return a copy of the dataset."""
+        if deepcopy:
+            return copy.deepcopy(self)
+        else:
+            dataset = InMemoryDataset()
+            dataset.__dict__ = {k: copy.copy(v) for k, v in self.__dict__.items()}
+            return dataset
 
     @classmethod
     def _state_keys(cls) -> set:
         """List of attributes that describe the state of the object."""
-        return {"_data", "all_columns", "_info", "_split"}
+        return {"_data", "all_columns", "visible_rows", "_info", "_split"}
 
     @classmethod
     def _assert_state_keys(cls, state: Dict) -> None:

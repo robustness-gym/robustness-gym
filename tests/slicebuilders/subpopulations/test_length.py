@@ -20,8 +20,11 @@ class TestLengthSubpopulation(TestCase):
         scores = length.score(self.testbed.dataset[:], columns=["text"])
         self.assertTrue(np.allclose(scores, np.array([5, 5, 5, 5, 5, 5])))
 
+        print(self.testbed.dataset.column_names)
+        print(Spacy.retrieve(self.testbed.dataset[:], ["text"]))
+
         # Apply the subpopulation
-        dataset, slices, slice_matrix = length(self.testbed.dataset, columns=["text"])
+        slices, slice_matrix = length(self.testbed.dataset, columns=["text"])
 
         # Check that the slice membership lines up
         self.assertTrue(np.allclose(slice_matrix, np.array([[0, 1]] * 6)))

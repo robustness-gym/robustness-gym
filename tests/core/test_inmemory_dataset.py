@@ -98,108 +98,88 @@ class TestInMemoryDataset(TestCase):
 
     def test_map_1(self):
         """Map, with_indices=False, batched=False."""
-        dataset = self.dataset.map(
+        output = self.dataset.map(
             lambda example: {"c": example["a"]},
             with_indices=False,
             input_columns=None,
             batched=False,
             batch_size=1000,
             drop_last_batch=False,
-            remove_columns=None,
-            required_columns=None,
         )
-
-        # Dataset has the right columns
-        self.assertEqual(set(dataset.column_names), {"a", "b", "c"})
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
+
+        # Output is correct
+        self.assertEqual(output, {"c": self.dataset["a"]})
 
     def test_map_2(self):
         """Map, with_indices=True, batched=False."""
-        dataset = self.dataset.map(
+        output = self.dataset.map(
             lambda example, index: {"c": example["a"]},
             with_indices=True,
             input_columns=None,
             batched=False,
             batch_size=1000,
             drop_last_batch=False,
-            remove_columns=None,
-            required_columns=None,
         )
-
-        # Dataset has the right columns
-        self.assertEqual(set(dataset.column_names), {"a", "b", "c"})
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
+
+        # Output is correct
+        self.assertEqual(output, {"c": self.dataset["a"]})
 
     def test_map_3(self):
         """Map, with_indices=False, batched=True."""
-        dataset = self.dataset.map(
+        output = self.dataset.map(
             lambda example: {"c": example["a"]},
             with_indices=False,
             input_columns=None,
             batched=True,
             batch_size=1000,
             drop_last_batch=False,
-            remove_columns=None,
-            required_columns=None,
         )
-
-        # Dataset has the right columns
-        self.assertEqual(set(dataset.column_names), {"a", "b", "c"})
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
+
+        # Output is correct
+        self.assertEqual(output, {"c": self.dataset["a"]})
 
     def test_map_4(self):
         """Map, with_indices=True, batched=True."""
-        dataset = self.dataset.map(
+        output = self.dataset.map(
             lambda example, index: {"c": example["a"]},
             with_indices=True,
             input_columns=None,
             batched=True,
             batch_size=1000,
             drop_last_batch=False,
-            remove_columns=None,
-            required_columns=None,
         )
-
-        # Dataset has the right columns
-        self.assertEqual(set(dataset.column_names), {"a", "b", "c"})
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
+
+        # Output is correct
+        self.assertEqual(output, {"c": self.dataset["a"]})
 
     def test_map_5(self):
         """Map, function=None, with_indices=False, batched=False."""
-        dataset = self.dataset.map(
+        output = self.dataset.map(
             None,
             with_indices=False,
             batched=False,
         )
 
-        # Dataset has the right columns
-        self.assertEqual(set(dataset.column_names), {"a", "b"})
-
         # Original dataset is still the same
         self.assertEqual(
             self.dataset[:],
             self.batch,
         )
+
+        # Output is None
+        self.assertEqual(output, None)
 
     def test_filter_1(self):
         dataset = self.dataset.filter(

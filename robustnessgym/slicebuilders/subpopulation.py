@@ -7,9 +7,10 @@ from multiprocess.pool import Pool
 from tqdm import tqdm
 
 from robustnessgym.core.constants import SLICEBUILDERS, SUBPOPULATION
-from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.dataset import Batch, Dataset
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tools import recmerge
+from robustnessgym.core.slice import Slice
+from robustnessgym.core.tools import recmerge, strings_as_json
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
@@ -26,10 +27,10 @@ class Subpopulation(SliceBuilder):
     def apply(
         self,
         slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: Batch,
         columns: List[str],
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
         raise NotImplementedError
 
@@ -37,12 +38,10 @@ class Subpopulation(SliceBuilder):
         self,
         batch: Dict[str, List],
         columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
+        # mask: List[int] = None,
         *args,
-        **kwargs
-    ) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
+        **kwargs,
+    ) -> Tuple[Optional[List[Batch]], Optional[np.ndarray]]:
 
         # Determine the size of the batch
         batch_size = len(batch[list(batch.keys())[0]])
@@ -50,29 +49,93 @@ class Subpopulation(SliceBuilder):
         # Construct the matrix of slice labels: (batch_size x num_slices)
         slice_membership = np.zeros((batch_size, self.num_slices), dtype=np.int32)
 
-        # Apply the SliceMaker's core functionality
+        # Apply the SliceBuilder's core functionality
         slice_membership = self.apply(slice_membership, batch, columns, *args, **kwargs)
 
-        # Store these slice labels
-        # TODO(karan): figure out how to set the alias
-        updates = self.construct_updates(
-            slice_membership=slice_membership,
-            columns=columns,
-            mask=mask,
-            compress=store_compressed,
-        )
-
-        if store:
-            batch = self.store(
-                batch=batch,
-                updates=updates,
-            )
+        # # Store these slice labels
+        # # TODO(karan): figure out how to set the alias
+        # updates = self.construct_updates(
+        #     slice_membership=slice_membership,
+        #     columns=columns,
+        #     mask=mask,
+        #     compress=store_compressed,
+        # )
+        #
+        # if store:
+        #     batch = self.store(
+        #         batch=batch,
+        #         updates=updates,
+        #     )
 
         return (
-            batch,
-            self.filter_batch_by_slice_membership(batch, slice_membership),
+            None,  # self.filter_batch_by_slice_membership(batch, slice_membership),
             slice_membership,
         )
+
+    def process_dataset(
+        self,
+        dataset: Dataset,
+        columns: List[str],
+        batch_size: int = 32,
+        # mask: List[int] = None,
+        num_proc: int = None,
+        *args,
+        **kwargs,
+    ) -> Tuple[List[Slice], np.ndarray]:
+
+        # Create slices using the dataset
+        slices = [Slice(dataset) for _ in range(len(self.identifiers))]
+        all_slice_memberships = []
+        # Batch the dataset, and process each batch
+        for batch in dataset.batch(batch_size):
+            # Process the batch
+            _, slice_memberships = self.process_batch(
+                batch=batch,
+                columns=columns,
+                *args,
+                **kwargs,
+            )
+
+            # Keep track of the slice memberships
+            all_slice_memberships.append(slice_memberships)
+
+        # Create a single slice label matrix
+        slice_membership = np.concatenate(all_slice_memberships, axis=0)
+
+        for i, sl in enumerate(slices):
+            # Set the visible rows for each slice
+            sl.set_visible_rows(np.where(slice_membership[:, i])[0])
+
+            # Set the Slice category using the SliceBuilder's category
+            sl.category = self.category
+
+            # Append the the lineage
+            sl.add_to_lineage(
+                category=str(self.category.capitalize()),
+                identifier=self.identifiers[i],
+                columns=strings_as_json(columns),
+            )
+
+            # # Create the lineage
+            # sl.lineage = [
+            #     (str(Dataset.__name__), dataset.identifier),
+            #     (
+            #         str(self.category.capitalize()),
+            #         self.identifiers[i],
+            #         strings_as_json(columns),
+            #     ),
+            # ]
+            # if isinstance(dataset, Slice):
+            #     # Prepend the Slice's lineage instead, if the dataset was a slice
+            #     sl.lineage = dataset.lineage + [
+            #         (
+            #             str(self.category.capitalize()),
+            #             self.identifiers[i],
+            #             strings_as_json(columns),
+            #         )
+            #     ]
+
+        return slices, slice_membership
 
     def construct_updates(
         self,
@@ -243,14 +306,14 @@ class SubpopulationCollection(Subpopulation):
 
     def __call__(
         self,
-        batch_or_dataset: Union[Dict[str, List], Dataset],
+        batch_or_dataset: Union[Batch, Dataset],
         columns: List[str],
         mask: List[int] = None,
         store_compressed: bool = None,
         store: bool = None,
         num_proc: int = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         if mask:
@@ -344,10 +407,10 @@ class SubpopulationCollection(Subpopulation):
     def apply(
         self,
         slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: Batch,
         columns: List[str],
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
         # Each Subpopulation will generate slices
         for subpopulation, end_idx in zip(

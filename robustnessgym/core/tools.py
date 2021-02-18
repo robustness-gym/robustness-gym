@@ -1,12 +1,64 @@
 import hashlib
 import inspect
 import json
+from collections import defaultdict
 from functools import partial
-from typing import List, Mapping, Sequence
+from typing import Callable, Dict, List, Mapping, Optional, Sequence
 
 import cytoolz as tz
 import progressbar
 import yaml
+
+
+def convert_to_batch_fn(function: Callable, with_indices: bool):
+    """Batch a function that applies to an example."""
+
+    def _function(
+        batch: Dict[str, List], indices: Optional[List[int]], *args, **kwargs
+    ):
+        # Pull out the batch size
+        batch_size = len(batch[list(batch.keys())[0]])
+
+        # Iterate and apply the function
+        outputs = None
+        for i in range(batch_size):
+
+            # Apply the unbatched function
+            if with_indices:
+                output = function(
+                    {k: v[i] for k, v in batch.items()},
+                    indices[i],
+                    *args,
+                    **kwargs,
+                )
+            else:
+                output = function(
+                    {k: v[i] for k, v in batch.items()},
+                    *args,
+                    **kwargs,
+                )
+
+            if i == 0:
+                # Create an empty dict or list for the outputs
+                outputs = defaultdict(list) if isinstance(output, dict) else []
+
+            # Append the output
+            if isinstance(output, dict):
+                for k in output.keys():
+                    outputs[k].append(output[k])
+            else:
+                outputs.append(output)
+
+        if isinstance(outputs, dict):
+            return dict(outputs)
+        return outputs
+
+    if with_indices:
+        # Just return the function as is
+        return _function
+    else:
+        # Wrap in a lambda to apply the indices argument
+        return lambda batch, *args, **kwargs: _function(batch, None, *args, **kwargs)
 
 
 def recmerge(*objs, merge_sequences=False):
@@ -49,7 +101,12 @@ def strings_as_json(strings: List[str]):
 
     Returns: JSON dump of the strings.
     """
-    return json.dumps(strings) if len(strings) > 1 else strings[0]
+    if len(strings) > 1:
+        return json.dumps(strings)
+    elif len(strings) == 1:
+        return strings[0]
+    else:
+        return ""
 
 
 def get_default_args(func) -> dict:

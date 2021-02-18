@@ -8,7 +8,10 @@ class TestIdentifier(TestCase):
     def setUp(self):
         self.min_identifier = Identifier(_name="MyIdentifier")
         self.identifier = Identifier(
-            _name="MyIdentifier", _index=1, param="a", param_2="b"
+            _name="MyIdentifier",
+            _index=1,
+            param="a",
+            param_2="b",
         )
 
     def test_init(self):
@@ -73,3 +76,25 @@ class TestIdentifier(TestCase):
         s = self.identifier.dumps()
         identifier = Identifier.loads(s)
         self.assertEqual(identifier, self.identifier)
+
+    def test_add_parameter(self):
+        self.identifier.add_parameter("extra", "value")
+        self.assertEqual(
+            self.identifier.parameters, {"param": "a", "param_2": "b", "extra": "value"}
+        )
+
+    def test_without(self):
+        identifier = self.identifier.without("param")
+        self.assertTrue("param" not in identifier.parameters)
+
+    def test_parse(self):
+        identifier = Identifier.parse(
+            "Spacy(lang=en_core_web_sm, neuralcoref=False, columns=['text'])"
+        )
+        self.assertEqual(
+            str(identifier),
+            "Spacy(lang=en_core_web_sm, neuralcoref=False, columns=['text'])",
+        )
+        self.assertEqual(
+            set(identifier.parameters.keys()), {"lang", "neuralcoref", "columns"}
+        )

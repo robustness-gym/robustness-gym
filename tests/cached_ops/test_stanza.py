@@ -22,14 +22,12 @@ class TestStanza(TestCase):
                     doc.get("lemma") for doc in decoded_batch
                 ],
             ),
-            {
-                "text": [
-                    ["the", "man", "be", "walk", "."],
-                    ["the", "man", "be", "run", "."],
-                    ["the", "woman", "be", "sprint", "."],
-                    ["the", "woman", "be", "rest", "."],
-                    ["the", "hobbit", "be", "fly", "."],
-                    ["the", "hobbit", "be", "swim", "."],
-                ]
-            },
+            [
+                ["the", "man", "be", "walk", "."],
+                ["the", "man", "be", "run", "."],
+                ["the", "woman", "be", "sprint", "."],
+                ["the", "woman", "be", "rest", "."],
+                ["the", "hobbit", "be", "fly", "."],
+                ["the", "hobbit", "be", "swim", "."],
+            ],
         )
