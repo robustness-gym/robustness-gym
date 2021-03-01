@@ -160,10 +160,13 @@ Set up a development environment with `poetry` by running the following command 
    too! So everyone can see the changes in the Pull request, work in your local
    branch and push the changes to your fork. They will automatically appear in
    the pull request.
-
+   
+8. We follow a one-commit-per-PR policy. Before your PR can be merged, you will have to
+ `git rebase` to squash your changes into a single commit.
 
 ### Checklist
 
+0. One commit per PR.
 1. The title of your pull request should be a summary of its contribution;
 2. If your pull request addresses an issue, please mention the issue number in
    the pull request description to make sure they are linked (and people
@@ -174,6 +177,7 @@ Set up a development environment with `poetry` by running the following command 
 4. Make sure existing tests pass;
 5. Add high-coverage tests. No quality testing = no merge.
 6. All public methods must have informative docstrings that work nicely with sphinx.
+
 
 ### Tests
 
