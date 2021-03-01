@@ -4,16 +4,17 @@ from unittest import TestCase
 
 from robustnessgym.core.cachedops import CachedOperation
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tools import strings_as_json
 from tests.testbeds import MockTestBedv0
 
 
 def a_single_column_apply_fn(batch, columns):
+    """Simple function that applies to a single column."""
     assert len(columns) == 1 and type(batch[columns[0]][0]) == int
     return [e * 7 + 3.14 for e in batch[columns[0]]]
 
 
 def a_multi_column_apply_fn(batch, columns):
+    """Simple function that applies to multiple columns."""
     assert len(columns) == 2
     return [e[0] * 0.1 + e[1] * 0.3 for e in zip(batch[columns[0]], batch[columns[1]])]
 
@@ -30,7 +31,7 @@ class TestCachedOperation(TestCase):
 
         self.multicol_cachedop = CachedOperation(
             apply_fn=a_multi_column_apply_fn,
-            identifier=Identifier(_name="TestCachedOperation", columns="multiple"),
+            identifier=Identifier(_name="TestCachedOperation", to="multiple"),
         )
 
     def test_repr(self):
@@ -53,9 +54,6 @@ class TestCachedOperation(TestCase):
             self.testbed.dataset.features, self.testbed.original_dataset.features
         )
 
-        # It should contain the special cache key
-        self.assertTrue("cache" in self.testbed.dataset.features)
-
         # The interaction tape should contain the history of this operation
         self.assertTrue(
             self.testbed.dataset.fetch_tape(path=["cachedoperations"]).history
@@ -65,7 +63,7 @@ class TestCachedOperation(TestCase):
         # Retrieve the information that was stored using the instance
         self.assertEqual(
             self.cachedop.retrieve(self.testbed.dataset[:], columns=["label"]),
-            {"label": [3.14, 3.14, 10.14, 10.14, 3.14, 3.14]},
+            [3.14, 3.14, 10.14, 10.14, 3.14, 3.14],
         )
 
         # Retrieve the information that was stored using the CachedOperation class,
@@ -76,7 +74,7 @@ class TestCachedOperation(TestCase):
                 columns=["label"],
                 identifier=self.cachedop.identifier,
             ),
-            {"label": [3.14, 3.14, 10.14, 10.14, 3.14, 3.14]},
+            [3.14, 3.14, 10.14, 10.14, 3.14, 3.14],
         )
 
         # Retrieve the information that was stored using the CachedOperation class:
@@ -91,7 +89,7 @@ class TestCachedOperation(TestCase):
                 columns=["label"],
                 proc_fns=lambda decoded_batch: [x + 0.01 for x in decoded_batch],
             ),
-            {"label": [3.15, 3.15, 10.15, 10.15, 3.15, 3.15]},
+            [3.15, 3.15, 10.15, 10.15, 3.15, 3.15],
         )
 
     def test_multiple_calls(self):
@@ -101,20 +99,16 @@ class TestCachedOperation(TestCase):
             self.cachedop(self.testbed.dataset, columns=["label", "fast"])
 
         # Create an additional integer column in the dataset
-        dataset = self.testbed.dataset.map(lambda x: {"otherlabel": x["label"] + 1})
+        dataset = self.testbed.dataset.update(lambda x: {"otherlabel": x["label"] + 1})
 
         # Apply to multiple columns of the dataset in sequence
         dataset_0_0 = self.cachedop(dataset, columns=["label"])
         dataset_0_1 = self.cachedop(dataset_0_0, columns=["z"])
 
-        # Check that the cache is populated with the processed columns
-        self.assertTrue(
-            "label" in dataset_0_0.features["cache"][str(self.cachedop.identifier)]
-            and "z" not in dataset_0_0.features["cache"][str(self.cachedop.identifier)]
-        )
-        self.assertTrue(
-            "label" in dataset_0_1.features["cache"][str(self.cachedop.identifier)]
-            and "z" in dataset_0_1.features["cache"][str(self.cachedop.identifier)]
+        # Check that the additional columns were added
+        self.assertEqual(len(dataset.column_names) + 1, len(dataset_0_0.column_names))
+        self.assertEqual(
+            len(dataset_0_0.column_names) + 1, len(dataset_0_1.column_names)
         )
 
         # Apply to multiple columns of the dataset, in reverse order
@@ -122,13 +116,9 @@ class TestCachedOperation(TestCase):
         dataset_1_1 = self.cachedop(dataset_1_0, columns=["label"])
 
         # Check that the cache is populated with the processed columns
-        self.assertTrue(
-            "label" not in dataset_1_0.features["cache"][str(self.cachedop.identifier)]
-            and "z" in dataset_1_0.features["cache"][str(self.cachedop.identifier)]
-        )
-        self.assertTrue(
-            "label" in dataset_1_1.features["cache"][str(self.cachedop.identifier)]
-            and "z" in dataset_1_1.features["cache"][str(self.cachedop.identifier)]
+        self.assertEqual(len(dataset.column_names) + 1, len(dataset_1_0.column_names))
+        self.assertEqual(
+            len(dataset_1_0.column_names) + 1, len(dataset_1_1.column_names)
         )
 
         # Retrieving information fails if the columns are passed together in a single
@@ -151,13 +141,9 @@ class TestCachedOperation(TestCase):
         dataset = self.multicol_cachedop(self.testbed.dataset, columns=["label", "z"])
 
         # Check that caching happens and that the cached values are correct
-        self.assertTrue(
-            strings_as_json(["label", "z"])
-            in dataset.features["cache"][str(self.multicol_cachedop.identifier)]
-        )
         self.assertEqual(
             self.multicol_cachedop.retrieve(dataset[:], columns=["label", "z"]),
-            {'["label", "z"]': [0.3, 0.0, 0.4, 0.1, 0.3, 0.0]},
+            {("label", "z"): [0.3, 0.0, 0.4, 0.1, 0.3, 0.0]},
         )
 
         # Apply the single-column cached operation
@@ -165,19 +151,15 @@ class TestCachedOperation(TestCase):
         dataset = self.cachedop(dataset, columns=["z"])
 
         # Now recheck that everything can be retrieved correctly
-        self.assertTrue(
-            strings_as_json(["label", "z"])
-            in dataset.features["cache"][str(self.multicol_cachedop.identifier)]
-        )
         self.assertEqual(
             self.multicol_cachedop.retrieve(dataset[:], columns=["label", "z"]),
-            {'["label", "z"]': [0.3, 0.0, 0.4, 0.1, 0.3, 0.0]},
+            {("label", "z"): [0.3, 0.0, 0.4, 0.1, 0.3, 0.0]},
         )
         self.assertEqual(
             self.cachedop.retrieve(dataset[:], columns=["label"]),
-            {"label": [3.14, 3.14, 10.14, 10.14, 3.14, 3.14]},
+            [3.14, 3.14, 10.14, 10.14, 3.14, 3.14],
         )
         self.assertEqual(
             self.cachedop.retrieve(dataset[:], columns=["z"]),
-            {"z": [10.14, 3.14, 10.14, 3.14, 10.14, 3.14]},
+            [10.14, 3.14, 10.14, 3.14, 10.14, 3.14],
         )

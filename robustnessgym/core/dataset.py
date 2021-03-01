@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import pathlib
-from copy import deepcopy
+from contextlib import contextmanager
+from copy import copy, deepcopy
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import cytoolz as tz
 import datasets
+import pandas as pd
 from datasets import Features
 from pyarrow import json as jsonarrow
 from pyarrow import table
@@ -15,6 +18,8 @@ from pyarrow import table
 from robustnessgym.core.dataformats.inmemory import InMemoryDataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.tape import InteractionTapeHierarchyMixin
+
+logger = logging.getLogger(__name__)
 
 Batch = Dict[str, List]
 BatchOrDataset = Union[Batch, "Dataset"]
@@ -38,6 +43,8 @@ class Dataset(
         dataset_fmt: str = None,
         **kwargs,
     ):
+
+        logger.debug("Creating Dataset.")
 
         # Internally, keep track of data inside a dataset
         self._dataset = None
@@ -89,7 +96,8 @@ class Dataset(
         self._create_logdir()
 
         # Add an index to the dataset
-        self._dataset = self._dataset.map(self.add_index, with_indices=True)
+        if not self.has_index:
+            self._add_index()
 
     @property
     def identifier(self):
@@ -121,13 +129,59 @@ class Dataset(
         """Number of rows in the dataset."""
         return self._dataset.num_rows
 
+    @contextmanager
+    def format(self, columns: List[str] = None):
+        """Context where only `columns` will be visible."""
+        # Get the current format
+        current_format = self.get_format()
+
+        if columns:
+            # View only `columns`
+            self.set_format(columns)
+        else:
+            # Use all columns
+            self.set_format(self.column_names)
+        try:
+            yield
+        finally:
+            # Reset the format back
+            self.set_format(current_format)
+
+    def get_format(self) -> List[str]:
+        """Get the dataset format."""
+        return self._dataset.visible_columns
+
     def set_format(self, columns: List[str]):
         """Set the dataset format."""
+        # TODO(karan): change `cache`
+        if "cache" in self.column_names:
+            return self._dataset.set_format(columns=columns + ["cache"])
         return self._dataset.set_format(columns=columns)
 
     def reset_format(self):
         """Set the dataset format."""
         return self._dataset.reset_format()
+
+    def set_visible_rows(self, indices: Sequence):
+        """Set the visible rows in the dataset."""
+        self._dataset.set_visible_rows(indices)
+
+    def reset_visible_rows(self):
+        """Reset to make all rows visible."""
+        self._dataset.reset_visible_rows()
+
+    def add_column(self, column: str, values: List):
+        """Add a column to the dataset."""
+        self._dataset.add_column(column, values)
+
+    def _add_index(self):
+        """Add an index to the dataset."""
+        self.add_column("index", [str(i) for i in range(len(self))])
+
+    def head(self, n: int, columns: List[str] = None):
+        """View the first `n` examples of the dataset."""
+        with self.format(columns):
+            return pd.DataFrame(self[:n])
 
     @staticmethod
     def add_index(example, index):
@@ -178,14 +232,22 @@ class Dataset(
 
     def __repr__(self):
         return (
-            f"RobustnessGym{self.__class__.__name__}"
-            f"(num_rows: {self._dataset.num_rows})"
+            f"RG{self.__class__.__name__}["
+            f"num_rows: {self.num_rows}]({self.identifier})"
         )
 
     @property
     def column_names(self):
         """Name of the columns in the dataset."""
         return self._dataset.column_names
+
+    @property
+    def has_index(self) -> bool:
+        """Check if the dataset has an index column."""
+        if self._dataset.column_names:
+            return "index" in self._dataset.column_names
+        # Just return True if the dataset is empty
+        return True
 
     @classmethod
     def uncached_batch(cls, batch: Batch, copy=True) -> Batch:
@@ -214,7 +276,7 @@ class Dataset(
     def load_dataset(
         cls,
         *args,
-        dataset_fmt: str = "datasets",
+        dataset_fmt: str = "in_memory",
         **kwargs,
     ):
         """Create a Dataset using Huggingface datasets.load_dataset(..). Loads
@@ -337,6 +399,40 @@ class Dataset(
             dataset_fmt=dataset_fmt,
         )
 
+    @classmethod
+    def from_pandas(
+        cls,
+        df: pd.DataFrame,
+        identifier: Identifier = None,
+        dataset_fmt: str = "in_memory",
+    ):
+        """Create a Dataset from a pandas DataFrame."""
+        return cls.from_batch(
+            df.to_dict("list"),
+            identifier=identifier,
+            dataset_fmt=dataset_fmt,
+        )
+
+    @classmethod
+    def from_feather(
+        cls,
+        path: str,
+        identifier: Identifier = None,
+        dataset_fmt: str = "in_memory",
+    ):
+        """Create a Dataset from a feather file."""
+        return cls.from_batch(
+            pd.read_feather(path).to_dict("list"),
+            identifier=Identifier("Feather", path=path)
+            if not identifier
+            else identifier,
+            dataset_fmt=dataset_fmt,
+        )
+
+    def to_pandas(self) -> pd.DataFrame:
+        """Convert a Dataset to a pandas DataFrame."""
+        return pd.DataFrame(self[:])
+
     def batch(self, batch_size: int = 32):
         """Batch the dataset.
 
@@ -347,6 +443,66 @@ class Dataset(
         """
         for i in range(0, len(self), batch_size):
             yield self[i : i + batch_size]
+
+    def update(
+        self,
+        function: Optional[Callable] = None,
+        with_indices: bool = False,
+        # input_columns: Optional[Union[str, List[str]]] = None,
+        batched: bool = False,
+        batch_size: Optional[int] = 1000,
+        drop_last_batch: bool = False,
+        # remove_columns: Optional[List[str]] = None,
+        # keep_in_memory: bool = False,
+        # load_from_cache_file: bool = True,
+        # cache_file_name: Optional[str] = None,
+        # writer_batch_size: Optional[int] = 1000,
+        # features: Optional[Features] = None,
+        # disable_nullable: bool = False,
+        # fn_kwargs: Optional[dict] = None,
+        # num_proc: Optional[int] = None,
+        # suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
+        # new_fingerprint: Optional[str] = None,
+        # **kwargs,
+    ) -> Dataset:
+        """Map on the dataset."""
+
+        assert isinstance(
+            self._dataset, InMemoryDataset
+        ), "Cannot apply .update() if format isn't InMemoryDataset."
+        # Compute the map using the underlying dataset's .map()
+        output = self._dataset.update(
+            function=function,
+            with_indices=with_indices,
+            # input_columns=input_columns,
+            batched=batched,
+            batch_size=batch_size,
+            drop_last_batch=drop_last_batch,
+            # remove_columns=remove_columns,
+            # keep_in_memory=keep_in_memory,
+            # load_from_cache_file=load_from_cache_file,
+            # cache_file_name=cache_file_name,
+            # writer_batch_size=writer_batch_size,
+            # features=features,
+            # disable_nullable=disable_nullable,
+            # fn_kwargs=fn_kwargs,
+            # num_proc=num_proc,
+            # suffix_template=suffix_template,
+            # new_fingerprint=new_fingerprint,
+        )
+
+        if isinstance(output, datasets.Dataset):
+            dataset = copy(self)
+            dataset._dataset = output
+        elif isinstance(output, InMemoryDataset):
+            dataset = copy(self)
+            dataset._dataset = output
+        elif output is None:
+            dataset = self
+        else:
+            raise NotImplementedError("Unrecognized dataset.")
+
+        return dataset
 
     def map(
         self,
@@ -368,11 +524,14 @@ class Dataset(
         suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
         new_fingerprint: Optional[str] = None,
         **kwargs,
-    ) -> Dataset:
+    ) -> Union[Dict, List]:
         """Map on the dataset."""
 
+        assert isinstance(
+            self._dataset, InMemoryDataset
+        ), "Cannot apply .update() if format isn't InMemoryDataset."
         # Compute the map using the underlying dataset's .map()
-        output = self._dataset.map(
+        return self._dataset.map(
             function=function,
             with_indices=with_indices,
             input_columns=input_columns,
@@ -391,21 +550,6 @@ class Dataset(
             suffix_template=suffix_template,
             new_fingerprint=new_fingerprint,
         )
-
-        if isinstance(output, datasets.Dataset):
-            dataset = deepcopy(self)
-            # dataset._dataset.__dict__ = tz.merge(
-            #     dataset._dataset.__dict__,
-            #     output.__dict__,
-            # )
-            dataset._dataset = output
-        elif isinstance(output, InMemoryDataset):
-            dataset = deepcopy(self)
-            dataset._dataset = output
-        else:
-            raise NotImplementedError("Unrecognized dataset generated after .map().")
-
-        return dataset
 
     def filter(
         self,
@@ -442,10 +586,10 @@ class Dataset(
         )
 
         if isinstance(output, datasets.Dataset):
-            dataset = deepcopy(self)
+            dataset = copy(self)
             dataset._dataset = output
         elif isinstance(output, InMemoryDataset):
-            dataset = deepcopy(self)
+            dataset = copy(self)
             dataset._dataset = output
         else:
             raise NotImplementedError("Unrecognized dataset generated after .filter().")

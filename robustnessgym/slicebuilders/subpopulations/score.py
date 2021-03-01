@@ -114,41 +114,26 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         dataset: Dataset,
         columns: List[str],
         batch_size: int = 32,
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
         *args,
         **kwargs
-    ) -> Dataset:
+    ) -> None:
 
         # First reset the scores
         self._reset_scores()
 
         # Prepare the dataset
-        dataset = super(ScoreSubpopulation, self).prepare_dataset(
+        super(ScoreSubpopulation, self).prepare_dataset(
             dataset=dataset,
             columns=columns,
             batch_size=batch_size,
-            mask=mask,
-            store_compressed=store_compressed,
-            store=store,
+            *args,
+            **kwargs,
         )
 
         # Create the bins
         self.create_bins()
 
-        return dataset
-
-    def prepare_batch(
-        self,
-        batch: Batch,
-        columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
-        *args,
-        **kwargs
-    ) -> Batch:
+    def prepare_batch(self, batch: Batch, columns: List[str], *args, **kwargs) -> None:
 
         # Compute the scores
         if isinstance(self.score, ScoreOperation):
@@ -157,8 +142,6 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
             self.scores.extend(self.score(batch=batch, columns=columns))
         else:
             raise RuntimeError("score function invalid.")
-
-        return batch
 
     def score(
         self, batch: Dict[str, List], columns: List[str], *args, **kwargs
@@ -237,41 +220,24 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
         dataset: Dataset,
         columns: List[str],
         batch_size: int = 32,
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
         *args,
         **kwargs
-    ) -> Dataset:
+    ) -> None:
 
         # First reset the scores
         self._reset_scores()
 
         # Prepare the dataset
-        dataset = super(MultiScoreSubpopulation, self).prepare_dataset(
+        super(MultiScoreSubpopulation, self).prepare_dataset(
             dataset=dataset,
             columns=columns,
             batch_size=batch_size,
-            mask=mask,
-            store_compressed=store_compressed,
-            store=store,
         )
 
         # Create the bins
         self.create_bins()
 
-        return dataset
-
-    def prepare_batch(
-        self,
-        batch: Batch,
-        columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
-        *args,
-        **kwargs
-    ) -> Batch:
+    def prepare_batch(self, batch: Batch, columns: List[str], *args, **kwargs) -> None:
 
         # Compute the scores
         if isinstance(self.score, ScoreOperation):
@@ -280,5 +246,3 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
             self.scores.extend(self.score(batch=batch, columns=columns))
         else:
             raise RuntimeError("score function invalid.")
-
-        return batch

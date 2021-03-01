@@ -47,15 +47,15 @@ class LengthSubpopulation(ScoreSubpopulation):
         lengths = [
             Spacy.retrieve(
                 batch=batch,
-                columns=[key],
+                columns=col,
                 proc_fns=tz.compose(
                     # Compute lengths (# of words) for each tokenized text in a batch
                     lambda l: np.array([len(t) for t in l]),
                     # Extract tokens using Spacy
                     Spacy.tokens,
                 ),
-            )[key]
-            for key in columns
+            )
+            for col in columns
         ]
 
         # Reduction over the key axis
