@@ -110,13 +110,6 @@ Set up a development environment with `poetry` by running the following command 
    ```bash
    $ make lint
    ```
-   You can do the automatic style corrections and code verifications that can't be automated in one go:
-
-   ```bash
-   $ make fixup
-   ```
-
-   This target is also optimized to only work with files modified by the PR you're working on.
 
    If you're modifying documents under `docs/source`, make sure to validate that
    they can still be built. This check also runs in CI. To run a local check
@@ -182,8 +175,8 @@ Set up a development environment with `poetry` by running the following command 
 ### Tests
 
 An extensive test suite is included to test the library behavior and several examples. 
-Library tests can be found in the [tests folder](https://github.com/robustness-gym
-/robustness-gym/tree/main/tests).
+Library tests can be found in the 
+[tests folder](https://github.com/robustness-gym/robustness-gym/tree/main/tests).
 
 From the root of the
 repository, here's how to run tests with `pytest` for the library:
