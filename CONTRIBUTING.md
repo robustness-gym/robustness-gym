@@ -144,6 +144,15 @@ Set up a development environment with `poetry` by running the following command 
    ```bash
    $ git push -u origin a-descriptive-name-for-my-changes
    ```
+   
+   You can use `pre-commit` to make sure you don't forget to format your code properly, 
+   the dependency should already be made available by `poetry`.
+   
+   Just install `pre-commit` for the `robustness-gym` directory,
+   
+   ```bash
+   $ pre-commit install
+   ```
 
 6. Once you are satisfied (**and the checklist below is happy too**), go to the
    webpage of your fork on GitHub. Click on 'Pull request' to send your changes
