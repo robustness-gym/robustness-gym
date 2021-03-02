@@ -39,28 +39,28 @@ class SemanticVersionerMixin:
         """Commit the current version and bump the major version."""
         self.commit()
         self._version = self._version.bump_major()
-        self._last_digest = self.digest()
+        self._last_digest = self._digest()
 
     def bump_minor(self):
         """Commit the current version and bump the minor version."""
         self.commit()
         self._version = self._version.bump_minor()
-        self._last_digest = self.digest()
+        self._last_digest = self._digest()
 
     def bump_patch(self):
         """Commit the current version and bump the patch."""
         self.commit()
-        self._version = self._version.bump_major()
-        self._last_digest = self.digest()
+        self._version = self._version.bump_patch()
+        self._last_digest = self._digest()
 
     def commit(self):
         """Commit the current version to history.
 
         Multiple commits on the same version overwrite each other.
         """
-        self._version_history[self.version] = self.digest()
+        self._version_history[self.version] = self._digest()
 
-    def digest(self) -> str:
+    def _digest(self) -> str:
         """Compute a digest for the object."""
         raise NotImplementedError(
             "Must implement a digest for the object that is being versioned."

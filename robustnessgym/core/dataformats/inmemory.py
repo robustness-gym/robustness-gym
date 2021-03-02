@@ -158,7 +158,8 @@ class InMemoryDataset(AbstractDataset):
         batch = self._example_or_batch_to_batch(example_or_batch)
 
         # TODO(karan): what other data properties need to be in sync here
-        self.all_columns = self.visible_columns = list(batch.keys())
+        self.all_columns = list(batch.keys())
+        self.visible_columns = list(batch.keys())
 
         # Dataset is empty: create the columns and append the batch
         self._data = {k: [] for k in self.column_names}

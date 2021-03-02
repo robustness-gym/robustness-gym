@@ -1,13 +1,21 @@
-from typing import Callable, Collection, Dict, OrderedDict
+from __future__ import annotations
+
+from collections import OrderedDict
+from typing import Callable, Collection, Dict, List, Tuple
 
 from datasets.features import FeatureType
 
+from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.tools import get_all_paths
 
 
 class Schema:
+    """Class for task input/output schemas in Robustness Gym."""
+
     def __init__(
-        self, features: OrderedDict, grounding_candidates: Dict[str, Collection]
+        self,
+        features: OrderedDict,
+        grounding_candidates: Dict[str, Collection],
     ):
         # Store the features and grounding candidates
         self.features = features
@@ -15,6 +23,37 @@ class Schema:
         self.reversed_grounding_candidates = {
             v: k for k, values in self.grounding_candidates.items() for v in values
         }
+
+    @classmethod
+    def from_columns(
+        cls,
+        features: Dict[str, FeatureType],
+        columns: List[str],
+    ) -> Schema:
+        """Create a schema using features and columns."""
+        for col in columns:
+            assert col in features, f"Column {col} must be in `features`."
+
+        return Schema(
+            features=OrderedDict({k: v for k, v in features.items() if k in columns}),
+            grounding_candidates={k: {k} for k in columns},
+        )
+
+    @classmethod
+    def for_dataset(
+        cls,
+        dataset: Dataset,
+        input_columns: List[str],
+        output_columns: List[str],
+    ) -> Tuple[Schema, Schema]:
+        """Create input and output schemas using features, input and output
+        columns."""
+        # Set the features
+        features = dataset.features
+
+        return Schema.from_columns(features, input_columns), Schema.from_columns(
+            features, output_columns
+        )
 
     def ground(self, features: Dict[str, FeatureType]):
         """
@@ -65,5 +104,7 @@ class Schema:
     def __len__(self):
         return len(self.features)
 
-    def keys(self):
+    @property
+    def columns(self):
+        """List of columns that participate in the schema."""
         return list(self.features.keys())
