@@ -59,3 +59,10 @@ class Bootleg(SingleColumnCachedOperation):
         ]
 
         return list_bootleg_results
+
+    def encode(cls, obj) -> str:
+        """Custom encode to allow for np.ndarray to be passed"""
+        return obj
+
+    def decode(cls, s: str):
+        return s
