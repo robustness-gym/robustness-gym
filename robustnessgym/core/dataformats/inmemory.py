@@ -98,6 +98,13 @@ class InMemoryDataset(AbstractDataset):
                 ).schema
             )
 
+    def _materialize(self):
+        # Materialize data, instead of using a reference to an ancestor Dataset
+        self._data = {k: self[k] for k in self._data}
+
+        # Reset visible_rows
+        self.set_visible_rows(None)
+
     def add_column(self, column: str, values: List, overwrite=False) -> None:
         """Add a column to the dataset."""
 
@@ -110,6 +117,10 @@ class InMemoryDataset(AbstractDataset):
             f"`add_column` failed. "
             f"Values length {len(values)} != dataset length {len(self)}."
         )
+
+        if self.visible_rows is not None:
+            # Materialize the data
+            self._materialize()
 
         # Add the column
         self._data[column] = list(values)

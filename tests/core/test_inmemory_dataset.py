@@ -228,3 +228,64 @@ class TestInMemoryDataset(TestCase):
             self.dataset[:],
             self.batch,
         )
+
+    def test_filter_3(self):
+        dataset_1 = self.dataset.filter(
+            lambda example, index: example["a"]["e"] > 2,
+            with_indices=True,
+        )
+
+        dataset_2 = dataset_1.filter(
+            lambda example, index: example["a"]["e"] > 3,
+            with_indices=True,
+        )
+
+        # Dataset has the right columns
+        self.assertEqual(set(dataset_1.column_names), {"a", "b"})
+        self.assertEqual(set(dataset_2.column_names), {"a", "b"})
+
+        # Datasets have the right data
+        self.assertEqual(
+            dataset_1[:],
+            {
+                "a": [{"e": 3}, {"e": 4}],
+                "b": ["w", "x"],
+            },
+        )
+
+        self.assertEqual(
+            dataset_2[:],
+            {
+                "a": [{"e": 4}],
+                "b": ["x"],
+            },
+        )
+
+        # Original dataset is still the same
+        self.assertEqual(
+            self.dataset[:],
+            self.batch,
+        )
+
+    def test_filter_add_column(self):
+        dataset = self.dataset.filter(
+            lambda example: example["a"] == {"e": 1},
+            with_indices=False,
+        )
+
+        # Add b values back as another column 'c'
+        dataset.add_column("c", dataset["b"])
+
+        # Dataset has the right data
+        self.assertEqual(
+            dataset[:],
+            {
+                "a": [{"e": 1}],
+                "b": ["u"],
+                "c": ["u"],
+            },
+        )
+
+    def test_remove_column(self):
+        self.dataset.remove_column("b")
+        self.assertEqual(self.dataset.column_names, ["a"])
