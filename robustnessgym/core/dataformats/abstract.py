@@ -115,7 +115,10 @@ class AbstractDataset(
                     f"Ensure min index {min(indices)} >= 0 and "
                     f"max index {max(indices)} < {len(self)}."
                 )
-            self.visible_rows = np.array(indices, dtype=int)
+            if self.visible_rows is not None:
+                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
+            else:
+                self.visible_rows = np.array(indices, dtype=int)
 
     def reset_visible_rows(self):
         """Reset to make all rows visible."""
