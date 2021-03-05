@@ -12,6 +12,7 @@ import cytoolz as tz
 import datasets
 import pandas as pd
 from datasets import Features
+from jsonlines import jsonlines
 from pyarrow import json as jsonarrow
 from pyarrow import table
 
@@ -183,13 +184,6 @@ class Dataset(
         with self.format(columns):
             return pd.DataFrame(self[:n])
 
-    @staticmethod
-    def add_index(example, index):
-        """Add an index to the dataset."""
-        if "index" not in example:
-            example["index"] = str(index)
-        return example
-
     def _create_logdir(self):
         """Create and assign a directory for logging this dataset's files."""
         if self.identifier.name == "RGDataset":
@@ -334,7 +328,9 @@ class Dataset(
 
             return cls(
                 data,
-                identifier=identifier,
+                identifier=identifier
+                if identifier
+                else Identifier("RGDataset", jsonl=json_path),
                 dataset_fmt=dataset_fmt,
             )
 
@@ -432,6 +428,12 @@ class Dataset(
     def to_pandas(self) -> pd.DataFrame:
         """Convert a Dataset to a pandas DataFrame."""
         return pd.DataFrame(self[:])
+
+    def to_jsonl(self, path: str) -> None:
+        """Save a Dataset to a jsonl file."""
+        with jsonlines.open(path, mode="w") as writer:
+            for example in self:
+                writer.write(example)
 
     def batch(self, batch_size: int = 32):
         """Batch the dataset.
