@@ -175,6 +175,10 @@ class Dataset(
         """Add a column to the dataset."""
         self._dataset.add_column(column, values)
 
+    def remove_column(self, column: str) -> None:
+        """Remove a column from the dataset."""
+        self._dataset.remove_column(column)
+
     def _add_index(self):
         """Add an index to the dataset."""
         self.add_column("index", [str(i) for i in range(len(self))])
