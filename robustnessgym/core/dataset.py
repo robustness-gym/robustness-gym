@@ -22,6 +22,7 @@ from robustnessgym.core.tape import InteractionTapeHierarchyMixin
 
 logger = logging.getLogger(__name__)
 
+Example = Dict
 Batch = Dict[str, List]
 BatchOrDataset = Union[Batch, "Dataset"]
 
@@ -178,6 +179,17 @@ class Dataset(
     def remove_column(self, column: str) -> None:
         """Remove a column from the dataset."""
         self._dataset.remove_column(column)
+
+    def append(
+        self,
+        example_or_batch: Union[Example, Batch],
+    ) -> None:
+        """Append a batch of data to the dataset.
+
+        `example_or_batch` must have the same columns as the dataset (regardless of
+        what columns are visible).
+        """
+        self._dataset.append(example_or_batch)
 
     def _add_index(self):
         """Add an index to the dataset."""

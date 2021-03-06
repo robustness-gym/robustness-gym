@@ -1,11 +1,59 @@
 import re
 import statistics
-from typing import Sequence, Union
+from typing import Callable, Sequence, Union
 
 import nltk
+import numpy as np
 import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
 from rouge_score import rouge_scorer
+from sklearn.metrics import accuracy_score, f1_score
+
+
+def get_metric(name: str) -> Callable:
+    """Get metrics from string names."""
+    if name == "accuracy":
+        return accuracy
+    elif name == "f1":
+        return f1
+    elif name == "f1_micro":
+        return f1_micro
+    elif name == "f1_macro":
+        return f1_macro
+    else:
+        raise NotImplementedError(f"Metric name {name} not recognized.")
+
+
+def accuracy(
+    predictions: Union[list, np.array, torch.Tensor],
+    labels: Union[list, np.array, torch.Tensor],
+):
+    """Calculate accuracy."""
+    return accuracy_score(y_true=labels, y_pred=predictions)
+
+
+def f1(
+    predictions: Union[list, np.array, torch.Tensor],
+    labels: Union[list, np.array, torch.Tensor],
+):
+    """Calculate F1 score for binary classification."""
+    return f1_score(y_true=labels, y_pred=predictions)
+
+
+def f1_micro(
+    predictions: Union[list, np.array, torch.Tensor],
+    labels: Union[list, np.array, torch.Tensor],
+):
+    """Calculate micro F1 score for multi-class classification."""
+    return f1_score(y_true=labels, y_pred=predictions, average="micro")
+
+
+def f1_macro(
+    predictions: Union[list, np.array, torch.Tensor],
+    labels: Union[list, np.array, torch.Tensor],
+):
+    """Calculate macro F1 score for multi-class classification."""
+    return f1_score(y_true=labels, y_pred=predictions, average="macro")
 
 
 # TODO Refactor into separate class for each metric
@@ -26,28 +74,18 @@ def compute_metric(
         num_classes: number of classes
     """
 
+    # Classification metrics
     if metric == "accuracy":
-        # Calculate the accuracy
-        if not isinstance(predictions, torch.Tensor):
-            predictions = torch.Tensor(predictions)
-        if not isinstance(labels, torch.Tensor):
-            labels = torch.Tensor(labels)
-        score = lightning_metrics.accuracy(
-            pred=predictions,
-            target=labels,
-            num_classes=num_classes,
-        ).item()
+        return accuracy(predictions=predictions, labels=labels)
     elif metric == "f1":
-        # Calculate the f1
-        if not isinstance(predictions, torch.Tensor):
-            predictions = torch.Tensor(predictions)
-        if not isinstance(labels, torch.Tensor):
-            labels = torch.Tensor(labels)
-        score = lightning_metrics.f1_score(
-            pred=predictions,
-            target=labels,
-            num_classes=num_classes,
-        ).item()
+        return f1(predictions=predictions, labels=labels)
+    elif metric == "f1":
+        return f1(predictions=predictions, labels=labels)
+    elif metric == "f1_micro":
+        return f1_micro(predictions=predictions, labels=labels)
+    elif metric == "f1_macro":
+        return f1_macro(predictions=predictions, labels=labels)
+
     elif metric in ("Rouge-1", "Rouge-2", "Rouge-L"):
         # Calculate rouge scores
         if metric == "Rouge-1":

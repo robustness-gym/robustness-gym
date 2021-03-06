@@ -1,6 +1,7 @@
 """File containing abstract base class for datasets."""
 import abc
 from contextlib import contextmanager
+from copy import copy
 from types import SimpleNamespace
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
@@ -92,7 +93,7 @@ class AbstractDataset(
     def _initialize_state(self):
         """Dataset state initialization."""
         # Show all columns by default
-        self.visible_columns = self.all_columns
+        self.visible_columns = copy(self.all_columns)
 
         # Show all rows by default
         self.visible_rows = None

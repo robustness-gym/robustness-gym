@@ -5,8 +5,77 @@ from unittest import TestCase, skip
 
 import torch
 
-from robustnessgym import Dataset, Slice, Task, TestBench
+from robustnessgym import (
+    Dataset,
+    Identifier,
+    ScoreSubpopulation,
+    Slice,
+    Task,
+    TestBench,
+)
 from robustnessgym.core.model import Model
+from robustnessgym.core.testbench import DevBench
+from tests.testbeds import MockTestBedv0
+
+
+class TestDevbench(TestCase):
+    def setUp(self):
+        # Create the testbed
+        self.testbed = MockTestBedv0()
+        # Create the devbench
+        self.devbench = DevBench(self.testbed.dataset)
+        # Create slices
+        sp = ScoreSubpopulation(
+            intervals=[("0%", "5%"), ("95%", "100%")],
+            identifiers=[Identifier("Low"), Identifier("High")],
+            score_fn=lambda batch, columns: [len(e) for e in batch[columns[0]]],
+        )
+        self.slices, _ = sp(self.testbed.dataset, ["text"])
+
+    def test_add_slices(self):
+        # Add slices
+        self.devbench.add_slices(self.slices)
+        self.assertEqual(len(self.devbench.slices), 3)
+
+    def test_from_dataset(self):
+        devbench = DevBench.from_dataset(self.testbed.dataset)
+        self.assertEqual(devbench.identifier, self.devbench.identifier)
+
+    def test_add_aggregators(self):
+        with self.assertRaises(AssertionError):
+            self.devbench.add_aggregators(
+                {
+                    "M1": {"A1": lambda dataset: 1},
+                    "M2": {"A1": lambda dataset: 0.5, "A2": lambda dataset: 11},
+                    "M3": {"A1": lambda example: 0.55},
+                }
+            )
+
+        self.devbench.add_aggregators(
+            {
+                "M1": {"A1": lambda dataset: 1},
+                "M2": {"A1": lambda dataset: 0.5, "A2": lambda dataset: 11},
+                "M3": {"A1": lambda dataset: 0.55},
+            }
+        )
+        self.assertEqual(
+            set(self.devbench.aggregators.keys()),
+            {"M1", "M2", "M3"},
+        )
+        self.assertEqual(
+            set(self.devbench.aggregators["M1"].keys()),
+            {"A1"},
+        )
+
+        self.assertEqual(
+            set(self.devbench.aggregators["M2"].keys()),
+            {"A1", "A2"},
+        )
+
+        self.assertEqual(
+            set(self.devbench.aggregators["M3"].keys()),
+            {"A1"},
+        )
 
 
 class TestTestbench(TestCase):

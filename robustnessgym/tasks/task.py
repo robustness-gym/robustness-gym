@@ -1,29 +1,39 @@
 from collections import OrderedDict
-from typing import List
+from typing import List, Union
 
 import cytoolz as tz
 from datasets.features import ClassLabel, Sequence, Value
 
 from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.tasks.schema import Schema
 
 
 class Task:
+    """Class for tasks in Robustness Gym."""
+
     dataset_to_task = {}
 
     def __init__(
         self,
-        identifier,
-        input_schema: Schema,
-        output_schema: Schema,
-        metrics: List[str],
+        identifier: Union[str, Identifier] = "GenericTask",
+        input_schema: Schema = None,
+        output_schema: Schema = None,
+        metrics: List[str] = None,
         *args,
         **kwargs,
     ):
-        self.identifier = identifier
-        self.input_schema = input_schema
-        self.output_schema = output_schema
-        self.metrics = metrics
+        self._identifier = identifier
+        self._input_schema = input_schema
+        self._output_schema = output_schema
+        self._metrics = metrics
+
+    def __repr__(self):
+        return (
+            f"task: {self._identifier}\n\n"
+            f"Input: {str(self._input_schema)}\n\n"
+            f"Output: {str(self._output_schema)}"
+        )
 
     @classmethod
     def lookup(cls, dataset: str):
@@ -32,6 +42,26 @@ class Task:
     @classmethod
     def list_datasets(cls):
         return []
+
+    @property
+    def identifier(self):
+        """Task identifier."""
+        return self._identifier
+
+    @property
+    def metrics(self):
+        """Task metrics."""
+        return self._metrics
+
+    @property
+    def input_schema(self):
+        """Input schema for the task."""
+        return self._input_schema
+
+    @property
+    def output_schema(self):
+        """Output schema for the task."""
+        return self._output_schema
 
     # @classmethod
     # def from_identifier(cls, identifier):
@@ -47,18 +77,18 @@ class Task:
 
     def remap_schema(self, dataset: Dataset):
         # Ground the schema to the dataset
-        input_grounding, reversed_input_grounding = self.input_schema.ground(
+        input_grounding, reversed_input_grounding = self._input_schema.ground(
             dataset.features
         )
-        output_grounding, reversed_output_grounding = self.output_schema.ground(
+        output_grounding, reversed_output_grounding = self._output_schema.ground(
             dataset.features
         )
 
         # Construct a map_fn that remaps the dataset schema
         def map_fn(example):
             return tz.merge(
-                {k: example[input_grounding[k]] for k in self.input_schema.features},
-                {k: example[output_grounding[k]] for k in self.output_schema.features},
+                {k: example[input_grounding[k]] for k in self._input_schema.features},
+                {k: example[output_grounding[k]] for k in self._output_schema.features},
             )
 
         return dataset.map(
@@ -70,33 +100,26 @@ class Task:
     def classification(self):
         # TODO(karan): improve the schema inference
         # Check that the only output is a ClassLabel output
-        if len(self.output_schema) == 1 and isinstance(
-            self.output_schema.features[self.output_schema.keys()[0]], ClassLabel
+        if len(self._output_schema) == 1 and isinstance(
+            self._output_schema.features[self._output_schema.keys()[0]], ClassLabel
         ):
             return True
         return False
 
-    def __repr__(self):
-        return (
-            f"task: {self.identifier}\n\nInput{str(self.input_schema)}\n\nOutput"
-            f"{str(self.output_schema)}"
+
+class Generic(Task):
+    def __init__(self):
+        super(Generic, self).__init__(
+            identifier="Generic",
+            input_schema=None,
+            output_schema=None,
+            metrics=None,
         )
 
 
-# class ClassificationMixin:
-#
-#     def __init__(self,
-#                  num_classes: int = None,
-#                  *args,
-#                  **kwargs):
-#         super(ClassificationMixin, self).__init__(*args, **kwargs)
-#
-#         self.output_schema = None
-
-
-class Sentiment(Task):
+class SentimentClassification(Task):
     def __init__(self, identifier, input_schema, output_schema, *args, **kwargs):
-        super(Sentiment, self).__init__(
+        super(SentimentClassification, self).__init__(
             identifier=identifier,
             input_schema=input_schema,
             output_schema=output_schema,
@@ -112,7 +135,7 @@ class Sentiment(Task):
         )
 
 
-class BinarySentiment(Sentiment):
+class BinarySentiment(SentimentClassification):
     def __init__(self):
         super(BinarySentiment, self).__init__(
             num_classes=2,

@@ -336,8 +336,8 @@ class HuggingfaceModel(Model):
         # label
         if self.task.classification():
             assert len(output_columns) == 1  # , "Only supports classification."
-            num_classes = self.task.output_schema.features[
-                list(self.task.output_schema.keys())[0]
+            num_classes = self.task._output_schema.features[
+                list(self.task._output_schema.keys())[0]
             ].num_classes
 
         labels = targets[list(targets.keys())[0]]
