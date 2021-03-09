@@ -226,7 +226,7 @@ class Dataset(
 
         # Check for split, version information
         split = str(self._dataset.split) if self._dataset.split else None
-        version = self._dataset.version if self._dataset.version else None
+        version = str(self._dataset.version) if self._dataset.version else None
 
         # Add all available information to kwargs dict
         kwargs = {}
