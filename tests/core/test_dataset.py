@@ -177,3 +177,4 @@ class TestDataset(TestCase):
         # Check that we got 20 examples
         self.assertTrue(isinstance(dataset, Dataset))
         self.assertEqual(len(dataset), 20)
+        self.assertTrue(isinstance(dataset.identifier.parameters["version"], str))
