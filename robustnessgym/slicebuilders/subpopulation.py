@@ -10,7 +10,7 @@ from robustnessgym.core.constants import SLICEBUILDERS, SUBPOPULATION
 from robustnessgym.core.dataset import Batch, Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import Slice
-from robustnessgym.core.tools import recmerge, strings_as_json
+from robustnessgym.core.tools import strings_as_json
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
@@ -308,18 +308,10 @@ class SubpopulationCollection(Subpopulation):
         self,
         batch_or_dataset: Union[Batch, Dataset],
         columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = None,
-        store: bool = None,
         num_proc: int = None,
         *args,
         **kwargs,
     ):
-
-        if mask:
-            raise NotImplementedError(
-                "Mask not supported for SubpopulationCollection yet."
-            )
 
         if not num_proc or num_proc == 1:
             slices = []
@@ -327,12 +319,9 @@ class SubpopulationCollection(Subpopulation):
             # Apply each slicebuilder in sequence
             for i, slicebuilder in tqdm(enumerate(self.subpopulations)):
                 # Apply the slicebuilder
-                batch_or_dataset, slices_i, slice_membership_i = slicebuilder(
+                slices_i, slice_membership_i = slicebuilder(
                     batch_or_dataset=batch_or_dataset,
                     columns=columns,
-                    mask=mask,
-                    store_compressed=store_compressed,
-                    store=store,
                     *args,
                     **kwargs,
                 )
@@ -344,14 +333,11 @@ class SubpopulationCollection(Subpopulation):
         else:
             # TODO(karan): cleanup, make mp.Pool support simpler across the library
             with Pool(num_proc) as pool:
-                batches_or_datasets, slices, slice_membership = zip(
+                slices, slice_membership = zip(
                     *pool.map(
                         lambda sb: sb(
                             batch_or_dataset=batch_or_dataset,
                             columns=columns,
-                            mask=mask,
-                            store_compressed=store_compressed,
-                            store=store,
                             *args,
                             **kwargs,
                         ),
@@ -369,9 +355,6 @@ class SubpopulationCollection(Subpopulation):
                     updates = subpopulation.construct_updates(
                         slice_membership=slice_membership[i][indices],
                         columns=columns,
-                        mask=mask,
-                        # TODO(karan): this option should be set correctly
-                        compress=True,
                     )
 
                     batch = subpopulation.store(
@@ -396,13 +379,10 @@ class SubpopulationCollection(Subpopulation):
                         columns=columns,
                     )
 
-            else:
-                batch_or_dataset = recmerge(*batches_or_datasets, merge_sequences=True)
-
         # Combine all the slice membership matrices
         slice_membership = np.concatenate(slice_membership, axis=1)
 
-        return batch_or_dataset, slices, slice_membership
+        return slices, slice_membership
 
     def apply(
         self,
