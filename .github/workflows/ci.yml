@@ -100,7 +100,7 @@ jobs:
             -   name: Install Dependencies
                 if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
                 run: |
-                    poetry install --no-interaction
+                    poetry install --no-interaction -E vision
                     
             -   name: Test with pytest
                 run: |

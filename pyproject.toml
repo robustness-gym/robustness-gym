@@ -58,6 +58,7 @@ tensorflow = "^2.3.0"
 torchvision = {version = "^0.8.0", optional = true}
 
 [tool.poetry.extras]
+vision = ["torchvision"]
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
