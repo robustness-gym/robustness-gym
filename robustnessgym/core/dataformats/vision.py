@@ -58,10 +58,13 @@ class RGImage:
     def __str__(self):
         return self.filepath
 
-    def __repr__(
-        self,
-    ):
+    def __repr__(self):
         return "Image(%s)" % self.name
+    
+    def __eq__(self, other):
+        filepath_eq = self.filepath == other.filepath
+        transforms_eq = self.transforms == other.transforms
+        return filepath_eq and transforms_eq
 
 
 def save_image(image, filename):
@@ -77,11 +80,10 @@ def save_image(image, filename):
 
 
 class RGVisionFolder:
-    """A generic data loader where the samples are a list of dictionaries
-    with the 'image_file' key (the path to the image file): ::
+    """A generic data loader where the samples are a list paths to images: ::
         [
-            {'image_file': '0001.jpg', 'attr1': 1, ...},
-            {'image_file': '0002.jpg', 'attr1': 0, ...},
+            '0001.jpg',
+            '0002.jpg',
             ...
         ]
     Args:
@@ -382,6 +384,8 @@ class VisionDataset(AbstractDataset):
 
         # Append to the dataset
         for k in self.column_names:
+            if k in self._img_keys:
+                batch[k] = list(map(RGImage, batch[k]))
             self._data[k].extend(batch[k])
 
     def _remap_index(self, index):
@@ -432,13 +436,13 @@ class VisionDataset(AbstractDataset):
         with_indices: bool = False,
         batched: bool = False,
     ) -> SimpleNamespace:
-        """Map does not assert function validity.
-
-        Filter requires a boolean output. update is the only method
-        where the functions can cause problems when being inspected.
+        """Load the images before calling _inspect_function, and check if new
+        image columns are being added.
         """
 
-        first_row = self.filter(lambda x, i: i == 0, with_indices=True)
+        with self.format():
+            first_row = self.copy()
+            first_row.set_visible_rows([0])
 
         # Load the images (WARNING: This changes the original data)
         storage = {}
@@ -472,6 +476,36 @@ class VisionDataset(AbstractDataset):
                 new_img_keys.append(key)
 
         properties.new_image_columns = new_img_keys
+
+        # Fix the dataset
+        for key in self._img_keys:
+            first_row._data[key][0] = storage[key]
+
+        return properties
+    
+    def _inspect_filter_function(
+        self,
+        function: Callable,
+        with_indices: bool = False,
+        batched: bool = False,
+    ) -> SimpleNamespace:
+        """Load the images before calling _inspect_function.
+        """
+
+        with self.format():
+            first_row = self.copy()
+            first_row.set_visible_rows([0])
+
+        # Load the images (WARNING: This changes the original data)
+        storage = {}
+        for key in self._img_keys:
+            storage[key] = first_row._data[key][0]
+            first_row._data[key][0] = first_row[0][key].load()
+
+        # Inspect normally
+        properties = AbstractDataset._inspect_function(
+            first_row, function, with_indices, batched
+        )
 
         # Fix the dataset
         for key in self._img_keys:
@@ -845,7 +879,7 @@ class VisionDataset(AbstractDataset):
             return None
 
         # Get some information about the function
-        function_properties = self._inspect_function(
+        function_properties = self._inspect_filter_function(
             function,
             with_indices,
             batched=batched,
