@@ -17,6 +17,7 @@ from pyarrow import json as jsonarrow
 from pyarrow import table
 
 from robustnessgym.core.dataformats.inmemory import InMemoryDataset
+from robustnessgym.core.dataformats.vision import VisionDataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.tape import InteractionTapeHierarchyMixin
 
@@ -78,9 +79,12 @@ class Dataset(
                 # Assign the dataset after converting to a datasets.Dataset
                 self._dataset = datasets.Dataset(*args, **kwargs)
 
+        elif dataset_fmt == "image":
+            self._dataset = VisionDataset(*args, **kwargs)
+
         else:
             raise NotImplementedError(
-                "`dataset_fmt` must be one of ['in_memory', 'datasets']."
+                "`dataset_fmt` must be one of ['in_memory', 'datasets', 'image']."
             )
 
         # Store the dataset format
@@ -108,7 +112,7 @@ class Dataset(
 
     @property
     def dataset_fmt(self):
-        """Dataset format, one of ['in_memory', 'datasets']."""
+        """Dataset format, one of ['in_memory', 'datasets', 'image']."""
         return self._dataset_fmt
 
     @property
@@ -186,8 +190,8 @@ class Dataset(
     ) -> None:
         """Append a batch of data to the dataset.
 
-        `example_or_batch` must have the same columns as the dataset (regardless of
-        what columns are visible).
+        `example_or_batch` must have the same columns as the dataset
+        (regardless of what columns are visible).
         """
         self._dataset.append(example_or_batch)
 
@@ -312,6 +316,16 @@ class Dataset(
             )
         else:
             return cls(dataset, dataset_fmt=dataset_fmt)
+
+    @classmethod
+    def load_image_dataset(cls, *args, **kwargs):
+        """Create a Dataset from a dictionary with paths to images and image
+        metadata.
+
+        Pass argument image_keys to indicate what are the keys of the
+        columns with paths to images (default="image_file").
+        """
+        return cls(*args, dataset_fmt="image", **kwargs)
 
     @classmethod
     def from_datasets(
@@ -481,12 +495,12 @@ class Dataset(
         # num_proc: Optional[int] = None,
         # suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
         # new_fingerprint: Optional[str] = None,
-        # **kwargs,
+        **kwargs,
     ) -> Dataset:
         """Map on the dataset."""
 
-        assert isinstance(
-            self._dataset, InMemoryDataset
+        assert isinstance(self._dataset, InMemoryDataset) or isinstance(
+            self._dataset, VisionDataset
         ), "Cannot apply .update() if format isn't InMemoryDataset."
         # Compute the map using the underlying dataset's .map()
         output = self._dataset.update(
@@ -507,12 +521,16 @@ class Dataset(
             # num_proc=num_proc,
             # suffix_template=suffix_template,
             # new_fingerprint=new_fingerprint,
+            **kwargs,
         )
 
         if isinstance(output, datasets.Dataset):
             dataset = copy(self)
             dataset._dataset = output
         elif isinstance(output, InMemoryDataset):
+            dataset = copy(self)
+            dataset._dataset = output
+        elif isinstance(output, VisionDataset):
             dataset = copy(self)
             dataset._dataset = output
         elif output is None:
@@ -545,9 +563,11 @@ class Dataset(
     ) -> Union[Dict, List]:
         """Map on the dataset."""
 
-        assert isinstance(
-            self._dataset, InMemoryDataset
-        ), "Cannot apply .update() if format isn't InMemoryDataset."
+        assert isinstance(self._dataset, InMemoryDataset) or isinstance(
+            self._dataset, VisionDataset
+        ), (
+            "Cannot apply .update() if format isn't InMemoryDataset or" "VisionDataset."
+        )
         # Compute the map using the underlying dataset's .map()
         return self._dataset.map(
             function=function,
@@ -608,6 +628,9 @@ class Dataset(
             dataset._dataset = output
         elif isinstance(output, InMemoryDataset):
             dataset = copy(self)
+            dataset._dataset = output
+        elif isinstance(output, VisionDataset):
+            dataset = deepcopy(self)
             dataset._dataset = output
         else:
             raise NotImplementedError("Unrecognized dataset generated after .filter().")
