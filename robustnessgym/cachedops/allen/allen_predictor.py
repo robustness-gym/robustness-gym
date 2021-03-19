@@ -1,7 +1,13 @@
 from typing import List
 
 import torch
-from allennlp.predictors import Predictor
+
+try:
+    from allennlp.predictors import Predictor
+except ImportError:
+    _allennlp_available = False
+else:
+    _allennlp_available = True
 
 from robustnessgym.core.cachedops import SingleColumnCachedOperation
 

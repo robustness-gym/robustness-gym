@@ -8,7 +8,13 @@ import random
 import re
 from random import shuffle
 
-from nltk.corpus import wordnet
+try:
+    from nltk.corpus import wordnet
+except ImportError:
+    _nltk_available = False
+    wordnet = None
+else:
+    _nltk_available = True
 
 random.seed(1)
 

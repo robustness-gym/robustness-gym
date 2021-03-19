@@ -2,11 +2,23 @@ import re
 import statistics
 from typing import Callable, Sequence, Union
 
-import nltk
+try:
+    import nltk
+except ImportError:
+    _nltk_available = False
+else:
+    _nltk_available = True
 import numpy as np
 import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
-from rouge_score import rouge_scorer
+
+try:
+    from rouge_score import rouge_scorer
+except ImportError:
+    _rouge_score_available = False
+    rouge_scorer = None
+else:
+    _rouge_score_available = True
 from sklearn.metrics import accuracy_score, f1_score
 
 

@@ -3,9 +3,15 @@ import json
 from typing import List
 
 import cytoolz as tz
-import spacy
 import torch
-from spacy.tokens import Doc
+
+try:
+    import spacy
+    from spacy.tokens import Doc
+except ImportError:
+    _spacy_available = False
+else:
+    _spacy_available = True
 
 from robustnessgym.core.cachedops import SingleColumnCachedOperation
 from robustnessgym.core.dataset import BatchOrDataset
@@ -23,6 +29,8 @@ class Spacy(SingleColumnCachedOperation):
         *args,
         **kwargs
     ):
+        if not _spacy_available:
+            raise ImportError("Please `pip install spacy`.")
 
         # Set all the parameters
         self.lang = lang
