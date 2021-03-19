@@ -22,7 +22,7 @@ documentation = "https://robustnessgym.readthedocs.io"
 "Issue Tracker" = "https://github.com/robustness-gym/robustness-gym/issues"
 
 [tool.poetry.dependencies]
-python = "^3.6.2"
+python = "^3.8"
 numpy = "^1.18.0"
 dill = "^0.3.3"
 tqdm = "^4.27.0"
