@@ -19,14 +19,14 @@ import torch
 
 try:
     import torchvision.datasets.folder as folder
+    from PIL import Image as im
 except ImportError:
     _torchvision_available = False
-    folder = None
+    folder, im = None, None
 else:
     _torchvision_available = True
 from datasets import DatasetInfo, Features, NamedSplit
 from joblib import Parallel, delayed
-from PIL import Image as im
 from tqdm.auto import tqdm
 
 from robustnessgym.core.dataformats.abstract import AbstractDataset
