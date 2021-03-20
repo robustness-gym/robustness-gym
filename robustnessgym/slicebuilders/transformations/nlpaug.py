@@ -1,7 +1,12 @@
 """Transformations using nlpaug."""
 from typing import List
 
-from nlpaug.flow import Pipeline
+try:
+    from nlpaug.flow import Pipeline
+except ImportError:
+    _nlpaug_available = False
+else:
+    _nlpaug_available = True
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
@@ -18,6 +23,8 @@ class NlpAugTransformation(SingleColumnTransformation):
         *args,
         **kwargs
     ):
+        if not _nlpaug_available:
+            raise ImportError("Please `pip install nlpaug`.")
         assert isinstance(pipeline, Pipeline), (
             "`pipeline` must be an nlpaug Pipeline object. "
             "Please use \nfrom nlpaug.flow import "

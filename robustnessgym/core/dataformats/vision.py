@@ -16,7 +16,14 @@ import datasets
 import numpy as np
 import pyarrow as pa
 import torch
-import torchvision.datasets.folder as folder
+
+try:
+    import torchvision.datasets.folder as folder
+except ImportError:
+    _torchvision_available = False
+    folder = None
+else:
+    _torchvision_available = True
 from datasets import DatasetInfo, Features, NamedSplit
 from joblib import Parallel, delayed
 from PIL import Image as im
@@ -60,7 +67,7 @@ class RGImage:
 
     def __repr__(self):
         return "Image(%s)" % self.name
-    
+
     def __eq__(self, other):
         filepath_eq = self.filepath == other.filepath
         transforms_eq = self.transforms == other.transforms
@@ -437,8 +444,7 @@ class VisionDataset(AbstractDataset):
         batched: bool = False,
     ) -> SimpleNamespace:
         """Load the images before calling _inspect_function, and check if new
-        image columns are being added.
-        """
+        image columns are being added."""
 
         with self.format():
             first_row = self.copy()
@@ -482,15 +488,14 @@ class VisionDataset(AbstractDataset):
             first_row._data[key][0] = storage[key]
 
         return properties
-    
+
     def _inspect_filter_function(
         self,
         function: Callable,
         with_indices: bool = False,
         batched: bool = False,
     ) -> SimpleNamespace:
-        """Load the images before calling _inspect_function.
-        """
+        """Load the images before calling _inspect_function."""
 
         with self.format():
             first_row = self.copy()

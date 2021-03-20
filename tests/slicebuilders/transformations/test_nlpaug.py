@@ -3,8 +3,14 @@ import random
 from unittest import TestCase
 
 import numpy as np
-from nlpaug.augmenter.word import SynonymAug
-from nlpaug.flow import Sequential
+
+try:
+    from nlpaug.augmenter.word import SynonymAug
+    from nlpaug.flow import Sequential
+except ImportError:
+    _nlpaug_available = False
+else:
+    _nlpaug_available = True
 
 from robustnessgym.slicebuilders.transformations.nlpaug import NlpAugTransformation
 from tests.testbeds import MockTestBedv0

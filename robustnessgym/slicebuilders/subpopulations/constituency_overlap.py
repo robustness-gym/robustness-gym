@@ -2,7 +2,14 @@ from typing import Dict, List
 
 import fuzzywuzzy.fuzz as fuzz
 import numpy as np
-from nltk import Tree
+
+try:
+    from nltk import Tree
+except ImportError:
+    _nltk_available = False
+    Tree = None
+else:
+    _nltk_available = True
 
 from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
 from robustnessgym.core.decorators import prerequisites

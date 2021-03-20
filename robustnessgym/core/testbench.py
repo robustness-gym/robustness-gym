@@ -338,8 +338,8 @@ class DevBench(SemanticVersionerMixin):
 
     def save(self, path: str) -> None:
         """Save the current devbench to disk. This will save all slices in the
-        devbench to disk, as well as metrics and other metadata associated
-        with this devbench.
+        devbench to disk, as well as metrics and other metadata associated with
+        this devbench.
 
         Args:
             path: string path to the save directory
