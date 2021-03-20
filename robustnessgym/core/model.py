@@ -3,7 +3,14 @@ import re
 from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
-import nltk
+
+try:
+    import nltk
+except ImportError:
+    _nltk_available = False
+    nltk = None
+else:
+    _nltk_available = True
 import torch
 from transformers import (
     AutoModel,

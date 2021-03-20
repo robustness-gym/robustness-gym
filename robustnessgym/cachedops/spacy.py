@@ -10,6 +10,7 @@ try:
     from spacy.tokens import Doc
 except ImportError:
     _spacy_available = False
+    Doc = None
 else:
     _spacy_available = True
 
@@ -23,7 +24,7 @@ class Spacy(SingleColumnCachedOperation):
     def __init__(
         self,
         lang: str = "en_core_web_sm",
-        nlp: spacy.language.Language = None,
+        nlp: "spacy.language.Language" = None,
         neuralcoref: bool = False,
         device: str = None,
         *args,

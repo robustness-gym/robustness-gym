@@ -22,7 +22,7 @@ class TextBlob(SingleColumnCachedOperation):
         super(TextBlob, self).__init__()
 
     @classmethod
-    def encode(cls, obj: textblob.TextBlob) -> str:
+    def encode(cls, obj: "textblob.TextBlob") -> str:
         # Dump the TextBlob object to JSON
         # This loses a lot of information
         # Unfortunately, TextBlob provides no way to serialize/deserialize objects
