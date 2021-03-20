@@ -111,11 +111,17 @@ class RGVisionFolder:
     def __init__(
         self,
         paths: List[str],
-        loader: Callable[[str], Any] = folder.default_loader,
-        extensions: Optional[Tuple[str, ...]] = folder.IMG_EXTENSIONS,
+        loader: Callable[[str], Any] = None,
+        extensions: Optional[Tuple[str, ...]] = None,
         transform: Optional[Callable] = None,
         is_valid_file: Optional[Callable[[str], bool]] = None,
     ) -> None:
+        if loader is None:
+            loader = folder.default_loader
+
+        if extensions is None:
+            extensions = folder.IMG_EXTENSIONS
+
         if len(paths) == 0:
             raise RuntimeError("No file paths were passed")
 

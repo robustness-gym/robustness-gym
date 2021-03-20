@@ -5,6 +5,7 @@ try:
     from nlpaug.flow import Pipeline
 except ImportError:
     _nlpaug_available = False
+    Pipeline = None
 else:
     _nlpaug_available = True
 
