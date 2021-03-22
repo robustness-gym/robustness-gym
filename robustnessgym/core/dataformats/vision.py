@@ -197,9 +197,7 @@ class VisionDataset(AbstractDataset):
                     d[key] = list(map(str, d[key]))
 
             self.info.features = Features.from_arrow_schema(
-                pa.Table.from_pydict(
-                    d,
-                ).schema
+                pa.Table.from_pydict(d).schema
             )
 
     def _materialize(self):
@@ -270,10 +268,7 @@ class VisionDataset(AbstractDataset):
         for k in self.column_names:
             self._data[k].extend(batch[k])
 
-    def append(
-        self,
-        example_or_batch: Union[Example, Batch],
-    ) -> None:
+    def append(self, example_or_batch: Union[Example, Batch]) -> None:
         """Append a batch of data to the dataset.
 
         `batch` must have the same columns as the dataset (regardless of
@@ -341,10 +336,7 @@ class VisionDataset(AbstractDataset):
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
     def _inspect_update_function(
-        self,
-        function: Callable,
-        with_indices: bool = False,
-        batched: bool = False,
+        self, function: Callable, with_indices: bool = False, batched: bool = False
     ) -> SimpleNamespace:
         """Load the images before calling _inspect_function, and check if new
         image columns are being added."""
@@ -393,10 +385,7 @@ class VisionDataset(AbstractDataset):
         return properties
 
     def _inspect_filter_function(
-        self,
-        function: Callable,
-        with_indices: bool = False,
-        batched: bool = False,
+        self, function: Callable, with_indices: bool = False, batched: bool = False
     ) -> SimpleNamespace:
         """Load the images before calling _inspect_function."""
 
@@ -697,8 +686,7 @@ class VisionDataset(AbstractDataset):
             # Run `function` on the batch
             output = (
                 function(
-                    batch,
-                    range(i * batch_size, min(len(self), (i + 1) * batch_size)),
+                    batch, range(i * batch_size, min(len(self), (i + 1) * batch_size))
                 )
                 if with_indices
                 else function(batch)
@@ -787,9 +775,7 @@ class VisionDataset(AbstractDataset):
 
         # Get some information about the function
         function_properties = self._inspect_filter_function(
-            function,
-            with_indices,
-            batched=batched,
+            function, with_indices, batched=batched
         )
         assert function_properties.bool_output, "function must return boolean."
 

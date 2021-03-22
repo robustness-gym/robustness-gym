@@ -13,9 +13,7 @@ class Schema:
     """Class for task input/output schemas in Robustness Gym."""
 
     def __init__(
-        self,
-        features: OrderedDict,
-        grounding_candidates: Dict[str, Collection],
+        self, features: OrderedDict, grounding_candidates: Dict[str, Collection]
     ):
         # Store the features and grounding candidates
         self.features = features
@@ -26,9 +24,7 @@ class Schema:
 
     @classmethod
     def from_columns(
-        cls,
-        features: Dict[str, FeatureType],
-        columns: List[str],
+        cls, features: Dict[str, FeatureType], columns: List[str]
     ) -> Schema:
         """Create a schema using features and columns."""
         for col in columns:
@@ -41,18 +37,16 @@ class Schema:
 
     @classmethod
     def for_dataset(
-        cls,
-        dataset: Dataset,
-        input_columns: List[str],
-        output_columns: List[str],
+        cls, dataset: Dataset, input_columns: List[str], output_columns: List[str]
     ) -> Tuple[Schema, Schema]:
         """Create input and output schemas using features, input and output
         columns."""
         # Set the features
         features = dataset.features
 
-        return Schema.from_columns(features, input_columns), Schema.from_columns(
-            features, output_columns
+        return (
+            Schema.from_columns(features, input_columns),
+            Schema.from_columns(features, output_columns),
         )
 
     def ground(self, features: Dict[str, FeatureType]):

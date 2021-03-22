@@ -17,9 +17,7 @@ class TestInMemoryDataset(TestCase):
 
     def _build_inmemorydataset(self):
         # Build a dataset from a batch
-        return InMemoryDataset.from_batch(
-            batch=self.testbed.batch,
-        )
+        return InMemoryDataset.from_batch(batch=self.testbed.batch)
 
     def test_from_batch(self):
         # Build a dataset from a batch
@@ -34,7 +32,7 @@ class TestInMemoryDataset(TestCase):
     def test_from_batches(self):
         # Build a dataset from a list of batches
         dataset = InMemoryDataset.from_batches(
-            batches=[deepcopy(self.testbed.batch) for _ in range(2)],
+            batches=[deepcopy(self.testbed.batch) for _ in range(2)]
         )
 
         self.assertEqual(

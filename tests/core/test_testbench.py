@@ -58,24 +58,12 @@ class TestDevbench(TestCase):
                 "M3": {"A1": lambda dataset: 0.55},
             }
         )
-        self.assertEqual(
-            set(self.devbench.aggregators.keys()),
-            {"M1", "M2", "M3"},
-        )
-        self.assertEqual(
-            set(self.devbench.aggregators["M1"].keys()),
-            {"A1"},
-        )
+        self.assertEqual(set(self.devbench.aggregators.keys()), {"M1", "M2", "M3"})
+        self.assertEqual(set(self.devbench.aggregators["M1"].keys()), {"A1"})
 
-        self.assertEqual(
-            set(self.devbench.aggregators["M2"].keys()),
-            {"A1", "A2"},
-        )
+        self.assertEqual(set(self.devbench.aggregators["M2"].keys()), {"A1", "A2"})
 
-        self.assertEqual(
-            set(self.devbench.aggregators["M3"].keys()),
-            {"A1"},
-        )
+        self.assertEqual(set(self.devbench.aggregators["M3"].keys()), {"A1"})
 
 
 class TestTestbench(TestCase):

@@ -12,12 +12,7 @@ from robustnessgym.core.identifier import Identifier
 class Slice(Dataset):
     """Slice class in Robustness Gym."""
 
-    def __init__(
-        self,
-        *args,
-        identifier: Identifier = None,
-        **kwargs,
-    ):
+    def __init__(self, *args, identifier: Identifier = None, **kwargs):
         # Set the identifier
         self._identifier = identifier
 
@@ -94,12 +89,7 @@ class Slice(Dataset):
     def _state_keys(cls) -> set:
         """List of attributes that describe the state of the object."""
         dataset_state_keys = super(Slice, cls)._state_keys()
-        return dataset_state_keys.union(
-            {
-                "lineage",
-                "category",
-            }
-        )
+        return dataset_state_keys.union({"lineage", "category"})
 
     def __getstate__(self):
         """Get the current state of the slice."""

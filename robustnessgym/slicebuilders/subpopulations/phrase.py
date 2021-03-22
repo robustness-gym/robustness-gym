@@ -97,9 +97,7 @@ class HasPhrase(
 
         # Use the spacy cache to grab the tokens in each example (for each key)
         tokenized_batch = Spacy.retrieve(
-            batch=batch,
-            columns=[[key] for key in columns],
-            proc_fns="tokens",
+            batch=batch, columns=[[key] for key in columns], proc_fns="tokens"
         )
 
         # Search for words
@@ -181,8 +179,7 @@ class HasAnyPhrase(Subpopulation):
                 Subpopulation.union(
                     HasPhrase(phrases=phrases),
                     identifier=Identifier(
-                        _name=self.__class__.__name__,
-                        phrases=set(phrases),
+                        _name=self.__class__.__name__, phrases=set(phrases)
                     )
                     if not identifiers
                     else identifiers[i],
@@ -264,8 +261,7 @@ class HasAllPhrases(Subpopulation):
                 Subpopulation.intersection(
                     HasPhrase(phrases=phrases),
                     identifier=Identifier(
-                        _name=self.__class__.__name__,
-                        phrases=set(phrases),
+                        _name=self.__class__.__name__, phrases=set(phrases)
                     )
                     if not identifiers
                     else identifiers[i],

@@ -26,17 +26,10 @@ def convert_to_batch_fn(function: Callable, with_indices: bool):
             # Apply the unbatched function
             if with_indices:
                 output = function(
-                    {k: v[i] for k, v in batch.items()},
-                    indices[i],
-                    *args,
-                    **kwargs,
+                    {k: v[i] for k, v in batch.items()}, indices[i], *args, **kwargs
                 )
             else:
-                output = function(
-                    {k: v[i] for k, v in batch.items()},
-                    *args,
-                    **kwargs,
-                )
+                output = function({k: v[i] for k, v in batch.items()}, *args, **kwargs)
 
             if i == 0:
                 # Create an empty dict or list for the outputs

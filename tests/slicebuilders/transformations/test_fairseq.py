@@ -21,9 +21,7 @@ class TestFairseqBacktranslation(TestCase):
 
         # Create the backtranslation transformation
         self.backtranslation = FairseqBacktranslation(
-            n_src2tgt=2,
-            n_tgt2src=2,
-            device="cpu",
+            n_src2tgt=2, n_tgt2src=2, device="cpu"
         )
 
         # Apply it

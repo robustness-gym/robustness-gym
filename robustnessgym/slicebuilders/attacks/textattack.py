@@ -22,20 +22,12 @@ from robustnessgym.slicebuilders.attack import Attack
 class TextAttack(Attack):
     """Class for TextAttack."""
 
-    def __init__(
-        self,
-        attack: AttackRecipe,
-    ):
+    def __init__(self, attack: AttackRecipe):
         if not _textattack_available:
             raise ImportError("Textattack not found. Please `pip install textattack`.")
 
         super(TextAttack, self).__init__(
-            identifiers=[
-                Identifier(
-                    self.__class__.__name__,
-                    attack=attack,
-                )
-            ],
+            identifiers=[Identifier(self.__class__.__name__, attack=attack)]
         )
 
         self.attack = attack

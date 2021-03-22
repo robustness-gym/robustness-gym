@@ -80,8 +80,7 @@ class TestVisionDataset(TestCase):
 
     def test_getindex(self):
         self.assertEqual(
-            self.dataset[0],
-            {"a": {"e": 1}, "b": "u", "i": self.images[0]},
+            self.dataset[0], {"a": {"e": 1}, "b": "u", "i": self.images[0]}
         )
 
         self.assertEqual(
@@ -207,17 +206,10 @@ class TestVisionDataset(TestCase):
 
     def test_map_5(self):
         """Map, function=None, with_indices=False, batched=False."""
-        output = self.dataset.map(
-            None,
-            with_indices=False,
-            batched=False,
-        )
+        output = self.dataset.map(None, with_indices=False, batched=False)
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
 
         # Output is None
         self.assertEqual(output, None)
@@ -233,23 +225,14 @@ class TestVisionDataset(TestCase):
         self.assertEqual(set(dataset.column_names), {"a", "b", "i"})
 
         # Dataset has the right data
-        self.assertEqual(
-            dataset["a"],
-            [{"e": 1}],
-        )
+        self.assertEqual(dataset["a"], [{"e": 1}])
 
-        self.assertEqual(
-            dataset["b"],
-            ["u"],
-        )
+        self.assertEqual(dataset["b"], ["u"])
 
         self.assertEqual(dataset["i"], [self.images[0]])
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
 
     def test_filter_2(self):
         dataset = self.dataset.filter(
@@ -262,33 +245,22 @@ class TestVisionDataset(TestCase):
         self.assertEqual(set(dataset.column_names), {"a", "b", "i"})
 
         # Dataset has the right data
-        self.assertEqual(
-            dataset["a"],
-            [{"e": 1}],
-        )
+        self.assertEqual(dataset["a"], [{"e": 1}])
 
-        self.assertEqual(
-            dataset["b"],
-            ["u"],
-        )
+        self.assertEqual(dataset["b"], ["u"])
 
         self.assertEqual(dataset["i"], [self.images[0]])
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
 
     def test_filter_3(self):
         dataset_1 = self.dataset.filter(
-            lambda example, index: example["a"]["e"] > 2,
-            with_indices=True,
+            lambda example, index: example["a"]["e"] > 2, with_indices=True
         )
 
         dataset_2 = dataset_1.filter(
-            lambda example, index: example["a"]["e"] > 3,
-            with_indices=True,
+            lambda example, index: example["a"]["e"] > 3, with_indices=True
         )
 
         # Dataset has the right columns
@@ -302,20 +274,15 @@ class TestVisionDataset(TestCase):
         )
 
         self.assertEqual(
-            dataset_2[:],
-            {"a": [{"e": 4}], "b": ["x"], "i": self.images[3:]},
+            dataset_2[:], {"a": [{"e": 4}], "b": ["x"], "i": self.images[3:]}
         )
 
         # Original dataset is still the same
-        self.assertEqual(
-            self.dataset[:],
-            self.batch,
-        )
+        self.assertEqual(self.dataset[:], self.batch)
 
     def test_filter_add_column(self):
         dataset = self.dataset.filter(
-            lambda example: example["a"] == {"e": 1},
-            with_indices=False,
+            lambda example: example["a"] == {"e": 1}, with_indices=False
         )
 
         # Add b values back as another column 'c'
@@ -323,8 +290,7 @@ class TestVisionDataset(TestCase):
 
         # Dataset has the right data
         self.assertEqual(
-            dataset[:],
-            {"a": [{"e": 1}], "b": ["u"], "c": ["u"], "i": [self.images[0]]},
+            dataset[:], {"a": [{"e": 1}], "b": ["u"], "c": ["u"], "i": [self.images[0]]}
         )
 
     def test_remove_column(self):

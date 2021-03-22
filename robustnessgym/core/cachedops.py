@@ -387,13 +387,7 @@ class CachedOperation(Operation):
         """Construct a file name for caching."""
         return "cache-" + str(abs(self.get_cache_hash(columns=columns))) + ".arrow"
 
-    def prepare_batch(
-        self,
-        batch: Batch,
-        columns: List[str],
-        *args,
-        **kwargs,
-    ) -> Batch:
+    def prepare_batch(self, batch: Batch, columns: List[str], *args, **kwargs) -> Batch:
         """Preparation that is applied before the CachedOperation.
 
         This is provided as a convenience function that can be called by
@@ -437,12 +431,7 @@ class CachedOperation(Operation):
         for batch in dataset.batch(batch_size):
             try:
                 # Check if the `prepare_batch` function has been implemented
-                self.prepare_batch(
-                    batch=batch,
-                    columns=columns,
-                    *args,
-                    **kwargs,
-                )
+                self.prepare_batch(batch=batch, columns=columns, *args, **kwargs)
             except NotImplementedError:
                 break
 
@@ -526,13 +515,7 @@ class CachedOperation(Operation):
             for val in encoded_outputs
         ]
 
-    def process_batch(
-        self,
-        batch: Batch,
-        columns: List[str],
-        *args,
-        **kwargs,
-    ) -> Batch:
+    def process_batch(self, batch: Batch, columns: List[str], *args, **kwargs) -> Batch:
         """Apply the cached operation to a batch."""
         assert len(set(columns) - set(batch.keys())) == 0, (
             f"All `columns` ({columns}) must be present in `batch` ("
@@ -561,10 +544,7 @@ class CachedOperation(Operation):
         # return self.store(batch=batch, updates=updates)
 
     def process_dataset(
-        self,
-        dataset: Dataset,
-        columns: List[str],
-        batch_size: int = 32,
+        self, dataset: Dataset, columns: List[str], batch_size: int = 32
     ) -> Dataset:
         """Apply the cached operation to a dataset."""
 
@@ -645,31 +625,23 @@ class CachedOperation(Operation):
 
             # Check the InteractionTape to see if the CachedOperation was applied
             if batch_or_dataset.check_tape(
-                path=[CACHEDOPS],
-                identifiers=self.identifier,
-                columns=columns,
+                path=[CACHEDOPS], identifiers=self.identifier, columns=columns
             ):
                 return batch_or_dataset
 
             # Prepare to apply the CachedOperation to the dataset
             self.prepare_dataset(
-                dataset=batch_or_dataset,
-                columns=columns,
-                batch_size=batch_size,
+                dataset=batch_or_dataset, columns=columns, batch_size=batch_size
             )
 
             # Apply the CachedOperation to the dataset
             dataset = self.process_dataset(
-                dataset=batch_or_dataset,
-                columns=columns,
-                batch_size=batch_size,
+                dataset=batch_or_dataset, columns=columns, batch_size=batch_size
             )
 
             # Update the InteractionTape with the applied CachedOperation
             dataset.update_tape(
-                path=[CACHEDOPS],
-                identifiers=self.identifier,
-                columns=columns,
+                path=[CACHEDOPS], identifiers=self.identifier, columns=columns
             )
 
             return dataset
@@ -734,9 +706,7 @@ def stow(
         indices_to_remove = []
         for i, columns in enumerate(list(list_of_columns)):
             if dataset.check_tape(
-                path=[CACHEDOPS],
-                identifiers=cached_op.identifier,
-                columns=columns,
+                path=[CACHEDOPS], identifiers=cached_op.identifier, columns=columns
             ):
                 # Remove the columns at index i
                 indices_to_remove.append(i)

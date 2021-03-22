@@ -23,9 +23,7 @@ class SentenceSimilarityMatrix(CachedOperation):
 
         # Retrieve the sentences in the given columns
         sentences = Spacy.retrieve(
-            batch=batch,
-            columns=[[col] for col in columns],
-            proc_fns=Spacy.sentences,
+            batch=batch, columns=[[col] for col in columns], proc_fns=Spacy.sentences
         )
 
         return self.similarity(*[sentences[col] for col in columns])

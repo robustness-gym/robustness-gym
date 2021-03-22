@@ -27,8 +27,7 @@ class TestNlpAugTransformation(TestCase):
 
         # Create the nlpaug transformation
         nlpaug_transformation = NlpAugTransformation(
-            pipeline=Sequential(flow=[SynonymAug()]),
-            num_transformed=3,
+            pipeline=Sequential(flow=[SynonymAug()]), num_transformed=3
         )
 
         for i, identifier in enumerate(nlpaug_transformation.identifiers):

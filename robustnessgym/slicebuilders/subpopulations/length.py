@@ -20,7 +20,7 @@ class LengthSubpopulation(ScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         reduction_fn: Callable = np.sum,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super(LengthSubpopulation, self).__init__(
             intervals=intervals,

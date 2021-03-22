@@ -338,11 +338,7 @@ class Report:
                     hms.append(hm)
                     # Save annotation data for special code related to heatmaps at end
                     coords.append(len(self.columns) * (category_ndx - 1) + fig_col_ndx)
-                    fig.add_trace(
-                        hm.data[0],
-                        row=category_ndx,
-                        col=fig_col_ndx,
-                    )
+                    fig.add_trace(hm.data[0], row=category_ndx, col=fig_col_ndx)
                 elif isinstance(col, NumericColumn):
                     # Repurpose bar chart as text field.
                     fig.add_trace(

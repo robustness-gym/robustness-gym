@@ -39,10 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 class DevBench(SemanticVersionerMixin):
-    def __init__(
-        self,
-        dataset: Dataset,
-    ):
+    def __init__(self, dataset: Dataset):
         # Call the superclass
         super(DevBench, self).__init__()
 
@@ -88,8 +85,7 @@ class DevBench(SemanticVersionerMixin):
         return json.dumps([str(sl) for sl in self.slices])
 
     def add_slices(
-        self,
-        slices: Union[Dataset, Slice, Collection[Union[Dataset, Slice]]],
+        self, slices: Union[Dataset, Slice, Collection[Union[Dataset, Slice]]]
     ) -> None:
         """Add slices to the development bench.
 
@@ -120,10 +116,7 @@ class DevBench(SemanticVersionerMixin):
         # Calculate all metrics
         self.calculate()
 
-    def add_aggregators(
-        self,
-        aggregators: Dict[str, Dict[str, Callable]],
-    ) -> None:
+    def add_aggregators(self, aggregators: Dict[str, Dict[str, Callable]]) -> None:
         """Add functions for aggregation, with a dictionary that maps a model
         name to aggregation functions."""
 
@@ -171,15 +164,10 @@ class DevBench(SemanticVersionerMixin):
                         )
 
     @classmethod
-    def from_dataset(
-        cls,
-        dataset: Dataset,
-    ) -> DevBench:
+    def from_dataset(cls, dataset: Dataset) -> DevBench:
         """Create a DevBench from a dataset."""
         # Create the devbench
-        devbench = DevBench(
-            dataset=dataset,
-        )
+        devbench = DevBench(dataset=dataset)
 
         return devbench
 
@@ -243,10 +231,7 @@ class DevBench(SemanticVersionerMixin):
         # Find the common aggregators by taking an intersection
         return set.intersection(*[set(e) for e in common_aggregators])
 
-    def create_report(
-        self,
-        models: List[str] = None,
-    ) -> Report:
+    def create_report(self, models: List[str] = None) -> Report:
         """Generate report from cached metrics for a model
         Args:
             models: List of models.
@@ -276,10 +261,7 @@ class DevBench(SemanticVersionerMixin):
             for aggregator in common_aggregators:
                 columns.append(
                     ScoreColumn(
-                        f"{model}-{aggregator}",
-                        min_val=0,
-                        max_val=1,
-                        is_0_to_1=True,
+                        f"{model}-{aggregator}", min_val=0, max_val=1, is_0_to_1=True
                     )
                 )
         columns.append(NumericColumn("Size"))
@@ -315,9 +297,7 @@ class DevBench(SemanticVersionerMixin):
         df = pd.DataFrame(data)
 
         report = Report(
-            data=df,
-            columns=columns,
-            dataset_name=str(self.dataset.identifier),
+            data=df, columns=columns, dataset_name=str(self.dataset.identifier)
         )
         report.sort(
             category_order=dict(
@@ -370,10 +350,7 @@ class DevBench(SemanticVersionerMixin):
 
         # Save metadata
         dill.dump(
-            {
-                "identifier": self.identifier,
-            },
-            open(str(savedir / "metadata.dill"), "wb"),
+            {"identifier": self.identifier}, open(str(savedir / "metadata.dill"), "wb")
         )
 
         # Save version info
@@ -436,9 +413,7 @@ class DevBench(SemanticVersionerMixin):
         _ = dill.load(open(str(savedir / "metadata.dill"), "rb"))
 
         # Create the devbench
-        devbench = cls(
-            dataset=dataset,
-        )
+        devbench = cls(dataset=dataset)
 
         # Set previously stored metrics
         devbench.metrics = metrics
@@ -588,10 +563,7 @@ class TestBench(SemanticVersionerMixin):
 
     @classmethod
     def for_dataset(
-        cls,
-        dataset: str,
-        task: Optional[Union[str, Task]] = None,
-        version: str = None,
+        cls, dataset: str, task: Optional[Union[str, Task]] = None, version: str = None
     ):
         """Create a test bench for a dataset."""
 
@@ -607,23 +579,13 @@ class TestBench(SemanticVersionerMixin):
                 )
 
         return TestBench(
-            identifier=f"{dataset}-{task}-{version}",
-            task=inferred_task,
-            slices=[],
+            identifier=f"{dataset}-{task}-{version}", task=inferred_task, slices=[]
         )
 
     @classmethod
-    def for_task(
-        cls,
-        task: Union[str, Task],
-        version: str = None,
-    ):
+    def for_task(cls, task: Union[str, Task], version: str = None):
         """Create a testbench for a task."""
-        return TestBench(
-            identifier=f"{task}-{version}",
-            task=task,
-            slices=[],
-        )
+        return TestBench(identifier=f"{task}-{version}", task=task, slices=[])
 
     def _human_readable_identifiers(self):
         # Temporary function to generate human readable names
@@ -854,9 +816,7 @@ class TestBench(SemanticVersionerMixin):
         self.metrics[model] = metrics
 
     def create_report(
-        self,
-        model: Union[Model, str],
-        metric_ids: List[str] = None,
+        self, model: Union[Model, str], metric_ids: List[str] = None
     ) -> Report:
         """Generate report from cached metrics for a model
         Args:
@@ -1088,9 +1048,7 @@ class TestBench(SemanticVersionerMixin):
 
         # Create the testbench
         testbench = cls(
-            identifier=metadata["identifier"],
-            task=metadata["task"],
-            slices=slices,
+            identifier=metadata["identifier"], task=metadata["task"], slices=slices
         )
 
         # Set previously stored metrics

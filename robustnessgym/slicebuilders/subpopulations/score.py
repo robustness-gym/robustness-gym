@@ -15,7 +15,7 @@ class BinningMixin:
         bin_creation_fn: Callable = None,
         bin_fn: Callable = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super(BinningMixin, self).__init__(*args, **kwargs)
 
@@ -74,7 +74,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         bin_creation_fn: Callable = None,
         bin_fn: Callable = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         if not identifiers:
@@ -115,7 +115,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         columns: List[str],
         batch_size: int = 32,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         # First reset the scores
@@ -123,11 +123,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
 
         # Prepare the dataset
         super(ScoreSubpopulation, self).prepare_dataset(
-            dataset=dataset,
-            columns=columns,
-            batch_size=batch_size,
-            *args,
-            **kwargs,
+            dataset=dataset, columns=columns, batch_size=batch_size, *args, **kwargs
         )
 
         # Create the bins
@@ -154,7 +150,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         batch: Dict[str, List],
         columns: List[str],
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
         # Keep track of the score of each example
         if isinstance(self.score, ScoreOperation):
@@ -180,7 +176,7 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
         bin_creation_fn: Callable = None,
         bin_fn: Callable = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         if not identifiers:
@@ -221,7 +217,7 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
         columns: List[str],
         batch_size: int = 32,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         # First reset the scores
@@ -229,9 +225,7 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
 
         # Prepare the dataset
         super(MultiScoreSubpopulation, self).prepare_dataset(
-            dataset=dataset,
-            columns=columns,
-            batch_size=batch_size,
+            dataset=dataset, columns=columns, batch_size=batch_size
         )
 
         # Create the bins

@@ -22,12 +22,8 @@ class Morpheus(Attack):
 
         super().__init__(
             identifiers=[
-                Identifier(
-                    self.__class__.__name__,
-                    dataset=dataset,
-                    model=model,
-                )
-            ],
+                Identifier(self.__class__.__name__, dataset=dataset, model=model)
+            ]
         )
 
         self.constrain_pos = constrain_pos

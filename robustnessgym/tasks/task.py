@@ -128,10 +128,7 @@ class Task:
 class Generic(Task):
     def __init__(self):
         super(Generic, self).__init__(
-            identifier="Generic",
-            input_schema=None,
-            output_schema=None,
-            metrics=None,
+            identifier="Generic", input_schema=None, output_schema=None, metrics=None
         )
 
 
@@ -158,33 +155,21 @@ class BinarySentiment(SentimentClassification):
         super(BinarySentiment, self).__init__(
             num_classes=2,
             input_schema=Schema(
-                features=OrderedDict(
-                    [
-                        ("text", Value(dtype="string")),
-                    ]
-                ),
-                grounding_candidates={
-                    "text": {"text", "sentence"},
-                },
+                features=OrderedDict([("text", Value(dtype="string"))]),
+                grounding_candidates={"text": {"text", "sentence"}},
             ),
             output_schema=Schema(
                 features=OrderedDict(
-                    [
-                        ("label", ClassLabel(names=["negative", "positive"])),
-                    ]
+                    [("label", ClassLabel(names=["negative", "positive"]))]
                 ),
-                grounding_candidates={
-                    "label": {"label"},
-                },
+                grounding_candidates={"label": {"label"}},
             ),
             identifier=self.__class__.__name__,
         )
 
     @classmethod
     def list_datasets(cls):
-        return [
-            "imdb",
-        ]
+        return ["imdb"]
 
 
 class Summarization(Task):
@@ -193,15 +178,11 @@ class Summarization(Task):
             identifier=self.__class__.__name__,
             input_schema=Schema(
                 features=OrderedDict([("text", Value(dtype="string"))]),
-                grounding_candidates={
-                    "text": {"article", "document"},
-                },
+                grounding_candidates={"text": {"article", "document"}},
             ),
             output_schema=Schema(
                 features=OrderedDict([("summary", Value(dtype="string"))]),
-                grounding_candidates={
-                    "summary": {"highlights", "summary"},
-                },
+                grounding_candidates={"summary": {"highlights", "summary"}},
             ),
             metrics=[
                 # blah,
@@ -214,9 +195,7 @@ class Summarization(Task):
 
     @classmethod
     def list_datasets(cls):
-        return [
-            "cnn_dailymail",
-        ]
+        return ["cnn_dailymail"]
 
 
 class NaturalLanguageInference(Task):
@@ -256,13 +235,9 @@ class BinaryNaturalLanguageInference(NaturalLanguageInference):
             ),
             output_schema=Schema(
                 features=OrderedDict(
-                    [
-                        ("label", ClassLabel(names=["entailment", "non entailment"])),
-                    ]
+                    [("label", ClassLabel(names=["entailment", "non entailment"]))]
                 ),
-                grounding_candidates={
-                    "label": {"label"},
-                },
+                grounding_candidates={"label": {"label"}},
             ),
             identifier=self.__class__.__name__,
         )
@@ -296,20 +271,16 @@ class TernaryNaturalLanguageInference(NaturalLanguageInference):
                             ClassLabel(
                                 names=["entailment", "neutral", "contradiction"]
                             ),
-                        ),
+                        )
                     ]
                 ),
-                grounding_candidates={
-                    "label": {"label"},
-                },
+                grounding_candidates={"label": {"label"}},
             ),
             identifier=self.__class__.__name__,
         )
 
     def datasets(self):
-        return {
-            "snli",
-        }
+        return {"snli"}
 
 
 class QuestionAnswering(Task):
@@ -338,10 +309,7 @@ class ExtractiveQuestionAnswering(Task):
                         ("question", Value(dtype="string")),
                     ]
                 ),
-                grounding_candidates={
-                    "context": {"context"},
-                    "question": {"question"},
-                },
+                grounding_candidates={"context": {"context"}, "question": {"question"}},
             ),
             output_schema=Schema(
                 features=OrderedDict(
@@ -355,19 +323,12 @@ class ExtractiveQuestionAnswering(Task):
                                 },
                                 length=-1,
                             ),
-                        ),
+                        )
                     ]
                 ),
-                grounding_candidates={
-                    "answers": {
-                        "answers",
-                    },
-                },
+                grounding_candidates={"answers": {"answers"}},
             ),
-            metrics=[
-                "em",
-                "f1",
-            ],
+            metrics=["em", "f1"],
             identifier=self.__class__.__name__,
         )
 

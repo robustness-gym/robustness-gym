@@ -90,10 +90,7 @@ class Subpopulation(SliceBuilder):
         for batch in dataset.batch(batch_size):
             # Process the batch
             _, slice_memberships = self.process_batch(
-                batch=batch,
-                columns=columns,
-                *args,
-                **kwargs,
+                batch=batch, columns=columns, *args, **kwargs
             )
 
             # Keep track of the slice memberships
@@ -181,7 +178,7 @@ class Subpopulation(SliceBuilder):
                         }
                         for i, membership in enumerate(row)
                         if not mask or not mask[i]
-                    },
+                    }
                 }
             }
             for row in slice_membership.tolist()
@@ -320,10 +317,7 @@ class SubpopulationCollection(Subpopulation):
             for i, slicebuilder in tqdm(enumerate(self.subpopulations)):
                 # Apply the slicebuilder
                 slices_i, slice_membership_i = slicebuilder(
-                    batch_or_dataset=batch_or_dataset,
-                    columns=columns,
-                    *args,
-                    **kwargs,
+                    batch_or_dataset=batch_or_dataset, columns=columns, *args, **kwargs
                 )
 
                 # Add in the slices and slice membership
@@ -353,22 +347,16 @@ class SubpopulationCollection(Subpopulation):
                 # Each Subpopulation will generate slices
                 for i, subpopulation in enumerate(self.subpopulations):
                     updates = subpopulation.construct_updates(
-                        slice_membership=slice_membership[i][indices],
-                        columns=columns,
+                        slice_membership=slice_membership[i][indices], columns=columns
                     )
 
-                    batch = subpopulation.store(
-                        batch=batch,
-                        updates=updates,
-                    )
+                    batch = subpopulation.store(batch=batch, updates=updates)
 
                 return batch
 
             if isinstance(batch_or_dataset, Dataset):
                 batch_or_dataset = batch_or_dataset.map(
-                    _store_updates,
-                    with_indices=True,
-                    batched=True,
+                    _store_updates, with_indices=True, batched=True
                 )
 
                 for subpopulation in self.subpopulations:

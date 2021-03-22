@@ -59,10 +59,7 @@ class Abstractiveness(RougeScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "precision"),
     ):
-        super(Abstractiveness, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(Abstractiveness, self).__init__(intervals=intervals, metric=metric)
 
 
 class Distillation(RougeScoreSubpopulation):
@@ -71,10 +68,7 @@ class Distillation(RougeScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "recall"),
     ):
-        super(Distillation, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(Distillation, self).__init__(intervals=intervals, metric=metric)
 
 
 class RougeMatrixScoreSubpopulation(ScoreSubpopulation):
@@ -130,10 +124,7 @@ class Position(RougeMatrixScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "fmeasure"),
     ):
-        super(Position, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(Position, self).__init__(intervals=intervals, metric=metric)
 
     def reduce(self, matrices: List[np.ndarray]) -> np.ndarray:
         # Compute position of best-matched sentence in source document
@@ -149,10 +140,7 @@ class Dispersion(RougeMatrixScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "fmeasure"),
     ):
-        super(Dispersion, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(Dispersion, self).__init__(intervals=intervals, metric=metric)
 
     def reduce(self, matrices: List[np.ndarray]) -> np.ndarray:
         # Compute position of best-matched sentence in source document
@@ -168,10 +156,7 @@ class Ordering(RougeMatrixScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "fmeasure"),
     ):
-        super(Ordering, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(Ordering, self).__init__(intervals=intervals, metric=metric)
 
     def reduce(self, matrices: List[np.ndarray]) -> np.ndarray:
         # Compute position of best-matched sentence in source document
@@ -194,10 +179,7 @@ class NuclearNorm(RougeMatrixScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "fmeasure"),
     ):
-        super(NuclearNorm, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(NuclearNorm, self).__init__(intervals=intervals, metric=metric)
 
     def reduce(self, matrices: List[np.ndarray]) -> np.ndarray:
         return np.array(
@@ -214,10 +196,7 @@ class SpectralNorm(RougeMatrixScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "fmeasure"),
     ):
-        super(SpectralNorm, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(SpectralNorm, self).__init__(intervals=intervals, metric=metric)
 
     def reduce(self, matrices: List[np.ndarray]) -> np.ndarray:
         return np.array(
@@ -234,10 +213,7 @@ class FrobeniusNorm(RougeMatrixScoreSubpopulation):
         intervals: List[Tuple[int, int]],
         metric: Sequence[str] = ("rouge1", "fmeasure"),
     ):
-        super(FrobeniusNorm, self).__init__(
-            intervals=intervals,
-            metric=metric,
-        )
+        super(FrobeniusNorm, self).__init__(intervals=intervals, metric=metric)
 
     def reduce(self, matrices: List[np.ndarray]) -> np.ndarray:
         return np.array([norm(mat) for mat in matrices])

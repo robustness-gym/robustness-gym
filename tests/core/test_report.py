@@ -80,13 +80,7 @@ class TestReport(TestCase):
             model_name=self.model_name,
             dataset_name=self.dataset_name,
         )
-        report.sort(
-            category_order={
-                "Cat B": 0,
-                "Cat C": 2,
-                "Cat A": 1,
-            }
-        )
+        report.sort(category_order={"Cat B": 0, "Cat C": 2, "Cat A": 1})
         actual = report.data
         expected = pd.DataFrame(
             [
@@ -129,11 +123,7 @@ class TestReport(TestCase):
             dataset_name=self.dataset_name,
         )
         report.sort(
-            category_order={
-                "Cat B": 0,
-                "Cat C": 2,
-                "Cat A": 1,
-            },
+            category_order={"Cat B": 0, "Cat C": 2, "Cat A": 1},
             slice_order={"Slice D": 0, "Slice C": 1, "Slice B": 2, "Slice A": 3},
         )
         actual = report.data

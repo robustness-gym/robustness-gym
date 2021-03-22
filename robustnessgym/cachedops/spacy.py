@@ -28,7 +28,7 @@ class Spacy(SingleColumnCachedOperation):
         neuralcoref: bool = False,
         device: str = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         if not _spacy_available:
             raise ImportError("Please `pip install spacy`.")
@@ -60,10 +60,7 @@ class Spacy(SingleColumnCachedOperation):
 
         if not nlp:
             super(Spacy, self).__init__(
-                lang=lang,
-                neuralcoref=neuralcoref,
-                *args,
-                **kwargs,
+                lang=lang, neuralcoref=neuralcoref, *args, **kwargs
             )
         else:
             super(Spacy, self).__init__(

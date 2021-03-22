@@ -67,8 +67,7 @@ class TestDataset(TestCase):
 
         # Load the dataset
         dataset = Dataset.from_jsonl(
-            json_path="tmp/data.jsonl",
-            identifier=Identifier(_name="MockJSONDataset"),
+            json_path="tmp/data.jsonl", identifier=Identifier(_name="MockJSONDataset")
         )
 
         self.assertEqual(set(dataset.column_names), {"a", "b", "c", "d", "index"})

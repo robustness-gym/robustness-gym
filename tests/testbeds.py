@@ -33,8 +33,7 @@ class MockTestBedv0:
         }
         # Create a fake dataset
         self.dataset = Dataset.from_batch(
-            self.batch,
-            identifier=Identifier(_name="MockDataset", version="1.0"),
+            self.batch, identifier=Identifier(_name="MockDataset", version="1.0")
         )
 
         # Keep a copy of the original

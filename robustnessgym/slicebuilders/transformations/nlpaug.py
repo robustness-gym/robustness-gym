@@ -66,8 +66,7 @@ class NlpAugTransformation(SingleColumnTransformation):
     def single_column_apply(self, column_batch: List[str]) -> List[List[str]]:
         # Apply the nlpaug pipeline
         augmented_texts = self.pipeline.augment(
-            data=column_batch,
-            n=self.num_transformed,
+            data=column_batch, n=self.num_transformed
         )
 
         if self.num_transformed == 1:

@@ -9,13 +9,7 @@ from robustnessgym.slicebuilders.transformation import Transformation
 class Attack(Transformation):
     """Class for adversarial attacks."""
 
-    def __init__(
-        self,
-        identifiers: List[Identifier],
-        apply_fn=None,
-    ):
+    def __init__(self, identifiers: List[Identifier], apply_fn=None):
         super(Attack, self).__init__(
-            category=ATTACK,
-            identifiers=identifiers,
-            apply_fn=apply_fn,
+            category=ATTACK, identifiers=identifiers, apply_fn=apply_fn
         )

@@ -8,10 +8,7 @@ class TestIdentifier(TestCase):
     def setUp(self):
         self.min_identifier = Identifier(_name="MyIdentifier")
         self.identifier = Identifier(
-            _name="MyIdentifier",
-            _index=1,
-            param="a",
-            param_2="b",
+            _name="MyIdentifier", _index=1, param="a", param_2="b"
         )
 
     def test_init(self):

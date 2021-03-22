@@ -25,9 +25,7 @@ class Transformation(SliceBuilder):
         super(Transformation, self).__init__(
             category=category if category else TRANSFORMATION,
             identifiers=[
-                Identifier(
-                    _name=f"{self.__class__.__name__}-{i + 1}",
-                )
+                Identifier(_name=f"{self.__class__.__name__}-{i + 1}")
                 for i in range(num_transformed)
             ]
             if not identifiers
@@ -51,11 +49,7 @@ class Transformation(SliceBuilder):
         raise NotImplementedError
 
     def process_batch(
-        self,
-        batch: Batch,
-        columns: List[str],
-        *args,
-        **kwargs,
+        self, batch: Batch, columns: List[str], *args, **kwargs
     ) -> Tuple[List[Batch], Optional[np.ndarray]]:
 
         # Determine the size of the batch
@@ -98,8 +92,7 @@ class Transformation(SliceBuilder):
         # Remove transformed examples where slice_membership[i, :] = 0 before returning
         transformed_batches = [
             self.filter_batch_by_slice_membership(
-                batch=transformed_batch,
-                slice_membership=slice_membership[:, j : j + 1],
+                batch=transformed_batch, slice_membership=slice_membership[:, j : j + 1]
             )[0]
             for j, transformed_batch in enumerate(transformed_batches)
         ]
@@ -184,9 +177,7 @@ class SingleColumnTransformation(Transformation):
         for column in columns:
             try:
                 # Apply
-                transformed_batch = self.single_column_apply(
-                    column_batch=batch[column],
-                )
+                transformed_batch = self.single_column_apply(column_batch=batch[column])
 
                 assert len(transformed_batch) == len(
                     batch[column]

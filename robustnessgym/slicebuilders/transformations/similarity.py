@@ -47,9 +47,7 @@ class RougeMatrixSentenceTransformation(Transformation):
 
         # Fetch sentences for the first column
         sentences = Spacy.retrieve(
-            batch=batch,
-            columns=[columns[0]],
-            proc_fns=Spacy.sentences,
+            batch=batch, columns=[columns[0]], proc_fns=Spacy.sentences
         )[columns[0]]
 
         # Delete sentences

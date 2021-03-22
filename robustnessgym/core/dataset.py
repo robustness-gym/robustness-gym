@@ -29,9 +29,7 @@ Batch = Dict[str, List]
 BatchOrDataset = Union[Batch, "Dataset"]
 
 
-class Dataset(
-    InteractionTapeHierarchyMixin,
-):
+class Dataset(InteractionTapeHierarchyMixin):
     """RobustnessGym Dataset class."""
 
     # Path to a log directory
@@ -41,11 +39,7 @@ class Dataset(
     logdir.mkdir(parents=True, exist_ok=True)
 
     def __init__(
-        self,
-        *args,
-        identifier: Identifier = None,
-        dataset_fmt: str = None,
-        **kwargs,
+        self, *args, identifier: Identifier = None, dataset_fmt: str = None, **kwargs
     ):
 
         logger.debug("Creating Dataset.")
@@ -185,10 +179,7 @@ class Dataset(
         """Remove a column from the dataset."""
         self._dataset.remove_column(column)
 
-    def append(
-        self,
-        example_or_batch: Union[Example, Batch],
-    ) -> None:
+    def append(self, example_or_batch: Union[Example, Batch]) -> None:
         """Append a batch of data to the dataset.
 
         `example_or_batch` must have the same columns as the dataset
@@ -288,12 +279,7 @@ class Dataset(
         return datasets.list_datasets()
 
     @classmethod
-    def load_dataset(
-        cls,
-        *args,
-        dataset_fmt: str = "in_memory",
-        **kwargs,
-    ):
+    def load_dataset(cls, *args, dataset_fmt: str = "in_memory", **kwargs):
         """Create a Dataset using Huggingface datasets.load_dataset(..). Loads
         any dataset available in Huggingface Dataset Hub.
 
@@ -336,11 +322,7 @@ class Dataset(
         dataset_fmt: str = None,
     ) -> Dataset:
         """Create a Dataset from a Huggingface datasets.Dataset."""
-        return cls(
-            dataset,
-            identifier=identifier,
-            dataset_fmt=dataset_fmt,
-        )
+        return cls(dataset, identifier=identifier, dataset_fmt=dataset_fmt)
 
     @classmethod
     def from_jsonl(
@@ -377,10 +359,7 @@ class Dataset(
 
     @classmethod
     def from_batch(
-        cls,
-        batch: Batch,
-        identifier: Identifier = None,
-        dataset_fmt: str = "in_memory",
+        cls, batch: Batch, identifier: Identifier = None, dataset_fmt: str = "in_memory"
     ) -> Dataset:
         """Convert a batch to a Dataset."""
 
@@ -401,30 +380,20 @@ class Dataset(
         """Convert a list of batches to a dataset."""
 
         return cls.from_batch(
-            tz.merge_with(
-                tz.compose(list, tz.concat),
-                *batches,
-            ),
+            tz.merge_with(tz.compose(list, tz.concat), *batches),
             identifier=identifier,
             dataset_fmt=dataset_fmt,
         )
 
     @classmethod
     def from_dict(
-        cls,
-        d: Dict,
-        identifier: Identifier = None,
-        dataset_fmt: str = "in_memory",
+        cls, d: Dict, identifier: Identifier = None, dataset_fmt: str = "in_memory"
     ) -> Dataset:
         """Convert a dictionary to a dataset.
 
         Alias for Dataset.from_batch(..).
         """
-        return cls.from_batch(
-            batch=d,
-            identifier=identifier,
-            dataset_fmt=dataset_fmt,
-        )
+        return cls.from_batch(batch=d, identifier=identifier, dataset_fmt=dataset_fmt)
 
     @classmethod
     def from_pandas(
@@ -435,17 +404,12 @@ class Dataset(
     ):
         """Create a Dataset from a pandas DataFrame."""
         return cls.from_batch(
-            df.to_dict("list"),
-            identifier=identifier,
-            dataset_fmt=dataset_fmt,
+            df.to_dict("list"), identifier=identifier, dataset_fmt=dataset_fmt
         )
 
     @classmethod
     def from_feather(
-        cls,
-        path: str,
-        identifier: Identifier = None,
-        dataset_fmt: str = "in_memory",
+        cls, path: str, identifier: Identifier = None, dataset_fmt: str = "in_memory"
     ):
         """Create a Dataset from a feather file."""
         return cls.from_batch(
@@ -680,33 +644,23 @@ class Dataset(
         return dataset
 
     @classmethod
-    def interleave(
-        cls,
-        datasets: List[Dataset],
-        identifier: Identifier,
-    ) -> Dataset:
+    def interleave(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
 
         """Interleave a list of datasets."""
         return cls.from_batch(
             tz.merge_with(
-                tz.compose(list, tz.interleave),
-                *[dataset[:] for dataset in datasets],
+                tz.compose(list, tz.interleave), *[dataset[:] for dataset in datasets]
             ),
             identifier=identifier,
         )
 
     @classmethod
-    def chain(
-        cls,
-        datasets: List[Dataset],
-        identifier: Identifier,
-    ) -> Dataset:
+    def chain(cls, datasets: List[Dataset], identifier: Identifier) -> Dataset:
 
         """Chain a list of datasets."""
         return cls.from_batch(
             tz.merge_with(
-                tz.compose(list, tz.concat),
-                *[dataset[:] for dataset in datasets],
+                tz.compose(list, tz.concat), *[dataset[:] for dataset in datasets]
             ),
             identifier=identifier,
         )
@@ -777,12 +731,7 @@ class Dataset(
     @classmethod
     def _state_keys(cls) -> set:
         """List of attributes that describe the state of the object."""
-        return {
-            "interactions",
-            "_identifier",
-            "_dataset",
-            "_dataset_fmt",
-        }
+        return {"interactions", "_identifier", "_dataset", "_dataset_fmt"}
 
     @classmethod
     def _assert_state_keys(cls, state: Dict) -> None:

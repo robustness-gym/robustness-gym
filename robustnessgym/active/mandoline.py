@@ -9,8 +9,9 @@ from sklearn.metrics.pairwise import rbf_kernel
 
 
 def Phi(D, edge_list: list = None):
-    """
-    Given an n x d matrix of (example, slices), calculate the potential matrix.
+    """Given an n x d matrix of (example, slices), calculate the potential
+    matrix.
+
     Includes correlations modeled by the edges in the `edge_list`.
     """
     if edge_list is not None:
@@ -28,12 +29,7 @@ def log_partition_ratio(x, Phi_D_src, n_src):
     return np.log(n_src) - logsumexp(Phi_D_src.dot(x))
 
 
-def mandoline(
-    D_src,
-    D_tgt,
-    edge_list,
-    sigma=None,
-):
+def mandoline(D_src, D_tgt, edge_list, sigma=None):
     """
     Mandoline solver.
     Args:
@@ -110,8 +106,8 @@ def log_density_ratio(D, solved):
 
 
 def get_k_most_unbalanced_gs(D_src, D_tgt, k):
-    """
-    Get the top k slices that shift most between source and target distributions.
+    """Get the top k slices that shift most between source and target
+    distributions.
 
     Uses difference in marginals between each slice.
     """
@@ -122,21 +118,18 @@ def get_k_most_unbalanced_gs(D_src, D_tgt, k):
 
 
 def weighted_estimator(weights, empirical_mat):
-    """Calculate a weighted empirical mean over a matrix. Calculates an unweighted
-    mean if `weights` is None."""
+    """Calculate a weighted empirical mean over a matrix.
+
+    Calculates an unweighted mean if `weights` is None.
+    """
     if weights is None:
         return np.mean(empirical_mat, axis=0)
     return np.sum(weights[:, np.newaxis] * empirical_mat, axis=0)
 
 
-def estimate_performance(
-    D_src,
-    D_tgt,
-    edge_list,
-    empirical_mat_list_src,
-):
-    """Estimate performance on a target distribution using slices from the source and
-    target data."""
+def estimate_performance(D_src, D_tgt, edge_list, empirical_mat_list_src):
+    """Estimate performance on a target distribution using slices from the
+    source and target data."""
     # Run the solver
     solved = mandoline(D_src, D_tgt, edge_list)
 
@@ -156,14 +149,7 @@ def estimate_performance(
         )
 
         all_estimates.append(
-            SimpleNamespace(
-                weighted=weighted_estimates,
-                source=source_estimates,
-            )
+            SimpleNamespace(weighted=weighted_estimates, source=source_estimates)
         )
 
-    return SimpleNamespace(
-        all_estimates=all_estimates,
-        solved=solved,
-        weights=weights,
-    )
+    return SimpleNamespace(all_estimates=all_estimates, solved=solved, weights=weights)

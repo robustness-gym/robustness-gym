@@ -11,12 +11,7 @@ from typing import Any, Callable, List, Union
 class Identifier:
     """Class for creating identifiers for objects in Robustness Gym."""
 
-    def __init__(
-        self,
-        _name: str,
-        _index: Union[str, int] = None,
-        **kwargs,
-    ):
+    def __init__(self, _name: str, _index: Union[str, int] = None, **kwargs):
 
         self._name = _name
         self._index = str(_index) if _index is not None else None

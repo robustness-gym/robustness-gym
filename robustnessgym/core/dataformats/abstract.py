@@ -17,10 +17,7 @@ Example = Dict
 Batch = Dict[str, List]
 
 
-class AbstractDataset(
-    abc.ABC,
-    DatasetInfoMixin,
-):
+class AbstractDataset(abc.ABC, DatasetInfoMixin):
     """An abstract dataset class."""
 
     all_columns: Optional[List[str]]
@@ -189,9 +186,7 @@ class AbstractDataset(
     @classmethod
     def from_batches(cls, batches: List[Batch]):
         """Create an AbstractDataset from a list of batches."""
-        return cls.from_batch(
-            tz.merge_with(tz.compose(list, tz.concat), *batches),
-        )
+        return cls.from_batch(tz.merge_with(tz.compose(list, tz.concat), *batches))
 
     def _example_or_batch_to_batch(
         self, example_or_batch: Union[Example, Batch]
@@ -234,10 +229,7 @@ class AbstractDataset(
         }
 
     def _inspect_function(
-        self,
-        function: Callable,
-        with_indices: bool = False,
-        batched: bool = False,
+        self, function: Callable, with_indices: bool = False, batched: bool = False
     ) -> SimpleNamespace:
 
         # Initialize variables to track
@@ -297,10 +289,7 @@ class AbstractDataset(
         )
 
     @abc.abstractmethod
-    def append(
-        self,
-        example_or_batch: Union[Example, Batch],
-    ) -> None:
+    def append(self, example_or_batch: Union[Example, Batch]) -> None:
         """Append a batch of data to the dataset.
 
         `batch` must have the same columns as the dataset (regardless of

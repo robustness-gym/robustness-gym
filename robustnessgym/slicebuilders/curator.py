@@ -5,15 +5,9 @@ from robustnessgym.core.constants import CURATION
 
 
 class Curator(SliceBuilder):
-    def __init__(
-        self,
-        identifiers: List[Identifier],
-        apply_fn,
-    ):
+    def __init__(self, identifiers: List[Identifier], apply_fn):
         super(Curator, self).__init__(
-            category=CURATION,
-            identifiers=identifiers,
-            apply_fn=apply_fn,
+            category=CURATION, identifiers=identifiers, apply_fn=apply_fn
         )
 
     def __call__(self, *args, **kwargs):

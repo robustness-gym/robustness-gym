@@ -8,9 +8,7 @@ from robustnessgym.slicebuilders.transformation import Transformation
 
 
 class GPT3Transformation(Transformation):
-    def __init__(
-        self,
-    ):
+    def __init__(self,):
         super(GPT3Transformation, self).__init__()
 
     def apply(

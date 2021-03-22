@@ -36,13 +36,7 @@ class SliceBuilder(StorageMixin):
     # Create the log directory
     logdir.mkdir(parents=True, exist_ok=True)
 
-    CATEGORIES = [
-        GENERIC,
-        SUBPOPULATION,
-        ATTACK,
-        TRANSFORMATION,
-        CURATION,
-    ]
+    CATEGORIES = [GENERIC, SUBPOPULATION, ATTACK, TRANSFORMATION, CURATION]
 
     def __init__(
         self,
@@ -148,18 +142,12 @@ class SliceBuilder(StorageMixin):
         elif isinstance(batch_or_dataset, Dict):
             # Slice a batch
             return self.process_batch(
-                batch=batch_or_dataset,
-                columns=columns,
-                *args,
-                **kwargs,
+                batch=batch_or_dataset, columns=columns, *args, **kwargs
             )
         else:
             raise NotImplementedError
 
-    def prerequisites_handler(
-        self,
-        batch_or_dataset: BatchOrDataset,
-    ):
+    def prerequisites_handler(self, batch_or_dataset: BatchOrDataset):
         if isinstance(batch_or_dataset, Dataset):
             batch = batch_or_dataset[:2]
         else:
@@ -194,13 +182,7 @@ class SliceBuilder(StorageMixin):
 
         return batch
 
-    def prepare_batch(
-        self,
-        batch: Batch,
-        columns: List[str],
-        *args,
-        **kwargs,
-    ) -> None:
+    def prepare_batch(self, batch: Batch, columns: List[str], *args, **kwargs) -> None:
         """Apply a preparation function to a batch. Use this to update
         attributes of `self`.
 
@@ -213,9 +195,7 @@ class SliceBuilder(StorageMixin):
         raise NotImplementedError("Implemented `prepare_batch` should return a batch.")
 
     def _filter_prerequisite_columns(
-        self,
-        columns: List[str],
-        all_columns: List[str],
+        self, columns: List[str], all_columns: List[str]
     ) -> List[str]:
         # Simple filtering that doesn't use columns
         # TODO(karan): improve this by using `columns` to filter further
@@ -258,21 +238,12 @@ class SliceBuilder(StorageMixin):
             for batch in dataset.batch(batch_size):
                 try:
                     # Check if the `prepare_batch` function has been implemented
-                    self.prepare_batch(
-                        batch=batch,
-                        columns=columns,
-                        *args,
-                        **kwargs,
-                    )
+                    self.prepare_batch(batch=batch, columns=columns, *args, **kwargs)
                 except NotImplementedError:
                     break
 
     def process_batch(
-        self,
-        batch: Dict[str, List],
-        columns: List[str],
-        *args,
-        **kwargs,
+        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
     ) -> Tuple[List[Dict[str, List]], Optional[np.ndarray]]:
         """Apply a SliceBuilder to a batch of data.
 
@@ -403,10 +374,7 @@ class SliceBuilder(StorageMixin):
         for batch in dataset.batch(batch_size):
             # Process the batch
             sliced_batches, slice_memberships = self.process_batch(
-                batch=batch,
-                columns=columns,
-                *args,
-                **kwargs,
+                batch=batch, columns=columns, *args, **kwargs
             )
 
             # Incrementally build the slices
