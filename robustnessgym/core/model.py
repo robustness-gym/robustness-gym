@@ -1,5 +1,8 @@
 import itertools
 import re
+import ludwig
+from ludwig.api import LudwigModel
+
 from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
@@ -362,8 +365,36 @@ class HuggingfaceModel(Model):
 
         return evaluation_dict
 
+class LudwigModelRG(Model):
+    def __init__(
+        self,
+        identifier: str,
+        task: Task = None,
+        model: Optional[AutoModel] = None,
+        tokenizer: Optional[AutoTokenizer] = None,
+        device: str = None,
+        is_classifier=None,
+        model_dir: str=None
+    ):
+        super().__init__()
+        self.ludwig_model = LudwigModel.load(model_dir)
+
+    def evaluate(
+        self,
+        dataset_path: str,
+        collect_predictions: bool=True,
+        output_column_name: str,
+    ):
+        eval_stats, predictions, _ = self.ludwig_model.evaluate(
+            dataset=dataset_path
+        )
+        
+        return (eval_stats, predictions)
+
 
 def format_summary(x: str) -> str:
     """Format summary text for computing rouge."""
     re.sub("<n>", "", x)  # remove pegasus newline char
     return "\n".join(nltk.sent_tokenize(x))
+
+
