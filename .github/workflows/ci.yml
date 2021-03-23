@@ -84,9 +84,9 @@ jobs:
                     python-version: ${{ matrix.python-version }}
     
             -   name: Install Poetry
-                uses: snok/install-poetry@v1.1.1
+                uses: snok/install-poetry@v1.1.2
                 with:
-                    version: 1.1.4
+                    version: 1.1.5
                     virtualenvs-create: true
                     virtualenvs-in-project: true
     
@@ -95,13 +95,13 @@ jobs:
                 uses: actions/cache@v2
                 with:
                     path: .venv
-                    key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+                    key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}-v2
     
             -   name: Install Dependencies
                 if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
                 run: |
-                    poetry install --no-interaction
-
+                    poetry install --no-interaction --extras "augmentation text adversarial summarization vision"
+                    
             -   name: Test with pytest
                 run: |
                     source .venv/bin/activate

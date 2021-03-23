@@ -94,7 +94,13 @@ class TestDataset(TestCase):
 
     def test_map(self):
         # Map over the dataset
-        dataset = self.testbed.dataset.map(lambda x: {"otherlabel": x["label"] + 1})
+        output = self.testbed.dataset.map(lambda x: {"otherlabel": x["label"] + 1})
+        self.assertTrue("otherlabel" in output)
+        self.assertEqual(output["otherlabel"], [1, 1, 2, 2, 1, 1])
+
+    def test_update(self):
+        # Update the dataset
+        dataset = self.testbed.dataset.update(lambda x: {"otherlabel": x["label"] + 1})
         self.assertTrue("otherlabel" in dataset.column_names)
         self.assertEqual(dataset["otherlabel"], [1, 1, 2, 2, 1, 1])
 
@@ -164,8 +170,11 @@ class TestDataset(TestCase):
 
     def test_load_dataset(self):
         # Load the first 20 examples of the boolq dataset
-        dataset = Dataset.load_dataset("boolq", split="train[:20]")
+        dataset = Dataset.load_dataset(
+            "boolq", split="train[:20]", dataset_fmt="in_memory"
+        )
 
         # Check that we got 20 examples
         self.assertTrue(isinstance(dataset, Dataset))
         self.assertEqual(len(dataset), 20)
+        self.assertTrue(isinstance(dataset.identifier.parameters["version"], str))

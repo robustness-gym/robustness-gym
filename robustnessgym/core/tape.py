@@ -221,11 +221,5 @@ class InteractionTapeHierarchyMixin:
             ]
 
     def fetch_tape(self, path: List[str]) -> InteractionTape:
-        """Fetch an InteractionTape.
-
-        Args:
-            path:
-
-        Returns:
-        """
+        """Fetch an InteractionTape."""
         return tz.get_in(path, self.interactions)

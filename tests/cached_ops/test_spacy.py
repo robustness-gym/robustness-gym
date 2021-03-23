@@ -14,6 +14,7 @@ class TestSpacy(TestCase):
 
         # Apply it
         dataset = spacy(self.testbed.dataset, ["text"])
+        print(dataset.column_names)
 
         # Retrieve information to test
         sentences = spacy.retrieve(dataset[:], ["text"], proc_fns=spacy.sentences)
@@ -23,31 +24,27 @@ class TestSpacy(TestCase):
 
         self.assertEqual(
             sentences,
-            {
-                "text": [
-                    ["The man is walking."],
-                    ["The man is running."],
-                    ["The woman is sprinting."],
-                    ["The woman is resting."],
-                    ["The hobbit is flying."],
-                    ["The hobbit is swimming."],
-                ]
-            },
+            [
+                ["The man is walking."],
+                ["The man is running."],
+                ["The woman is sprinting."],
+                ["The woman is resting."],
+                ["The hobbit is flying."],
+                ["The hobbit is swimming."],
+            ],
         )
 
         self.assertEqual(
             tokens,
-            {
-                "text": [
-                    ["The", "man", "is", "walking", "."],
-                    ["The", "man", "is", "running", "."],
-                    ["The", "woman", "is", "sprinting", "."],
-                    ["The", "woman", "is", "resting", "."],
-                    ["The", "hobbit", "is", "flying", "."],
-                    ["The", "hobbit", "is", "swimming", "."],
-                ]
-            },
+            [
+                ["The", "man", "is", "walking", "."],
+                ["The", "man", "is", "running", "."],
+                ["The", "woman", "is", "sprinting", "."],
+                ["The", "woman", "is", "resting", "."],
+                ["The", "hobbit", "is", "flying", "."],
+                ["The", "hobbit", "is", "swimming", "."],
+            ],
         )
 
-        self.assertEqual(entities, {"text": [[], [], [], [], [], []]})
-        self.assertEqual(num_tokens, {"text": [5, 5, 5, 5, 5, 5]})
+        self.assertEqual(entities, [[], [], [], [], [], []])
+        self.assertEqual(num_tokens, [5, 5, 5, 5, 5, 5])

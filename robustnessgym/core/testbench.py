@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import inspect
 import json
+import logging
 import pathlib
 from typing import Callable, Collection, Dict, List, Optional, Sequence, Union
 
@@ -17,7 +19,9 @@ from robustnessgym.core.constants import (
     GENERIC,
     SUBPOPULATION,
 )
-from robustnessgym.core.metrics import compute_metric
+from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.metrics import compute_metric, get_metric
 from robustnessgym.core.model import Model
 from robustnessgym.core.report import (
     ClassDistributionColumn,
@@ -28,16 +32,439 @@ from robustnessgym.core.report import (
 from robustnessgym.core.slice import Slice
 from robustnessgym.core.tools import persistent_hash
 from robustnessgym.core.version import SemanticVersionerMixin
+from robustnessgym.tasks.schema import Schema
 from robustnessgym.tasks.task import Task
+
+logger = logging.getLogger(__name__)
+
+
+class DevBench(SemanticVersionerMixin):
+    def __init__(
+        self,
+        dataset: Dataset,
+    ):
+        # Call the superclass
+        super(DevBench, self).__init__()
+
+        # An identifier for the DevBench
+        self.identifier = Identifier("DevBench", dataset=str(dataset.identifier))
+
+        # Dataset that the devbench operates on
+        self._dataset = dataset
+
+        # Create the collection of slices
+        self._slices = set()
+        self._slice_identifiers = set()
+        self._slice_table = {}
+
+        # The devbench has aggregators
+        self.aggregators = {}
+
+        # The devbench internally tracks metrics
+        self.metrics = {}
+
+        # Add slices if any
+        self.add_slices(dataset)
+
+    @property
+    def dataset(self):
+        """Dataset for the devbench."""
+        return self._dataset
+
+    @property
+    def slices(self):
+        """Slices in the devbench."""
+        return self._slices
+
+    @property
+    def models(self):
+        """Models in the devbench."""
+        return list(self.aggregators.keys())
+
+    def __repr__(self):
+        return f"{self.identifier}(slices={len(self.slices)})"
+
+    def _digest(self) -> str:
+        return json.dumps([str(sl) for sl in self.slices])
+
+    def add_slices(
+        self,
+        slices: Union[Dataset, Slice, Collection[Union[Dataset, Slice]]],
+    ) -> None:
+        """Add slices to the development bench.
+
+        Args:
+            slices: collection of Slice objects
+        """
+        if isinstance(slices, Slice) or isinstance(slices, Dataset):
+            slices = [slices]
+
+        # Add slices
+        for sl in slices:
+            if not isinstance(sl, Slice) and isinstance(sl, Dataset):
+                # Convert `Dataset` to `Slice`
+                sl = Slice(sl)
+
+            if isinstance(sl, Slice):
+                if (
+                    sl.identifier not in self._slice_identifiers
+                    and len(sl) > 0
+                    and sl.lineage[0][1] == self.dataset.identifier
+                ):
+                    # Add slices that aren't present, have non-zero length and
+                    # originate from the dataset
+                    self._slices.add(sl)
+                    self._slice_identifiers.add(sl.identifier)
+                    self._slice_table[sl.identifier] = sl
+
+        # Calculate all metrics
+        self.calculate()
+
+    def add_aggregators(
+        self,
+        aggregators: Dict[str, Dict[str, Callable]],
+    ) -> None:
+        """Add functions for aggregation, with a dictionary that maps a model
+        name to aggregation functions."""
+
+        # For each model
+        for model, aggs in aggregators.items():
+            # Iterate over the aggregation functions
+            for agg_name, agg in aggs.items():
+                assert isinstance(agg, Callable), "Aggregators must be functions."
+                arguments = inspect.getfullargspec(agg).args
+                assert len(arguments) == 1, "Aggregators must be single argument."
+                assert arguments[0] == "dataset", (
+                    "Aggregator argument name must be `dataset`, "
+                    f"not `{arguments[0]}`."
+                )
+
+                # Store the aggregator
+                if model not in self.aggregators:
+                    self.aggregators[model] = {}
+                self.aggregators[model][agg_name] = agg
+
+        # Calculate all metrics
+        self.calculate()
+
+    def calculate(self):
+        """Calculate all metrics that haven't been calculated yet."""
+        # Iterate over all models
+        for model in self.aggregators:
+
+            # Add the model to the metrics dict
+            if model not in self.metrics:
+                self.metrics[model] = {}
+
+            # Iterate over all slices
+            for sl in self.slices:
+                # Add the slice to the model's metrics dict
+                if str(sl.identifier) not in self.metrics[model]:
+                    self.metrics[model][str(sl.identifier)] = {}
+
+                # Iterate over all aggregation functions
+                for agg_name, aggregator in self.aggregators[model].items():
+                    if agg_name not in self.metrics[model][str(sl.identifier)]:
+                        # Aggregate
+                        self.metrics[model][str(sl.identifier)][agg_name] = aggregator(
+                            sl
+                        )
+
+    @classmethod
+    def from_dataset(
+        cls,
+        dataset: Dataset,
+    ) -> DevBench:
+        """Create a DevBench from a dataset."""
+        # Create the devbench
+        devbench = DevBench(
+            dataset=dataset,
+        )
+
+        return devbench
+
+    def _human_readable_identifiers(self):
+        # Temporary function to generate human readable names
+        groups = {}
+        for ident in self._slice_identifiers:
+            if "->" in str(ident):
+                builder_ident = str(ident).split(" -> ")[-1]
+                builder_ident, cols = builder_ident.split(" @ ")
+                name = builder_ident.split("(")[0]
+                if name not in groups:
+                    groups[name] = set()
+                groups[name].add((builder_ident, cols))
+
+        group_info = {}
+        for key, group in groups.items():
+            if len(group) == 1:
+                group_info[key] = "name"
+            else:
+                only_single_column = len(set([t[1] for t in group])) == 1
+                if only_single_column:
+                    group_info[key] = "builder_ident"
+                else:
+                    group_info[key] = "full"
+
+        ident_mapping = {}
+        for ident in self._slice_identifiers:
+            if "->" in str(ident):
+                builder_ident = str(ident).split(" -> ")[-1]
+                builder_ident, cols = builder_ident.split(" @ ")
+                name = builder_ident.split("(")[0]
+
+                if group_info[name] == "name":
+                    new_ident = name
+                elif group_info[name] == "builder_ident":
+                    new_ident = builder_ident
+                elif group_info[name] == "full":
+                    new_ident = str(ident).split(" -> ")[-1]
+
+                if new_ident.startswith("NlpAugTransformation"):
+                    new_ident = new_ident.split("NlpAugTransformation(pipeline=[")[
+                        1
+                    ].split("])")[0]
+
+            else:
+                new_ident = str(ident).split("(")[0]
+
+            ident_mapping[ident] = new_ident
+
+        self.ident_mapping = ident_mapping
+
+    def _common_aggregators(self, models: List[str]):
+
+        common_aggregators = []
+        # Iterate over all the models
+        for model in models:
+            assert model in self.metrics, f"Model {model} does not exist."
+            common_aggregators.append(set([agg for agg in self.aggregators[model]]))
+
+        # Find the common aggregators by taking an intersection
+        return set.intersection(*[set(e) for e in common_aggregators])
+
+    def create_report(
+        self,
+        models: List[str] = None,
+    ) -> Report:
+        """Generate report from cached metrics for a model
+        Args:
+            models: List of models.
+        Returns:
+            report
+        """
+
+        if len(self.slices) == 0:
+            raise ValueError("Cannot create report for empty testbench")
+
+        if models is not None:
+            for model in models:
+                assert model in self.metrics, f"Model {model} does not exist."
+        else:
+            # Use all the models that are available
+            models = list(self.metrics.keys())
+
+        # Set identifiers to be human readable
+        self._human_readable_identifiers()
+
+        # Get a list of aggregators that are common to `models`
+        common_aggregators = list(self._common_aggregators(models))
+
+        # Populate columns
+        columns = []
+        for model in models:
+            for aggregator in common_aggregators:
+                columns.append(
+                    ScoreColumn(
+                        f"{model}-{aggregator}",
+                        min_val=0,
+                        max_val=1,
+                        is_0_to_1=True,
+                    )
+                )
+        columns.append(NumericColumn("Size"))
+
+        category_names = {
+            GENERIC: "Slice",
+            SUBPOPULATION: "SubPop",
+            ATTACK: "Attack",
+            AUGMENTATION: "Augment",
+            CURATION: "Eval",
+        }
+
+        # Populate data
+        data = []
+        for sl in self.slices:
+            slice_name = self.ident_mapping[sl.identifier]
+            slice_size = len(sl)
+            slice_category = category_names.get(sl.category, sl.category.capitalize())
+
+            row = [slice_category, slice_name]
+
+            for model in models:
+                model_metrics = self.metrics[model]
+                if sl.identifier not in model_metrics:
+                    continue
+                slice_metrics = model_metrics[sl.identifier]
+                for agg in common_aggregators:
+                    row.append(slice_metrics[agg])
+
+            row.append(slice_size)
+            data.append(row)
+
+        df = pd.DataFrame(data)
+
+        report = Report(
+            data=df,
+            columns=columns,
+            dataset_name=str(self.dataset.identifier),
+        )
+        report.sort(
+            category_order=dict(
+                (cat, i)
+                for i, cat in enumerate(
+                    [SUBPOPULATION, AUGMENTATION, CURATION, ATTACK, GENERIC]
+                )
+            )
+        )
+        return report
+
+    def search(self, keyword: str, limit: int = 3):
+        """Fuzzy search over the slices in the DevBench."""
+        return [
+            self._slice_table[t[0]]
+            for t in process.extract(keyword, self._slice_identifiers, limit=limit)
+        ]
+
+    def save(self, path: str) -> None:
+        """Save the current devbench to disk. This will save all slices in the
+        devbench to disk, as well as metrics and other metadata associated with
+        this devbench.
+
+        Args:
+            path: string path to the save directory
+
+        Returns: None
+        """
+
+        # Path to the save directory
+        savedir = pathlib.Path(path) / f"{self.identifier}"
+
+        # Create a directory inside savedir for the slices
+        (savedir / "slices").mkdir(parents=True, exist_ok=True)
+
+        # Save all the slices
+        self._dataset.save_to_disk(str(savedir / "dataset"))
+        pbar = tqdm(self.slices)
+        for sl in pbar:
+            pbar.set_description(f"Saving slice {str(sl.identifier)[:100]}...")
+            sl.save_to_disk(
+                str(savedir / "slices" / str(persistent_hash(str(sl.identifier))))
+            )
+
+        # Save metrics
+        dill.dump(self.metrics, open(str(savedir / "metrics.dill"), "wb"))
+
+        # Save aggregators
+        dill.dump(self.aggregators, open(str(savedir / "aggregators.dill"), "wb"))
+
+        # Save metadata
+        dill.dump(
+            {
+                "identifier": self.identifier,
+            },
+            open(str(savedir / "metadata.dill"), "wb"),
+        )
+
+        # Save version info
+        with open(str(savedir / "version.dill"), "wb") as f:
+            f.write(self._dumps_version())
+
+    @classmethod
+    def available(cls, path: str) -> List[str]:
+        """Check the list of available devbenches in a directory.
+
+        Args:
+            path: string path to a directory. The devbenches available inside this
+            directory will be returned.
+
+        Returns: list of available devbenches
+        """
+
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Loop over the folders
+        devbench_identifiers = []
+        for maybe_devbench in savedir.glob("*"):
+            if maybe_devbench.is_dir() and (maybe_devbench / "metadata.dill").exists():
+                devbench_identifiers.append(maybe_devbench.name)
+
+        return devbench_identifiers
+
+    @classmethod
+    def load(cls, path: str) -> DevBench:
+        """Load a devbench from disk.
+
+        Args:
+            path: string path to the devbench directory
+
+        Returns:
+        """
+
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Load all the slices
+        slices = []
+        for sl_path in tqdm(list((savedir / "slices").glob("*"))):
+            try:
+                slices.append(Slice.load_from_disk(str(sl_path)))
+            except FileNotFoundError:
+                continue
+
+        # Load dataset
+        dataset = Dataset.load_from_disk(str(savedir / "dataset"))
+
+        # Load metrics
+        metrics = dill.load(open(str(savedir / "metrics.dill"), "rb"))
+
+        # Load metrics
+        aggregators = dill.load(open(str(savedir / "aggregators.dill"), "rb"))
+
+        # Load metadata
+        _ = dill.load(open(str(savedir / "metadata.dill"), "rb"))
+
+        # Create the devbench
+        devbench = cls(
+            dataset=dataset,
+        )
+
+        # Set previously stored metrics
+        devbench.metrics = metrics
+
+        # Set previously stored aggregators
+        devbench.aggregators = aggregators
+
+        # Set the slices
+        devbench.add_slices(slices)
+
+        # Load version info
+        with open(str(savedir / "version.dill"), "rb") as f:
+            devbench._loads_version(f.read())
+
+        return devbench
 
 
 # TODO(karan): make the TestBench hashable
 class TestBench(SemanticVersionerMixin):
+    """Class for test benches in Robustness Gym."""
+
     def __init__(
         self,
-        identifier: str,
+        identifier: Union[str, Identifier],
         task: Task = None,
-        slices: Collection[Slice] = None,
+        slices: Collection[Union[Slice, Dataset]] = None,
         version: str = "0.0.1",
         dataset_id: str = None,
         class_names: Collection[str] = None,
@@ -51,15 +478,20 @@ class TestBench(SemanticVersionerMixin):
 
         # Set the task
         self.task = task
+        if task is None:
+            self.task = Task()
 
         # Create the collection of slices
-        self.slices = set()
+        self._slices = set()
         self.slice_identifiers = set()
         self._slice_table = {}
 
         # Add slices if any
         if slices:
             self.add_slices(slices)
+
+        # The testbench has calculators
+        self.calculators = set()
 
         # The testbench internally tracks metrics
         self.metrics = {}
@@ -72,22 +504,96 @@ class TestBench(SemanticVersionerMixin):
 
         self.class_names = class_names
 
-    def digest(self) -> str:
+    @property
+    def slices(self):
+        """Slices in the testbench."""
+        return self._slices
+
+    def __repr__(self):
+        return f"TestBench[{self.identifier}](slices={len(self.slices)})"
+
+    def _digest(self) -> str:
         return json.dumps([str(sl) for sl in self.slices])
 
     @classmethod
-    def for_dataset(
-        cls, dataset: str, task: Optional[Union[str, Task]] = None, version: str = None
+    def from_dataset(
+        cls,
+        dataset: Dataset,
+        input_columns: List[str],
+        output_columns: List[str],
+        # prediction_columns: List[str],
+        # metrics: List[str],
+    ) -> TestBench:
+        """Create a TestBench from a dataset."""
+        # Define the task
+        task = Task(
+            # Identifier
+            Identifier("Task", dataset=str(dataset.identifier)),
+            # Input and output schemas
+            *Schema.for_dataset(dataset, input_columns, output_columns),
+        )
+
+        # Create the testbench
+        testbench = TestBench(
+            identifier=Identifier("TestBench", dataset=str(dataset.identifier)),
+            task=task,
+            slices=[dataset],
+        )
+
+        # testbench.set_single_dataset_mode()
+        # testbench.set_prediction_columns(prediction_columns)
+
+        return testbench
+
+    def set_prediction_columns(self, prediction_columns: List[str]):
+        """Set the list of columns that act as prediction columns."""
+        self.prediction_columns = prediction_columns
+
+    def set_single_dataset_mode(self):
+        """All slices must be derived from the root dataset in single dataset
+        mode."""
+        self.single_dataset_mode = True
+
+    def add_calculators(self, calculators: List[Union[str, Callable]]):
+        """Add a list of calculators."""
+        for calc in calculators:
+            if isinstance(calc, str):
+                self.calculators.add(get_metric(calc))
+            elif isinstance(calc, Callable):
+                self.calculators.add(calc)
+            else:
+                continue
+
+    def add_model(
+        self,
+        model: Model = None,
+        prediction_columns: List[str] = None,
+        identifier: Union[str, Identifier] = None,
     ):
-        """Create a test bench for a dataset.
 
-        Args:
-            dataset:
-            task:
-            version:
+        if prediction_columns is not None:
+            assert model is None, "`model` must be None."
+            assert (
+                identifier is not None
+            ), "A model `identifier` must be included with `prediction_columns`."
 
-        Returns:
-        """
+            self.metrics[identifier] = {}
+            for sl in self.slices:
+                self.metrics[identifier][sl.identifier] = {}
+                for calc in self.calculators:
+                    self.metrics[identifier][sl.identifier][calc.__name__] = calc(
+                        *[sl[col] for col in prediction_columns],
+                        *[sl[col] for col in self.task.output_schema.columns],
+                    )
+
+    @classmethod
+    def for_dataset(
+        cls,
+        dataset: str,
+        task: Optional[Union[str, Task]] = None,
+        version: str = None,
+    ):
+        """Create a test bench for a dataset."""
 
         inferred_task = None
         if task is not None:
@@ -112,6 +618,7 @@ class TestBench(SemanticVersionerMixin):
         task: Union[str, Task],
         version: str = None,
     ):
+        """Create a testbench for a task."""
         return TestBench(
             identifier=f"{task}-{version}",
             task=task,
@@ -167,24 +674,28 @@ class TestBench(SemanticVersionerMixin):
 
         self.ident_mapping = ident_mapping
 
-    def add_slices(self, slices: Collection[Slice]):
+    def add_slices(self, slices: Collection[Union[Dataset, Slice]]) -> None:
         """Add slices to the testbench.
 
         Args:
             slices: collection of Slice objects
-
-        Returns:
         """
-        if isinstance(slices, Slice):
+        if isinstance(slices, Slice) or isinstance(slices, Dataset):
             slices = [slices]
 
-        # Only add slices that aren't already present in the testbench and have
-        # non-zero length
+        # Add slices
         for sl in slices:
-            if sl.identifier not in self.slice_identifiers and len(sl) > 0:
-                self.slices.add(sl)
-                self.slice_identifiers.add(sl.identifier)
-                self._slice_table[sl.identifier] = sl
+            if not isinstance(sl, Slice) and isinstance(sl, Dataset):
+                # The slice is a Dataset
+                sl = Slice(sl)
+
+            if isinstance(sl, Slice):
+                if sl.identifier not in self.slice_identifiers and len(sl) > 0:
+                    # Add slices that aren't already present in the testbench and have
+                    # non-zero length
+                    self.slices.add(sl)
+                    self.slice_identifiers.add(sl.identifier)
+                    self._slice_table[sl.identifier] = sl
 
     def evaluate(
         self,
@@ -216,8 +727,8 @@ class TestBench(SemanticVersionerMixin):
             # Set the schema using the task
             # TODO Is the remapping required when not using a task
             self.set_schema("task")
-            input_columns = self.task.input_schema.keys()
-            output_columns = self.task.output_schema.keys()
+            input_columns = self.task._input_schema.keys()
+            output_columns = self.task._output_schema.keys()
 
         # TODO(karan): Uncomment and fix this assert on the type of outputs that
         #  model(..) returns
@@ -292,9 +803,9 @@ class TestBench(SemanticVersionerMixin):
                     "'metrics' is required if testbench does not have associated task."
                 )
         else:
-            output_columns = self.task.output_schema.keys()
-            num_classes = self.task.output_schema.features[
-                list(self.task.output_schema.keys())[0]
+            output_columns = self.task._output_schema.keys()
+            num_classes = self.task._output_schema.features[
+                list(self.task._output_schema.keys())[0]
             ].num_classes
             if self.task.classification():
                 assert len(output_columns) == 1  # , "Only supports classification."
@@ -400,8 +911,8 @@ class TestBench(SemanticVersionerMixin):
                 if self.task is None:
                     class_cds = None
                 else:
-                    class_names = self.task.output_schema.features[
-                        list(self.task.output_schema.keys())[0]
+                    class_names = self.task._output_schema.features[
+                        list(self.task._output_schema.keys())[0]
                     ].names
                     class_cds = [name[0].upper() for name in class_names]
                 columns.append(ClassDistributionColumn(metric_id, class_cds))
@@ -490,13 +1001,6 @@ class TestBench(SemanticVersionerMixin):
             path: string path to the save directory
 
         Returns: None
-
-        >>> testbench = TestBench(identifier='my-testbench',
-        task=TernaryNaturalLanguageInference())
-        # Save to the current directory
-        >>> testbench.save('.')
-        # Load back the testbench
-        >>> testbench = TestBench.load('my-testbench')
         """
 
         # Path to the save directory

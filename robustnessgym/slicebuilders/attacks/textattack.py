@@ -10,6 +10,7 @@ try:
     from textattack.models.wrappers import HuggingFaceModelWrapper, ModelWrapper
 except ImportError:
     _textattack_available = False
+    AttackRecipe, ModelWrapper = None, None
 else:
     _textattack_available = True
 

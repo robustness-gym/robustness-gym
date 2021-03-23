@@ -54,12 +54,10 @@ class Transformation(SliceBuilder):
         self,
         batch: Batch,
         columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
         *args,
         **kwargs,
-    ) -> Tuple[Batch, List[Batch], Optional[np.ndarray]]:
+    ) -> Tuple[List[Batch], Optional[np.ndarray]]:
+
         # Determine the size of the batch
         batch_size = len(batch[list(batch.keys())[0]])
 
@@ -87,31 +85,32 @@ class Transformation(SliceBuilder):
             **kwargs,
         )
 
-        # Store the transformed examples
-        updates = self.construct_updates(
-            transformed_batches=transformed_batches,
-            slice_membership=slice_membership,
-            batch_size=batch_size,
-            columns=columns,
-            mask=mask,
-            compress=store_compressed,
-        )
+        # # Store the transformed examples
+        # updates = self.construct_updates(
+        #     transformed_batches=transformed_batches,
+        #     slice_membership=slice_membership,
+        #     batch_size=batch_size,
+        #     columns=columns,
+        #     mask=mask,
+        #     compress=store_compressed,
+        # )
 
         # Remove transformed examples where slice_membership[i, :] = 0 before returning
         transformed_batches = [
             self.filter_batch_by_slice_membership(
-                batch=transformed_batch, slice_membership=slice_membership[:, j : j + 1]
+                batch=transformed_batch,
+                slice_membership=slice_membership[:, j : j + 1],
             )[0]
             for j, transformed_batch in enumerate(transformed_batches)
         ]
 
-        if store:
-            batch = self.store(
-                batch=batch,
-                updates=updates,
-            )
+        # if store:
+        #     batch = self.store(
+        #         batch=batch,
+        #         updates=updates,
+        #     )
 
-        return batch, transformed_batches, slice_membership
+        return transformed_batches, slice_membership
 
     def construct_updates(
         self,

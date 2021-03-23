@@ -3,9 +3,16 @@ import json
 from typing import List
 
 import cytoolz as tz
-import spacy
 import torch
-from spacy.tokens import Doc
+
+try:
+    import spacy
+    from spacy.tokens import Doc
+except ImportError:
+    _spacy_available = False
+    Doc = None
+else:
+    _spacy_available = True
 
 from robustnessgym.core.cachedops import SingleColumnCachedOperation
 from robustnessgym.core.dataset import BatchOrDataset
@@ -17,12 +24,14 @@ class Spacy(SingleColumnCachedOperation):
     def __init__(
         self,
         lang: str = "en_core_web_sm",
-        nlp: spacy.language.Language = None,
+        nlp: "spacy.language.Language" = None,
         neuralcoref: bool = False,
         device: str = None,
         *args,
         **kwargs
     ):
+        if not _spacy_available:
+            raise ImportError("Please `pip install spacy`.")
 
         # Set all the parameters
         self.lang = lang

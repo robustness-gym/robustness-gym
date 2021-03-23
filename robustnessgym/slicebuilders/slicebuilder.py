@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import pathlib
-from functools import partial
+
+# from functools import partial
 from itertools import compress
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import cytoolz as tz
 import numpy as np
 import tqdm
-from multiprocess.pool import Pool
 
 from robustnessgym.core.constants import (
     ATTACK,
@@ -22,7 +22,9 @@ from robustnessgym.core.dataset import Batch, BatchOrDataset, Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import Slice
 from robustnessgym.core.storage import StorageMixin
-from robustnessgym.core.tools import persistent_hash, recmerge, strings_as_json
+from robustnessgym.core.tools import recmerge, strings_as_json
+
+# from multiprocess.pool import Pool
 
 
 class SliceBuilder(StorageMixin):
@@ -77,74 +79,6 @@ class SliceBuilder(StorageMixin):
             # Assign to the method
             self.apply = apply_fn
 
-    def __call__(
-        self,
-        batch_or_dataset: BatchOrDataset,
-        columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = None,
-        store: bool = None,
-        num_proc: int = None,
-        *args,
-        **kwargs,
-    ):
-
-        # Check that prerequisites are satisfied
-        self.prerequisites_handler(batch_or_dataset)
-
-        if isinstance(batch_or_dataset, Dataset):
-
-            # Slice a dataset
-            dataset, slices, slice_membership = self.process_dataset(
-                dataset=batch_or_dataset,
-                columns=columns,
-                # Automatically infer the mask from the Dataset if it's not specified
-                mask=batch_or_dataset.check_tape(
-                    path=[SLICEBUILDERS, self.category],
-                    identifiers=self.identifiers,
-                    columns=columns,
-                )
-                if not mask
-                else mask,
-                store_compressed=True if store_compressed is None else store_compressed,
-                store=True if store is None else store,
-                num_proc=num_proc,
-                *args,
-                **kwargs,
-            )
-
-            # Update the Dataset's history
-            # TODO(karan): use mask to figure out what is actually applied
-            dataset.update_tape(
-                path=[SLICEBUILDERS, self.category],
-                identifiers=self.identifiers,
-                columns=columns,
-            )
-
-            return dataset, slices, slice_membership
-
-        elif isinstance(batch_or_dataset, Dict):
-            if store_compressed is True:
-                print(
-                    "Compressed storage cannot be used on a batch. "
-                    "Please use Dataset.from_batch(batch) before "
-                    "applying the SliceBuilder."
-                )
-            # Slice a batch
-            return self.process_batch(
-                batch=batch_or_dataset,
-                columns=columns,
-                mask=mask,
-                # Don't allow compressed storage for __call__ on a batch
-                store_compressed=False,
-                # Don't store by default
-                store=False if store is None else store,
-                *args,
-                **kwargs,
-            )
-        else:
-            raise NotImplementedError
-
     def __repr__(self):
         return (
             f"{self.category}[{self.__class__.__name__}(num_slices={self.num_slices})]"
@@ -160,22 +94,84 @@ class SliceBuilder(StorageMixin):
     def __iter__(self):
         yield from self.identifiers
 
-    def prerequisites_handler(self, batch_or_dataset: BatchOrDataset):
+    def __call__(
+        self,
+        batch_or_dataset: BatchOrDataset,
+        columns: List[str],
+        mask: List[int] = None,
+        num_proc: int = None,
+        batch_size: int = 100,
+        *args,
+        **kwargs,
+    ):
+
+        # Check that prerequisites are satisfied
+        self.prerequisites_handler(batch_or_dataset)
+
+        if isinstance(batch_or_dataset, Dataset):
+            # Prepare the dataset
+            self.prepare_dataset(
+                dataset=batch_or_dataset,
+                columns=columns,
+                batch_size=batch_size,
+                *args,
+                **kwargs,
+            )
+
+            # Slice a dataset
+            slices, slice_membership = self.process_dataset(
+                dataset=batch_or_dataset,
+                columns=columns,
+                # # Automatically infer the mask from the Dataset if it's not specified
+                # mask=batch_or_dataset.check_tape(
+                #     path=[SLICEBUILDERS, self.category],
+                #     identifiers=self.identifiers,
+                #     columns=columns,
+                # )
+                # if not mask
+                # else mask,
+                num_proc=num_proc,
+                *args,
+                **kwargs,
+            )
+
+            # Update the Dataset's history
+            # TODO(karan): use mask to figure out what is actually applied
+            batch_or_dataset.update_tape(
+                path=[SLICEBUILDERS, self.category],
+                identifiers=self.identifiers,
+                columns=columns,
+            )
+
+            return slices, slice_membership
+
+        elif isinstance(batch_or_dataset, Dict):
+            # Slice a batch
+            return self.process_batch(
+                batch=batch_or_dataset,
+                columns=columns,
+                *args,
+                **kwargs,
+            )
+        else:
+            raise NotImplementedError
+
+    def prerequisites_handler(
+        self,
+        batch_or_dataset: BatchOrDataset,
+    ):
         if isinstance(batch_or_dataset, Dataset):
             batch = batch_or_dataset[:2]
         else:
             batch = batch_or_dataset
 
-        # Check if pre-requisites are satisfied
+        # Check if prerequisites are satisfied
         # TODO(karan): move to a method
-        if "cache" not in batch:
-            pending = self.prerequisites
-        else:
-            pending = {
-                prerequisite
-                for prerequisite in self.prerequisites
-                if not prerequisite.available(batch)
-            }
+        pending = {
+            prerequisite
+            for prerequisite in self.prerequisites
+            if not prerequisite.available(batch)
+        }
 
         # TODO(karan): Automatically run the pending pre-requisites
         if pending:
@@ -202,100 +198,113 @@ class SliceBuilder(StorageMixin):
         self,
         batch: Batch,
         columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
         *args,
         **kwargs,
-    ) -> Batch:
-        return batch
+    ) -> None:
+        """Apply a preparation function to a batch. Use this to update
+        attributes of `self`.
+
+        Args:
+            batch: batch of data
+            columns: list of columns
+            *args: optional additional arguments
+            **kwargs: optional additional keyword arguments
+        """
+        raise NotImplementedError("Implemented `prepare_batch` should return a batch.")
+
+    def _filter_prerequisite_columns(
+        self,
+        columns: List[str],
+        all_columns: List[str],
+    ) -> List[str]:
+        # Simple filtering that doesn't use columns
+        # TODO(karan): improve this by using `columns` to filter further
+        return [
+            col
+            for col in all_columns
+            if any(
+                [
+                    col.startswith(
+                        prereq.__name__ if isinstance(prereq, type) else str(prereq)
+                    )
+                    for prereq in self.prerequisites
+                ]
+            )
+        ]
 
     def prepare_dataset(
         self,
         dataset: Dataset,
         columns: List[str],
         batch_size: int = 32,
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
         *args,
         **kwargs,
-    ) -> Dataset:
+    ) -> None:
+        """Apply a preparation function to the dataset. Use this to update
+        attributes of `self`.
 
-        # Compute the hash for this operation
-        # FIXME(karan): this is repeated inside process_dataset
-        val = persistent_hash(str(dataset.identifier)) ^ dataset.hash_interactions()
-        for i, identifier in enumerate(self.identifiers):
-            if not mask[i]:
-                val ^= persistent_hash(str(identifier) + str(strings_as_json(columns)))
+        Args:
+            dataset: dataset
+            columns: list of columns
+            batch_size: batch size for preparation
+            *args: optional additional arguments
+            **kwargs: optional additional keyword arguments
+        """
+        # Set the data format
+        with dataset.format(
+            columns + self._filter_prerequisite_columns(columns, dataset.column_names)
+        ):
+            # Batch the dataset, and prepare each batch
+            for batch in dataset.batch(batch_size):
+                try:
+                    # Check if the `prepare_batch` function has been implemented
+                    self.prepare_batch(
+                        batch=batch,
+                        columns=columns,
+                        *args,
+                        **kwargs,
+                    )
+                except NotImplementedError:
+                    break
 
-        try:
-            return dataset.map(
-                partial(
-                    self.prepare_batch,
-                    columns=columns,
-                    mask=mask,
-                    store_compressed=store_compressed,
-                    store=store,
-                    *args,
-                    **kwargs,
-                ),
-                batched=True,
-                batch_size=batch_size,
-                load_from_cache_file=False,
-                cache_file_name=str(
-                    dataset.logdir / ("cache-" + str(abs(val)) + "-prep.arrow")
-                ),
-            )
-        except:  # TypeError or PicklingError or AttributeError: # noqa
-            # Batch the dataset, and process each batch
-            all_batches = [
-                self.prepare_batch(
-                    batch=batch,
-                    columns=columns,
-                    mask=mask,
-                    store_compressed=store_compressed,
-                    store=store,
-                    *args,
-                    **kwargs,
-                )
-                for batch in dataset.batch(batch_size)
-            ]
+    def process_batch(
+        self,
+        batch: Dict[str, List],
+        columns: List[str],
+        *args,
+        **kwargs,
+    ) -> Tuple[List[Dict[str, List]], Optional[np.ndarray]]:
+        """Apply a SliceBuilder to a batch of data.
 
-            # Update the dataset efficiently by reusing all_batches
-            return dataset.map(
-                lambda examples, indices: all_batches[indices[0] // batch_size],
-                batched=True,
-                batch_size=batch_size,
-                with_indices=True,
-                load_from_cache_file=False,
-                cache_file_name=str(
-                    dataset.logdir / ("cache-" + str(abs(val)) + "-prep.arrow")
-                ),
-            )
+        Args:
+            batch: a batch of data
+            columns: list of columns
+            *args: optional additional arguments
+            **kwargs: optional additional keyword arguments
+
+        Returns: tuple of (list of slices (as batches), matrix of (example,
+        slice) membership))
+        """
+        return [batch], None
 
     def process_dataset(
         self,
         dataset: Dataset,
         columns: List[str],
         batch_size: int = 32,
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
+        # mask: List[int] = None,
         num_proc: int = None,
         *args,
         **kwargs,
-    ) -> Tuple[Dataset, List[Slice], np.ndarray]:
+    ) -> Tuple[List[Slice], np.ndarray]:
         """Apply a SliceBuilder to a dataset.
 
         Args:
             dataset: Dataset
             columns: list of columns
             batch_size: integer batch size
-            mask: boolean or integer mask array, mask[i] = True means that the ith
-            slice will be masked out
-            store_compressed: whether to store in a compressed format
-            store: whether to store the results along with the example in Dataset
+            # mask: boolean or integer mask array, mask[i] = True means that the ith
+            # slice will be masked out
             num_proc: num processes for multiprocessing
             *args: optional additional arguments
             **kwargs: optional additional keyword arguments
@@ -303,203 +312,182 @@ class SliceBuilder(StorageMixin):
         Returns: tuple of (Dataset, list of Slices, matrix of (example,
         slice) membership)
         """
-        # Prepare the dataset
-        dataset = self.prepare_dataset(
-            dataset=dataset,
-            columns=columns,
-            batch_size=batch_size,
-            mask=mask,
-            store_compressed=store_compressed,
-            store=store,
-            *args,
-            **kwargs,
-        )
 
-        # Compute a hash
-        val = persistent_hash(str(dataset.identifier)) ^ dataset.hash_interactions()
-        for i, identifier in enumerate(self.identifiers):
-            if not mask[i]:
-                val ^= persistent_hash(str(identifier) + str(strings_as_json(columns)))
+        # # Compute a hash
+        # val = persistent_hash(str(dataset.identifier)) ^ dataset.hash_interactions()
+        # for i, identifier in enumerate(self.identifiers):
+        #     if not mask[i]:
+        #         val ^= persistent_hash(str(identifier)
+        #         + str(strings_as_json(columns)))
 
-        try:
-            # Map the SliceBuilder over the dataset
-            all_sliced_batches = []
-            all_slice_memberships = []
+        # try:
+        #     # Map the SliceBuilder over the dataset
+        #     all_sliced_batches = []
+        #     all_slice_memberships = []
+        #
+        #     def _map_fn(batch):
+        #         """Map function for processing batches.
+        #
+        #         Note that using this map_fn in a stateful way is
+        #         dangerous, since every invocation of this function
+        #         appends to the all_slice_batches list. The .map()
+        #         function will invoke this once for testing before
+        #         performing the map, so we discard the first entry
+        #         inserted into all_sliced_batches.
+        #         """
+        #         batch, sliced_batches, slice_membership = self.process_batch(
+        #             batch=batch,
+        #             columns=columns,
+        #             mask=mask,
+        #             store_compressed=store_compressed,
+        #             store=store,
+        #             *args,
+        #             **kwargs,
+        #         )
+        #         all_sliced_batches.append(sliced_batches)
+        #         all_slice_memberships.append(slice_membership)
+        #         return batch
+        #
+        #     dataset = dataset.map(
+        #         _map_fn,
+        #         batched=True,
+        #         batch_size=batch_size,
+        #         # FIXME(karan): enable this by adding logic for generating
+        #         #  all_sliced_batches and all_slice_memberships
+        #         #  when loading from cache file
+        #         load_from_cache_file=False,
+        #         # The cache file name is a XOR of the interaction history and the
+        #         # current operation
+        #         cache_file_name=str(
+        #             dataset.logdir / ("cache-" + str(abs(val)) + ".arrow")
+        #         ),
+        #     )
+        #
+        #     # Remove the first entry (see _map_fn)
+        #     all_sliced_batches = all_sliced_batches[1:]
+        #     all_slice_memberships = all_slice_memberships[1:]
+        #
+        # except:  # noqa
+        # all_batches, all_sliced_batches, all_slice_memberships = zip(
+        #     *[
+        #         self.process_batch(
+        #             batch=batch,
+        #             columns=columns,
+        #             mask=mask,
+        #             store_compressed=store_compressed,
+        #             store=store,
+        #             *args,
+        #             **kwargs,
+        #         )
+        #         for batch in dataset.batch(batch_size)
+        #     ]
+        # )
+        # # Update the dataset efficiently by reusing all_batches
+        # dataset = dataset.map(
+        #     lambda examples, indices: all_batches[indices[0] // batch_size],
+        #     batched=True,
+        #     batch_size=batch_size,
+        #     with_indices=True,
+        #     load_from_cache_file=False,
+        #     # The cache file name is a XOR of the interaction history and the
+        #     # current operation
+        #     cache_file_name=str(
+        #         dataset.logdir / ("cache-" + str(abs(val)) + ".arrow")
+        #     ),
+        # )
 
-            def _map_fn(batch):
-                """Map function for processing batches.
-
-                Note that using this map_fn in a stateful way is
-                dangerous, since every invocation of this function
-                appends to the all_slice_batches list. The .map()
-                function will invoke this once for testing before
-                performing the map, so we discard the first entry
-                inserted into all_sliced_batches.
-                """
-                batch, sliced_batches, slice_membership = self.process_batch(
-                    batch=batch,
-                    columns=columns,
-                    mask=mask,
-                    store_compressed=store_compressed,
-                    store=store,
-                    *args,
-                    **kwargs,
-                )
-                all_sliced_batches.append(sliced_batches)
-                all_slice_memberships.append(slice_membership)
-                return batch
-
-            dataset = dataset.map(
-                _map_fn,
-                batched=True,
-                batch_size=batch_size,
-                # FIXME(karan): enable this by adding logic for generating
-                #  all_sliced_batches and all_slice_memberships
-                #  when loading from cache file
-                load_from_cache_file=False,
-                # The cache file name is a XOR of the interaction history and the
-                # current operation
-                cache_file_name=str(
-                    dataset.logdir / ("cache-" + str(abs(val)) + ".arrow")
-                ),
+        # Create slices
+        slices = [Slice() for _ in range(len(self.identifiers))]
+        all_slice_memberships = []
+        # Batch the dataset, and process each batch
+        for batch in dataset.batch(batch_size):
+            # Process the batch
+            sliced_batches, slice_memberships = self.process_batch(
+                batch=batch,
+                columns=columns,
+                *args,
+                **kwargs,
             )
 
-            # Remove the first entry (see _map_fn)
-            all_sliced_batches = all_sliced_batches[1:]
-            all_slice_memberships = all_slice_memberships[1:]
+            # Incrementally build the slices
+            for sl, sl_batch in zip(slices, sliced_batches):
+                sl._dataset.append(sl_batch)
 
-        except:  # noqa
-            # Batch the dataset, and process each batch
-            all_batches, all_sliced_batches, all_slice_memberships = zip(
-                *[
-                    self.process_batch(
-                        batch=batch,
-                        columns=columns,
-                        mask=mask,
-                        store_compressed=store_compressed,
-                        store=store,
-                        *args,
-                        **kwargs,
-                    )
-                    for batch in dataset.batch(batch_size)
-                ]
-            )
-            # Update the dataset efficiently by reusing all_batches
-            dataset = dataset.map(
-                lambda examples, indices: all_batches[indices[0] // batch_size],
-                batched=True,
-                batch_size=batch_size,
-                with_indices=True,
-                load_from_cache_file=False,
-                # The cache file name is a XOR of the interaction history and the
-                # current operation
-                cache_file_name=str(
-                    dataset.logdir / ("cache-" + str(abs(val)) + ".arrow")
-                ),
-            )
+            # Keep track of the slice memberships
+            all_slice_memberships.append(slice_memberships)
 
         # Create a single slice label matrix
         slice_membership = np.concatenate(all_slice_memberships, axis=0)
 
-        slice_cache_hashes = []
-        for identifier in self.identifiers:
-            slice_cache_hashes.append(val ^ persistent_hash(str(identifier)))
+        # slice_cache_hashes = []
+        # for identifier in self.identifiers:
+        #     slice_cache_hashes.append(val ^ persistent_hash(str(identifier)))
 
-        if not num_proc or num_proc == 1:
-            # Construct slices
-            slices = []
-            for i, slice_batches in enumerate(zip(*all_sliced_batches)):
-                slices.append(
-                    create_slice(
-                        (
-                            dataset,
-                            slice_membership,
-                            slice_batches,
-                            i,
-                            batch_size,
-                            slice_cache_hashes[i],
-                        )
-                    )
-                )
-        else:
-            # Parallelized slice construction
-            with Pool(num_proc) as pool:
-                slices = pool.map(
-                    create_slice,
-                    [
-                        (
-                            dataset,
-                            slice_membership,
-                            slice_batches,
-                            i,
-                            batch_size,
-                            slice_cache_hashes[i],
-                        )
-                        for i, slice_batches in enumerate(zip(*all_sliced_batches))
-                    ],
-                )
+        # if not num_proc or num_proc == 1:
+        #     # Construct slices
+        #     slices = []
+        #     for i, slice_batches in enumerate(zip(*all_sliced_batches)):
+        #         slices.append(
+        #             create_slice(
+        #                 (
+        #                     dataset,
+        #                     slice_membership,
+        #                     slice_batches,
+        #                     i,
+        #                     batch_size,
+        #                     slice_cache_hashes[i],
+        #                 )
+        #             )
+        #         )
+        # else:
+        #     # Parallelized slice construction
+        #     with Pool(num_proc) as pool:
+        #         slices = pool.map(
+        #             create_slice,
+        #             [
+        #                 (
+        #                     dataset,
+        #                     slice_membership,
+        #                     slice_batches,
+        #                     i,
+        #                     batch_size,
+        #                     slice_cache_hashes[i],
+        #                 )
+        #                 for i, slice_batches in enumerate(zip(*all_sliced_batches))
+        #             ],
+        #         )
 
-        # TODO(karan): make this more systematic
-        # TODO(karan): fix bug when slicing a Slice
         for i, sl in enumerate(slices):
-            # # Set the Slice features
-            # sl.info.features = dataset.features
-
             # Set the Slice category using the SliceBuilder's category
             sl.category = self.category
 
-            # Create the lineage
-            sl.lineage = [
-                (str(Dataset.__name__), dataset.identifier),
-                (
-                    str(self.category.capitalize()),
-                    self.identifiers[i],
-                    strings_as_json(columns),
-                ),
-            ]
-            if isinstance(dataset, Slice):
-                # Prepend the Slice's lineage instead, if the dataset was a slice
-                sl.lineage = dataset.lineage + [
-                    (
-                        str(self.category.capitalize()),
-                        self.identifiers[i],
-                        strings_as_json(columns),
-                    )
-                ]
+            # Append the the lineage
+            sl.add_to_lineage(
+                category=str(self.category.capitalize()),
+                identifier=self.identifiers[i],
+                columns=strings_as_json(columns),
+            )
 
-        return dataset, slices, slice_membership
+            # # Create the lineage
+            # sl.lineage = [
+            #     (str(Dataset.__name__), dataset.identifier),
+            #     (
+            #         str(self.category.capitalize()),
+            #         self.identifiers[i],
+            #         strings_as_json(columns),
+            #     ),
+            # ]
+            # if isinstance(dataset, Slice):
+            #     # Prepend the Slice's lineage instead, if the dataset was a slice
+            #     sl.lineage = dataset.lineage + [
+            #         (
+            #             str(self.category.capitalize()),
+            #             self.identifiers[i],
+            #             strings_as_json(columns),
+            #         )
+            #     ]
 
-    def process_batch(
-        self,
-        batch: Dict[str, List],
-        columns: List[str],
-        mask: List[int] = None,
-        store_compressed: bool = True,
-        store: bool = True,
-        *args,
-        **kwargs,
-    ) -> Tuple[Dict[str, List], List[Dict[str, List]], Optional[np.ndarray]]:
-        """Apply a SliceBuilder to a batch of data.
-
-        Args:
-            batch: a batch of data
-            columns: list of columns
-            mask: boolean or integer mask array, mask[i] = True means that the ith
-            slice will be masked out
-            store_compressed: whether to store in a compressed format
-            store: whether to store the results along with the example in Dataset
-            *args: optional additional arguments
-            **kwargs: optional additional keyword arguments
-
-        Returns: tuple of (batch, list of slices (as batches), matrix of (example,
-        slice) membership))
-        """
-        return batch, [batch], None
-
-    def postprocess_dataset(
-        self, dataset: Dataset, columns: List[str], batch_size: int = 32
-    ) -> Dataset:
-        pass
+        return slices, slice_membership
 
     def apply(self, *args, **kwargs):
         raise NotImplementedError("Must implement apply.")
