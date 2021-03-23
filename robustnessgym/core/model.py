@@ -376,24 +376,29 @@ class LudwigModelRG(Model):
     def __init__(
         self,
         identifier: str,
-        task: Task = None,
-        model: Optional[AutoModel] = None,
-        tokenizer: Optional[AutoTokenizer] = None,
+        task: Task,
+        model=None,
+        evaluation_fn=None,
         device: str = None,
-        is_classifier=None,
-        model_dir: str=None
+        is_classifier: bool = None,
     ):
         super().__init__()
+
+    def load(
+        self,
+        model_dir: str,
+    ):
         self.ludwig_model = LudwigModel.load(model_dir)
 
     def evaluate(
         self,
-        dataset_path: str,
+        #dataset_path: str,
+        dataset: Dataset,
         collect_predictions: bool=True,
         output_column_name: str,
     ):
         eval_stats, predictions, _ = self.ludwig_model.evaluate(
-            dataset=dataset_path
+            dataset=dataset
         )
         
         return (eval_stats, predictions)
