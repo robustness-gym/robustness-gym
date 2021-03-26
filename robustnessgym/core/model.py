@@ -375,14 +375,15 @@ class HuggingfaceModel(Model):
 class LudwigModelRG(Model):
     def __init__(
         self,
-        identifier: str,
-        task: Task,
+        #identifier: str,
+        #task: Task,
         model=None,
         evaluation_fn=None,
         device: str = None,
         is_classifier: bool = None,
     ):
-        super().__init__()
+        #super().__init__()
+        pass
 
     def load(
         self,
@@ -394,11 +395,11 @@ class LudwigModelRG(Model):
         self,
         #dataset_path: str,
         dataset: Dataset,
+        output_column_name: str="",
         collect_predictions: bool=True,
-        output_column_name: str,
     ):
         eval_stats, predictions, _ = self.ludwig_model.evaluate(
-            dataset=dataset
+                dataset=dataset[:]
         )
         
         return (eval_stats, predictions)
