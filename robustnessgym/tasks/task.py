@@ -101,7 +101,7 @@ class Task:
         # TODO(karan): improve the schema inference
         # Check that the only output is a ClassLabel output
         if len(self._output_schema) == 1 and isinstance(
-            self._output_schema.features[self._output_schema.keys()[0]], ClassLabel
+            self._output_schema.features[self._output_schema.columns[0]], ClassLabel
         ):
             return True
         return False
