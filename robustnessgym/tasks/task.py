@@ -1,7 +1,6 @@
 from collections import OrderedDict
 from typing import List, Union
 
-import cytoolz as tz
 from datasets.features import ClassLabel, Sequence, Value
 
 from robustnessgym.core.dataset import Dataset
@@ -77,25 +76,44 @@ class Task:
 
     def remap_schema(self, dataset: Dataset):
         # Ground the schema to the dataset
-        input_grounding, reversed_input_grounding = self._input_schema.ground(
+        input_grounding, reversed_input_grounding = self.input_schema.ground(
             dataset.features
         )
-        output_grounding, reversed_output_grounding = self._output_schema.ground(
+        output_grounding, reversed_output_grounding = self.output_schema.ground(
             dataset.features
         )
 
-        # Construct a map_fn that remaps the dataset schema
-        def map_fn(example):
-            return tz.merge(
-                {k: example[input_grounding[k]] for k in self._input_schema.features},
-                {k: example[output_grounding[k]] for k in self._output_schema.features},
-            )
+        for col in self.input_schema.columns:
+            # Grab the column
+            values = dataset[input_grounding[col]]
+            # Remove it from the dataset
+            dataset.remove_column(input_grounding[col])
+            # Add again with the right column name
+            dataset.add_column(col, values)
 
-        return dataset.map(
-            map_fn,
-            remove_columns=list(reversed_input_grounding.keys())
-            + list(reversed_output_grounding.keys()),
-        )
+        for col in self.output_schema.columns:
+            # Grab the column
+            values = dataset[output_grounding[col]]
+            # Remove it from the dataset
+            dataset.remove_column(output_grounding[col])
+            # Add again with the right column name
+            dataset.add_column(col, values)
+
+        return dataset
+
+        # # Construct a map_fn that remaps the dataset schema
+        # def _map_fn(example):
+        #     return tz.merge(
+        #         {k: example[input_grounding[k]] for k in self.input_schema.features},
+        #         {k: example[output_grounding[k]] for k in self.output_schema.features
+        #         },
+        #     )
+        #
+        # return dataset.map(
+        #     _map_fn,
+        #     remove_columns=list(reversed_input_grounding.keys())
+        #     + list(reversed_output_grounding.keys()),
+        # )
 
     def classification(self):
         # TODO(karan): improve the schema inference
@@ -209,7 +227,8 @@ class NaturalLanguageInference(Task):
             output_schema=output_schema,
             metrics=[
                 "accuracy",
-                "f1",
+                "f1_micro",
+                "f1_macro",
                 "class_dist",
                 "pred_dist"
                 # TODO(karan): calibration, other metrics

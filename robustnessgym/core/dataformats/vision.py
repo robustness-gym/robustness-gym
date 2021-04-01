@@ -337,7 +337,7 @@ class VisionDataset(AbstractDataset):
         # Set features
         self._set_features()
 
-        logging.info(f"Added column `{column}` with length `{len(values)}`.")
+        logger.info(f"Added column `{column}` with length `{len(values)}`.")
 
     def remove_column(self, column: str) -> None:
         """Remove a column from the dataset."""
@@ -351,7 +351,7 @@ class VisionDataset(AbstractDataset):
         # Set features
         self._set_features()
 
-        logging.info(f"Removed column `{column}`.")
+        logger.info(f"Removed column `{column}`.")
 
     def select_columns(self, columns: List[str]) -> Batch:
         """Select a subset of columns."""
