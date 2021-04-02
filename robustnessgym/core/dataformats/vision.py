@@ -9,22 +9,13 @@ import tempfile
 import uuid
 from collections import defaultdict
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import cytoolz as tz
 import datasets
 import numpy as np
 import pyarrow as pa
 import torch
-
-try:
-    import torchvision.datasets.folder as folder
-    from PIL import Image as im
-except ImportError:
-    _torchvision_available = False
-    folder, im = None, None
-else:
-    _torchvision_available = True
 from datasets import DatasetInfo, Features, NamedSplit
 from joblib import Parallel, delayed
 from tqdm.auto import tqdm
@@ -54,6 +45,8 @@ class RGImage:
         pass
 
     def load(self):
+        import torchvision.datasets.folder as folder
+
         return torch.from_numpy(np.array(folder.default_loader(self.filepath)))
 
     def __getitem__(self, idx):
@@ -78,110 +71,14 @@ def save_image(image, filename):
     """Save 'image' to file 'filename' and return an RGImage object."""
     if isinstance(image, torch.Tensor):
         image = image.numpy()
+    from PIL import Image as im
+
     image = im.fromarray(image.astype(np.uint8))
     if image.mode != "RGB":
         image = image.convert("RGB")
     image.save(filename)
 
     return RGImage(filename)
-
-
-class RGVisionFolder:
-    """A generic data loader where the samples are a list paths to images: ::
-        [
-            '0001.jpg',
-            '0002.jpg',
-            ...
-        ]
-    Args:
-        paths (List[str]]): List of paths to images.
-        loader (callable): A function to load an image given its path.
-        extensions (tuple[string]): A list of allowed extensions.
-            both extensions and is_valid_file should not be passed.
-        transform (callable, optional): A function/transform that takes in
-            a sample and returns a transformed version.
-            E.g, ``transforms.RandomCrop``
-        is_valid_file (callable, optional): A function that takes path of a file
-            and check if the file is a valid file (used to check of corrupt files)
-            both extensions and is_valid_file should not be passed.
-     Attributes:
-        paths (list): List of paths to images
-    """
-
-    def __init__(
-        self,
-        paths: List[str],
-        loader: Callable[[str], Any] = None,
-        extensions: Optional[Tuple[str, ...]] = None,
-        transform: Optional[Callable] = None,
-        is_valid_file: Optional[Callable[[str], bool]] = None,
-    ) -> None:
-        if loader is None:
-            loader = folder.default_loader
-
-        if extensions is None:
-            extensions = folder.IMG_EXTENSIONS
-
-        if len(paths) == 0:
-            raise RuntimeError("No file paths were passed")
-
-        instances = self.make_dataset(paths, extensions, is_valid_file)
-
-        if len(instances) == 0:
-            msg = "No valid image paths were given.\n"
-            if extensions is not None:
-                msg += "Supported extensions are: {}".format(",".join(extensions))
-            raise RuntimeError(msg)
-
-        self.loader = loader
-        self.extensions = extensions
-
-        self.samples = instances
-        self.transform = transform
-
-    @staticmethod
-    def make_dataset(
-        paths: List[str],
-        extensions: Optional[Tuple[str, ...]] = None,
-        is_valid_file: Optional[Callable[[str], bool]] = None,
-    ) -> List[Tuple[str, Dict[str, Any]]]:
-        instances = []
-        both_none = extensions is None and is_valid_file is None
-        both_something = extensions is not None and is_valid_file is not None
-        if both_none or both_something:
-            raise ValueError(
-                "Both extensions and is_valid_file cannot be None or not "
-                "None at the same time"
-            )
-        if extensions is not None:
-
-            def is_valid_file(x: str) -> bool:
-                return folder.has_file_allowed_extension(
-                    x, cast(Tuple[str, ...], extensions)
-                )
-
-        is_valid_file = cast(Callable[[str], bool], is_valid_file)
-        for file_path in paths:
-            instances.append(file_path)
-        return instances
-
-    def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (sample, metadata)
-        """
-        path = self.samples[index]
-        sample = self.loader(path)
-        if self.transform is not None:
-            sample = self.transform(sample)
-
-        # Need to convert, otherwise Pytorch will complain
-        return np.array(sample)
-
-    def __len__(self) -> int:
-        return len(self.samples)
 
 
 class VisionDataset(AbstractDataset):
@@ -728,7 +625,7 @@ class VisionDataset(AbstractDataset):
         drop_last_batch: bool = False,
         num_proc: Optional[int] = 64,
         **kwargs,
-    ) -> Optional[Dict, List]:
+    ) -> Optional[Union[Dict, List]]:
         """Apply a map over the dataset."""
 
         # Just return if the function is None
@@ -765,9 +662,8 @@ class VisionDataset(AbstractDataset):
         for key in input_columns:
             if key in self._img_keys:
                 # Load the images
-                img_folder = RGVisionFolder(list(map(str, self[key])))
-                images = torch.utils.data.DataLoader(
-                    img_folder,
+                images = self.to_dataloader(
+                    keys=[key],
                     batch_size=batch_size,
                     shuffle=False,
                     drop_last=False,
@@ -906,6 +802,7 @@ class VisionDataset(AbstractDataset):
             batched=batched,
             batch_size=batch_size,
             drop_last_batch=drop_last_batch,
+            num_proc=num_proc,
         )
         indices = np.where(outputs)[0]
 
@@ -916,6 +813,42 @@ class VisionDataset(AbstractDataset):
             new_dataset.set_visible_rows(indices)
 
         return new_dataset
+
+    def to_dataloader(
+        self,
+        keys: Sequence[str],
+        key_to_transform: Optional[Mapping[str, Callable]] = None,
+        **kwargs,
+    ) -> torch.utils.data.DataLoader:
+        """Get a PyTorch dataloader that iterates over a subset of the columns
+        (specified by `keys`) in the dataset. This is handy when using the dataset with
+        training or evaluation loops outside of robustnessgym.  For example:
+        ```
+        dataset = Dataset(...)
+        for img, target in dataset.to_dataloader(
+            keys=["img_path", "label"],
+            batch_size=16,
+            num_workers=12
+        ):
+            out = model(img)
+            loss = loss(out, target)
+            ...
+        ```
+
+        Args:
+            keys (Sequence[str]): A subset of the columns in the vision dataset.
+                Specifies the columns to load. The dataloader will return values in same
+                 order as `keys` here.
+            key_to_transform (Optional[Mapping[str, Callable]], optional): A mapping
+                from zero or more `keys` to callable transforms to be applied by the
+                dataloader. Defaults to None, in which case no transforms are applied.
+                Example: `key_to_transform={"img_path": transforms.Resize((128,128))}`.
+
+        Returns:
+            torch.utils.data.DataLoader: dataloader that iterates over dataset
+        """
+        img_folder = TorchDataset(self, keys=keys, key_to_transform=key_to_transform)
+        return torch.utils.data.DataLoader(img_folder, **kwargs)
 
     def copy(self, deepcopy=False):
         """Return a copy of the dataset."""
@@ -1017,3 +950,39 @@ class VisionDataset(AbstractDataset):
         #     {k: v for k, v in state.items() if k != '_data'},
         #     open(os.path.join(path, "metadata.json"), 'w'),
         # )
+
+
+class TorchDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        dataset: VisionDataset,
+        keys: Sequence[str],
+        key_to_transform: Optional[Mapping[str, Callable]] = None,
+    ):
+        """A torch dataset wrapper around `VisionDataset` that can be used in a
+        torch dataloder.
+
+        `VisionDataset.__getitem__` returns a dict containing `RGImage`
+        objects, which is not compatible with the torch's default
+        `collate_fn`. This dataset returns a subset of columns in the
+        dataset specified by `keys` and calls `load` on any RGImage
+        before returning to the `collate_fn`. It also supports
+        specifying a different transformation function for each key
+        returned.
+        """
+        self.keys = keys
+        self.key_to_transform = {} if key_to_transform is None else key_to_transform
+        self.dataset = dataset
+
+    def __getitem__(self, index: int):
+        row = self.dataset[index]
+        vals = [
+            self.key_to_transform.get(k, lambda x: x)(
+                v.load() if isinstance(v, RGImage) else v
+            )
+            for k, v in ((key, row[key]) for key in self.keys)
+        ]
+        return tuple(vals) if len(vals) > 1 else vals[0]
+
+    def __len__(self):
+        return len(self.dataset)
