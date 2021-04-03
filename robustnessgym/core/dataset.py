@@ -6,11 +6,12 @@ import os
 import pathlib
 from contextlib import contextmanager
 from copy import copy, deepcopy
-from typing import Callable, Dict, List, Optional, Sequence, Union
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import cytoolz as tz
 import datasets
 import pandas as pd
+import torch
 from datasets import Features
 from jsonlines import jsonlines
 from pyarrow import json as jsonarrow
@@ -458,6 +459,47 @@ class Dataset(
     def to_pandas(self) -> pd.DataFrame:
         """Convert a Dataset to a pandas DataFrame."""
         return pd.DataFrame(self[:])
+
+    def to_dataloader(
+        self,
+        keys: Sequence[str],
+        key_to_transform: Optional[Mapping[str, Callable]] = None,
+        **kwargs,
+    ) -> torch.utils.data.DataLoader:
+        """Get a PyTorch dataloader that iterates over a subset of the columns
+        (specified by `keys`) in the dataset. This is handy when using the dataset with
+        training or evaluation loops outside of robustnessgym.  For example:
+        ```
+        dataset = Dataset(...)
+        for img, target in dataset.to_dataloader(
+            keys=["img_path", "label"],
+            batch_size=16,
+            num_workers=12
+        ):
+            out = model(target)
+            loss = loss(out, target)
+            ...
+        ```
+
+        Args:
+            keys (Sequence[str]): A subset of the columns in the dataset.
+                Specifies the columns to load. The dataloader will return values in same
+                 order as `keys` here.
+            key_to_transform (Optional[Mapping[str, Callable]], optional): A mapping
+                from zero or more `keys` to callable transforms to be applied by the
+                dataloader. Defaults to None, in which case no transforms are applied.
+                Example: `key_to_transform={"img_path": transforms.Resize((128,128))}`.
+
+        Returns:
+            torch.utils.data.DataLoader: dataloader that iterates over dataset
+        """
+        if not hasattr(self._dataset, "to_dataloader"):
+            raise NotImplementedError(
+                f'`to_dataloader` is not supported for format "{self._dataset_fmt}"'
+            )
+        return self._dataset.to_dataloader(
+            keys=keys, key_to_transform=key_to_transform, **kwargs
+        )
 
     def to_jsonl(self, path: str) -> None:
         """Save a Dataset to a jsonl file."""
