@@ -29,6 +29,26 @@ class TestVisionDataset(TestCase):
         }
         self.dataset = VisionDataset(self.batch, img_keys="i")
 
+    def test_to_dataloader(self):
+        # test that correct objects are returned by dataloader
+        for i, b in self.dataset.to_dataloader(keys=["i", "b"]):
+            self.assertEqual(b[0], "u")
+            self.assertTrue(torch.equal(i.squeeze(), self.images[0].load()))
+            break
+
+        # test that you can pass dataloader kwargs
+        imgs = [img for img in self.dataset.to_dataloader(keys=["i"], batch_size=2)]
+        self.assertEqual(len(imgs), 2)
+
+    def test_to_dataloader_transforms(self):
+        imgs = [
+            img
+            for img, _ in self.dataset.to_dataloader(
+                keys=["i", "b"], key_to_transform={"i": lambda x: torch.zeros_like(x)}
+            )
+        ]
+        self.assertTrue(torch.all(torch.eq(imgs[0], 0)))
+
     def test_init(self):
         # Empty dataset
         dataset = VisionDataset()
