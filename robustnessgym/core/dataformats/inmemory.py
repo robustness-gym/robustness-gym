@@ -130,11 +130,15 @@ class InMemoryDataset(AbstractDataset):
         # Set features
         self._set_features()
 
-        logging.info(f"Added column `{column}` with length `{len(values)}`.")
+        logger.info(f"Added column `{column}` with length `{len(values)}`.")
 
     def remove_column(self, column: str) -> None:
         """Remove a column from the dataset."""
         assert column in self.all_columns, f"Column `{column}` does not exist."
+
+        if self.visible_rows is not None:
+            # Materialize the data
+            self._materialize()
 
         # Remove the column
         del self._data[column]
@@ -144,7 +148,7 @@ class InMemoryDataset(AbstractDataset):
         # Set features
         self._set_features()
 
-        logging.info(f"Removed column `{column}`.")
+        logger.info(f"Removed column `{column}`.")
 
     def select_columns(self, columns: List[str]) -> Batch:
         """Select a subset of columns."""
