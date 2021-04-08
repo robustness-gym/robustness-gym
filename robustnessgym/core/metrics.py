@@ -112,6 +112,10 @@ def compute_metric(
         containing target labels
         num_classes: number of classes
     """
+    if isinstance(predictions, torch.Tensor):
+        predictions = predictions.cpu()
+    if isinstance(labels, torch.Tensor):
+        labels = labels.cpu()
 
     # Classification metrics
     if metric == "accuracy":
