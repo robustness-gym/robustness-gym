@@ -1,7 +1,5 @@
 import itertools
 import re
-import ludwig
-from ludwig.api import LudwigModel as ludwigmodel
 
 from typing import Callable, Collection, Dict, List, Optional
 
@@ -401,31 +399,6 @@ class LudwigModel(Model):
         )
         
         return (eval_stats, predictions)
-
-
-class LudwigModel(Model):
-    def __init__(self,):
-        pass
-
-    def load(self, model_dir: str):
-        self.ludwig_model = ludwigmodel.load(model_dir)
-
-    def evaluate(
-        self,
-        dataset: Dataset,
-        batch_size: int = 128,
-        collect_overall_stats=False,
-        collect_predictions: bool = True,
-    ):
-        eval_stats, predictions, _ = self.ludwig_model.evaluate(
-            dataset=dataset[:],
-            batch_size=batch_size,
-            collect_overall_stats=collect_overall_stats,
-            collect_predictions=collect_predictions,
-        )
-
-        return (eval_stats, predictions)
-
 
 def format_summary(x: str) -> str:
     """Format summary text for computing rouge."""
