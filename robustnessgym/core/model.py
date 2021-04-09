@@ -1,7 +1,7 @@
 import itertools
 import re
 import ludwig
-from ludwig.api import LudwigModel
+from ludwig.api import LudwigModel as ludwigmodel
 
 from typing import Callable, Collection, Dict, List, Optional
 
@@ -372,34 +372,31 @@ class HuggingfaceModel(Model):
 
         return evaluation_dict
 
-class LudwigModelRG(Model):
+class LudwigModel(Model):
     def __init__(
         self,
-        #identifier: str,
-        #task: Task,
-        model=None,
-        evaluation_fn=None,
-        device: str = None,
-        is_classifier: bool = None,
     ):
-        #super().__init__()
         pass
 
     def load(
         self,
         model_dir: str,
     ):
-        self.ludwig_model = LudwigModel.load(model_dir)
+        self.ludwig_model = ludwigmodel.load(model_dir)
 
     def evaluate(
         self,
-        #dataset_path: str,
         dataset: Dataset,
-        output_column_name: str="",
+        batch_size: int=128,
+        collect_overall_stats=False,
         collect_predictions: bool=True,
+
     ):
         eval_stats, predictions, _ = self.ludwig_model.evaluate(
-                dataset=dataset[:]
+                dataset=dataset[:],
+                batch_size=batch_size,
+                collect_overall_stats=collect_overall_stats,
+                collect_predictions=collect_predictions
         )
         
         return (eval_stats, predictions)
