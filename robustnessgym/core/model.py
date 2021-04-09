@@ -5,6 +5,14 @@ from typing import Callable, Collection, Dict, List, Optional
 import cytoolz as tz
 
 try:
+    from ludwig.api import LudwigModel as ludwigmodel
+except ImportError:
+    _ludwig_available = False
+    ludwig = None
+else:
+    _ludwig_available = True
+
+try:
     import nltk
 except ImportError:
     _nltk_available = False
@@ -368,6 +376,36 @@ class HuggingfaceModel(Model):
         dataset.reset_format()
 
         return evaluation_dict
+
+class LudwigModel(Model):
+    def __init__(
+        self,
+    ):
+        if not _ludwig_available:
+            raise ImportError("Please `pip install ludwig`.")
+
+    def load(
+        self,
+        model_dir: str,
+    ):
+        self.ludwig_model = ludwigmodel.load(model_dir)
+
+    def evaluate(
+        self,
+        dataset: Dataset,
+        batch_size: int=128,
+        collect_overall_stats: bool=True,
+        collect_predictions: bool=True,
+
+    ):
+        eval_stats, predictions, _ = self.ludwig_model.evaluate(
+                dataset=dataset[:],
+                batch_size=batch_size,
+                collect_overall_stats=collect_overall_stats,
+                collect_predictions=collect_predictions
+        )
+
+        return (eval_stats, predictions)
 
 
 def format_summary(x: str) -> str:
