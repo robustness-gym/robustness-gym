@@ -462,17 +462,17 @@ class Dataset(
 
     def to_dataloader(
         self,
-        keys: Sequence[str],
-        key_to_transform: Optional[Mapping[str, Callable]] = None,
+        columns: Sequence[str],
+        column_to_transform: Optional[Mapping[str, Callable]] = None,
         **kwargs,
     ) -> torch.utils.data.DataLoader:
         """Get a PyTorch dataloader that iterates over a subset of the columns
-        (specified by `keys`) in the dataset. This is handy when using the dataset with
-        training or evaluation loops outside of robustnessgym.  For example:
+        (specified by `columns`) in the dataset. This is handy when using the dataset
+        with training or evaluation loops outside of robustnessgym.  For example:
         ```
         dataset = Dataset(...)
         for img, target in dataset.to_dataloader(
-            keys=["img_path", "label"],
+            columns=["img_path", "label"],
             batch_size=16,
             num_workers=12
         ):
@@ -482,13 +482,13 @@ class Dataset(
         ```
 
         Args:
-            keys (Sequence[str]): A subset of the columns in the dataset.
+            columns (Sequence[str]): A subset of the columns in the dataset.
                 Specifies the columns to load. The dataloader will return values in same
-                 order as `keys` here.
-            key_to_transform (Optional[Mapping[str, Callable]], optional): A mapping
-                from zero or more `keys` to callable transforms to be applied by the
+                 order as `columns` here.
+            column_to_transform (Optional[Mapping[str, Callable]], optional): A mapping
+                from zero or more `columns` to callable transforms to be applied by the
                 dataloader. Defaults to None, in which case no transforms are applied.
-                Example: `key_to_transform={"img_path": transforms.Resize((128,128))}`.
+                e.g. `column_to_transform={"img_path": transforms.Resize((128,128))}`.
 
         Returns:
             torch.utils.data.DataLoader: dataloader that iterates over dataset
@@ -498,7 +498,7 @@ class Dataset(
                 f'`to_dataloader` is not supported for format "{self._dataset_fmt}"'
             )
         return self._dataset.to_dataloader(
-            keys=keys, key_to_transform=key_to_transform, **kwargs
+            columns=columns, column_to_transform=column_to_transform, **kwargs
         )
 
     def to_jsonl(self, path: str) -> None:
