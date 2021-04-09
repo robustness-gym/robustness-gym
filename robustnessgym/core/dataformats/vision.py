@@ -18,6 +18,7 @@ import pyarrow as pa
 import torch
 from datasets import DatasetInfo, Features, NamedSplit
 from joblib import Parallel, delayed
+from torch.utils.data._utils.collate import default_collate
 from tqdm.auto import tqdm
 
 from robustnessgym.core.dataformats.abstract import AbstractDataset
@@ -33,13 +34,13 @@ class RGImage:
     """This class acts as an interface to allow the user to manipulate the
     images without actually loading them into memory."""
 
-    def __init__(self, filepath):
+    def __init__(self, filepath: str, transform: callable = None):
         self.filepath = filepath
         self.name = os.path.split(filepath)[-1]
 
         # Cache the transforms applied on the image when VisionDataset.update
         # gets called
-        self.transforms = []
+        self.transform = transform
 
     def display(self):
         pass
@@ -47,12 +48,15 @@ class RGImage:
     def load(self):
         import torchvision.datasets.folder as folder
 
-        return torch.from_numpy(np.array(folder.default_loader(self.filepath)))
+        image = torch.from_numpy(np.array(folder.default_loader(self.filepath)))
+
+        if self.transform is not None:
+            image = self.transform(image)
+
+        return image
 
     def __getitem__(self, idx):
         image = self.load()
-        for t in self.transforms:
-            image = t(image)
         return image[idx]
 
     def __str__(self):
@@ -63,8 +67,80 @@ class RGImage:
 
     def __eq__(self, other):
         filepath_eq = self.filepath == other.filepath
-        transforms_eq = self.transforms == other.transforms
-        return filepath_eq and transforms_eq
+        transform_eq = self.transform == other.transform
+        return filepath_eq and transform_eq
+
+
+# TODO(sabri): discuss merging RGImageRow and RGImageBatch into one class
+class RGImageRow(dict):
+    """Instances of this class are returned from
+    `VisionDataset.__getitem__(index)` when a single row is indexed (i.e.
+    `index` is an `int` or `np.int`).
+
+    These instances should behave just as regular dictionaries do and
+    should be largely indistinguishable to the end user with the only
+    difference being that image columns are loaded lazily.
+    """
+
+    @classmethod
+    def from_dict(
+        cls,
+        row: Dict[str, List],
+        img_columns: Union[str, List[str]],
+    ):
+        row = cls(**row)
+        if isinstance(img_columns, str):
+            img_columns = [img_columns]
+        row._img_columns = img_columns
+
+        return row
+
+    def __getitem__(self, key: str):
+        val = super(RGImageRow, self).__getitem__(key)
+        if key in self._img_columns:
+            return val.load()
+
+        return super(RGImageRow, self).__getitem__(key)
+
+
+class RGImageBatch(dict):
+    """Instances of this class are returned from
+    `VisionDataset.__getitem__(index)` when multiple rows are indexed (i.e.
+    `index` is a `slice`, `np.ndarray`, etc.).
+
+    To the end user, these instances should be largely indistinguishable
+    from a batch represented by dictionary (like those returned by
+    `InMemoryDataset`) with the main difference being being that image
+    columns are loaded lazily and collated (i.e. stacked) into one
+    tensor only when those columns are accessed.
+    """
+
+    @classmethod
+    def from_dict(
+        cls,
+        batch: Dict[str, List],
+        img_columns: Union[str, List[str]],
+        collate_fn: callable,
+    ):
+        batch = cls(**batch)
+        batch.collate_fn = collate_fn
+        if isinstance(img_columns, str):
+            img_columns = [img_columns]
+        batch._img_columns = img_columns
+
+        return batch
+
+    def __getitem__(self, key: str):
+        val = super(RGImageBatch, self).__getitem__(key)
+
+        # in `VisionDataset.map`, we use a torch DataLoader to load the images and then
+        # set the value in the batch to the loaded tensor. In this case
+        # batch[img_key] will already be a collated tensor, hence the check for
+        # `torch.is_tensor`
+        if key in self._img_columns and not torch.is_tensor(val):
+            return self.collate_fn([img.load() for img in val])
+
+        return super(RGImageBatch, self).__getitem__(key)
 
 
 def save_image(image, filename):
@@ -90,15 +166,29 @@ class VisionDataset(AbstractDataset):
         column_names: List[str] = None,
         info: DatasetInfo = None,
         split: Optional[NamedSplit] = None,
-        img_keys: List[str] = ["image_file"],
+        img_columns: Union[str, List[str]] = ["image_file"],
+        transform: Union[callable, Mapping[str, callable]] = None,
     ):
 
         # Data is a dictionary of lists
         self._data = {}
 
-        if isinstance(img_keys, str):
-            img_keys = [img_keys]
-        self._img_keys = img_keys
+        if isinstance(img_columns, str):
+            img_columns = [img_columns]
+        self._img_columns = img_columns
+
+        self._img_key_to_transform = defaultdict(lambda: None)
+        if isinstance(transform, Mapping):
+            if (set(transform.keys()) - self._img_columns) != 0:
+                raise ValueError(
+                    "Mapping passed to `transforms` includes keys not in `img_columns`."
+                )
+            self._img_key_to_transform.update(transform)
+        elif transform is not None:
+            # if single `callable` is passed, use same transform for all image columns
+            self._img_key_to_transform.update({k: transform for k in self._img_columns})
+
+        self.collate_fn = default_collate
 
         # Internal state variables for the update function
         self._updating_images = False
@@ -121,13 +211,14 @@ class VisionDataset(AbstractDataset):
             if isinstance(data, dict) and len(data):
                 # Assert all columns are the same length
                 self._assert_columns_all_equal_length(data)
-                mask = [key in data for key in self._img_keys]
+                mask = [key in data for key in self._img_columns]
                 if not all(mask):
                     idx = mask.index(False)
                     raise KeyError(
-                        "Key with paths to images not found: %s" % self._img_keys[idx]
+                        "Key with paths to images not found: %s"
+                        % self._img_columns[idx]
                     )
-                for key in self._img_keys:
+                for key in self._img_columns:
                     self._paths_to_Images(data, key)
                 self._data = data
 
@@ -180,22 +271,22 @@ class VisionDataset(AbstractDataset):
             f"{len(self.column_names)} columns."
         )
 
-    @staticmethod
-    def _paths_to_Images(data, key):
+    def _paths_to_Images(self, data, key):
         """Convert a list of paths to images data[key] into a list of RGImage
         instances."""
         if isinstance(data[key][0], RGImage):
             return  # Can happen when we're copying a dataset
-        data[key] = [RGImage(i) for i in data[key]]
+        data[key] = [
+            RGImage(i, transform=self._img_key_to_transform[key]) for i in data[key]
+        ]
 
     def _set_features(self):
         """Set the features of the dataset."""
         with self.format():
-            d = self[:1].copy()
-            for key in self._img_keys:
-                if key in d:
-                    d[key] = list(map(str, d[key]))
-
+            d = {
+                k: [""] if (k in self._img_columns or torch.torch.is_tensor(v)) else [v]
+                for k, v in self[0].items()
+            }
             self.info.features = Features.from_arrow_schema(
                 pa.Table.from_pydict(
                     d,
@@ -294,7 +385,7 @@ class VisionDataset(AbstractDataset):
 
         # Append to the dataset
         for k in self.column_names:
-            if k in self._img_keys:
+            if k in self._img_columns:
                 batch[k] = list(map(RGImage, batch[k]))
             self._data[k].extend(batch[k])
 
@@ -316,29 +407,36 @@ class VisionDataset(AbstractDataset):
         if self.visible_rows is not None:
             # Remap the index if only some rows are visible
             index = self._remap_index(index)
-
-        if (
-            isinstance(index, int)
-            or isinstance(index, slice)
-            or isinstance(index, np.int)
-        ):
-            # int or slice index => standard list slicing
-            return {k: self._data[k][index] for k in self.visible_columns}
-        elif isinstance(index, str):
+        if isinstance(index, str):
             # str index => column selection
             if index in self.column_names:
                 if self.visible_rows is not None:
                     return [self._data[index][i] for i in self.visible_rows]
                 return self._data[index]
             raise AttributeError(f"Column {index} does not exist.")
+
+        if isinstance(index, int) or isinstance(index, np.int):
+            return RGImageRow.from_dict(
+                {k: self._data[k][index] for k in self.visible_columns},
+                img_columns=self._img_columns,
+            )
+
+        # indices that return batches
+        if isinstance(index, slice):
+            # int or slice index => standard list slicing
+            batch = {k: self._data[k][index] for k in self.visible_columns}
         elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            return {k: [self._data[k][i] for i in index] for k in self.visible_columns}
+            batch = {k: [self._data[k][i] for i in index] for k in self.visible_columns}
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
-            return {
+            batch = {
                 k: [self._data[k][int(i)] for i in index] for k in self.visible_columns
             }
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
+
+        return RGImageBatch.from_dict(
+            batch, img_columns=self._img_columns, collate_fn=self.collate_fn
+        )
 
     def _inspect_update_function(
         self,
@@ -349,19 +447,7 @@ class VisionDataset(AbstractDataset):
         """Load the images before calling _inspect_function, and check if new
         image columns are being added."""
 
-        with self.format():
-            first_row = self.copy()
-            first_row.set_visible_rows([0])
-
-        # Load the images (WARNING: This changes the original data)
-        storage = {}
-        for key in self._img_keys:
-            storage[key] = first_row._data[key][0]
-            first_row._data[key][0] = first_row[0][key].load()
-
-        properties = AbstractDataset._inspect_function(
-            first_row, function, with_indices, batched
-        )
+        properties = self._inspect_function(function, with_indices, batched)
 
         # Check if new columns are added
         if batched:
@@ -378,46 +464,13 @@ class VisionDataset(AbstractDataset):
         new_columns = set(output.keys()).difference(set(self.all_columns))
 
         # Check if any of those new columns is an image column
-        new_img_keys = []
+        new_img_columns = []
         for key in new_columns:
             val = output[key]
             if isinstance(val, torch.Tensor) and len(val.shape) >= 2:
-                new_img_keys.append(key)
+                new_img_columns.append(key)
 
-        properties.new_image_columns = new_img_keys
-
-        # Fix the dataset
-        for key in self._img_keys:
-            first_row._data[key][0] = storage[key]
-
-        return properties
-
-    def _inspect_filter_function(
-        self,
-        function: Callable,
-        with_indices: bool = False,
-        batched: bool = False,
-    ) -> SimpleNamespace:
-        """Load the images before calling _inspect_function."""
-
-        with self.format():
-            first_row = self.copy()
-            first_row.set_visible_rows([0])
-
-        # Load the images (WARNING: This changes the original data)
-        storage = {}
-        for key in self._img_keys:
-            storage[key] = first_row._data[key][0]
-            first_row._data[key][0] = first_row[0][key].load()
-
-        # Inspect normally
-        properties = AbstractDataset._inspect_function(
-            first_row, function, with_indices, batched
-        )
-
-        # Fix the dataset
-        for key in self._img_keys:
-            first_row._data[key][0] = storage[key]
+        properties.new_image_columns = new_img_columns
 
         return properties
 
@@ -463,7 +516,7 @@ class VisionDataset(AbstractDataset):
             logger.info(f"Converting `function` {function} to batched function.")
 
         updated_columns = function_properties.existing_columns_updated
-        changed_images = [key in self._img_keys for key in updated_columns]
+        changed_images = [key in self._img_columns for key in updated_columns]
         new_image_columns = function_properties.new_image_columns
 
         # Set the internal state for the map function
@@ -507,7 +560,7 @@ class VisionDataset(AbstractDataset):
                     batch_size=batch_size,
                     cache_dir=cache_dir,
                 ),
-                img_keys=self._img_keys,
+                img_columns=self._img_columns,
             )
         else:
             if function_properties.updates_existing_column:
@@ -550,7 +603,7 @@ class VisionDataset(AbstractDataset):
 
                 # If new image columns were added, update that information
                 if self._adding_images:
-                    new_dataset._img_keys.extend(new_image_columns)
+                    new_dataset._img_columns.extend(new_image_columns)
 
                 # Add new columns / overwrite existing columns for the update
                 for col, vals in output.items():
@@ -579,7 +632,7 @@ class VisionDataset(AbstractDataset):
 
                 # If new image columns were added, update that information
                 if self._adding_images:
-                    new_dataset._img_keys.extend(new_image_columns)
+                    new_dataset._img_columns.extend(new_image_columns)
 
                 # Add new columns for the update
                 for col, vals in output.items():
@@ -660,14 +713,15 @@ class VisionDataset(AbstractDataset):
             input_columns = self.visible_columns
         image_loaders = {}
         for key in input_columns:
-            if key in self._img_keys:
+            if key in self._img_columns:
                 # Load the images
                 images = self.to_dataloader(
-                    keys=[key],
+                    columns=[key],
                     batch_size=batch_size,
                     shuffle=False,
                     drop_last=False,
                     num_workers=num_proc,
+                    collate_fn=self.collate_fn,
                 )
                 images = iter(images)
                 image_loaders[key] = images
@@ -689,7 +743,8 @@ class VisionDataset(AbstractDataset):
         outputs = None
         for i, batch in tqdm(
             enumerate(self.batch(batch_size, drop_last_batch)),
-            total=(len(self) // batch_size) + (1 - int(drop_last_batch)),
+            total=(len(self) // batch_size)
+            + int(not drop_last_batch and len(self) % batch_size != 0),
         ):
             for key in image_loaders:
                 batch[key] = next(image_loaders[key])
@@ -786,7 +841,7 @@ class VisionDataset(AbstractDataset):
             return None
 
         # Get some information about the function
-        function_properties = self._inspect_filter_function(
+        function_properties = self._inspect_function(
             function,
             with_indices,
             batched=batched,
@@ -816,8 +871,8 @@ class VisionDataset(AbstractDataset):
 
     def to_dataloader(
         self,
-        keys: Sequence[str],
-        key_to_transform: Optional[Mapping[str, Callable]] = None,
+        columns: Sequence[str],
+        column_to_transform: Optional[Mapping[str, Callable]] = None,
         **kwargs,
     ) -> torch.utils.data.DataLoader:
         """Get a PyTorch dataloader that iterates over a subset of the columns
@@ -836,18 +891,22 @@ class VisionDataset(AbstractDataset):
         ```
 
         Args:
-            keys (Sequence[str]): A subset of the columns in the vision dataset.
+            columns (Sequence[str]): A subset of the columns in the vision dataset.
                 Specifies the columns to load. The dataloader will return values in same
-                 order as `keys` here.
-            key_to_transform (Optional[Mapping[str, Callable]], optional): A mapping
+                 order as `columns` here.
+            column_to_transform (Optional[Mapping[str, Callable]], optional): A mapping
                 from zero or more `keys` to callable transforms to be applied by the
                 dataloader. Defaults to None, in which case no transforms are applied.
-                Example: `key_to_transform={"img_path": transforms.Resize((128,128))}`.
+                Example: `column_to_transform={"img_path": transforms.Resize((16,16))}`.
+                Note: these transforms will be applied after the transforms specified
+                via the `transform` argument to `VisionDataset`.
 
         Returns:
             torch.utils.data.DataLoader: dataloader that iterates over dataset
         """
-        img_folder = TorchDataset(self, keys=keys, key_to_transform=key_to_transform)
+        img_folder = TorchDataset(
+            self, columns=columns, column_to_transform=column_to_transform
+        )
         return torch.utils.data.DataLoader(img_folder, **kwargs)
 
     def copy(self, deepcopy=False):
@@ -868,7 +927,7 @@ class VisionDataset(AbstractDataset):
             "visible_rows",
             "_info",
             "_split",
-            "_img_keys",
+            "_img_columns",
             "_updating_images",
             "_adding_images",
             "_callstack",
@@ -956,8 +1015,8 @@ class TorchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         dataset: VisionDataset,
-        keys: Sequence[str],
-        key_to_transform: Optional[Mapping[str, Callable]] = None,
+        columns: Sequence[str],
+        column_to_transform: Optional[Mapping[str, Callable]] = None,
     ):
         """A torch dataset wrapper around `VisionDataset` that can be used in a
         torch dataloder.
@@ -970,17 +1029,19 @@ class TorchDataset(torch.utils.data.Dataset):
         specifying a different transformation function for each key
         returned.
         """
-        self.keys = keys
-        self.key_to_transform = {} if key_to_transform is None else key_to_transform
+        self.columns = columns
+        self.column_to_transform = (
+            {} if column_to_transform is None else column_to_transform
+        )
         self.dataset = dataset
 
     def __getitem__(self, index: int):
         row = self.dataset[index]
         vals = [
-            self.key_to_transform.get(k, lambda x: x)(
+            self.column_to_transform.get(k, lambda x: x)(
                 v.load() if isinstance(v, RGImage) else v
             )
-            for k, v in ((key, row[key]) for key in self.keys)
+            for k, v in ((key, row[key]) for key in self.columns)
         ]
         return tuple(vals) if len(vals) > 1 else vals[0]
 
