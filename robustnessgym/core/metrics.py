@@ -9,7 +9,6 @@ except ImportError:
 else:
     _nltk_available = True
 import numpy as np
-import pytorch_lightning.metrics.functional as lightning_metrics
 import torch
 
 try:
@@ -68,6 +67,34 @@ def f1_macro(
     return f1_score(y_true=labels, y_pred=predictions, average="macro")
 
 
+def class_distribution(
+    labels: Union[list, np.array, torch.Tensor],
+    num_classes: int = None,
+    min_label: int = 0,
+):
+    """Calculate the aggregated class distribution."""
+    if isinstance(labels, list):
+        labels = np.array(labels)
+
+    if len(labels.shape) == 1:
+        # Find the unique labels and their counts
+        unique_labels, counts = np.unique(labels, return_counts=True)
+
+        # Calculate the number of classes
+        if num_classes is None:
+            max_label = np.max(unique_labels)
+            num_classes = max_label - min_label + 1
+
+        # Fill out the distribution
+        dist = np.zeros(num_classes)
+        dist[(unique_labels - min_label).astype(int)] = counts / labels.shape[0]
+        return dist
+    elif len(labels.shape) == 2:
+        return np.mean(labels, axis=0)
+    else:
+        raise ValueError("`labels` must be 1 or 2-dimensional.")
+
+
 # TODO Refactor into separate class for each metric
 # TODO change signature of compute_metric
 def compute_metric(
@@ -85,12 +112,14 @@ def compute_metric(
         containing target labels
         num_classes: number of classes
     """
+    if isinstance(predictions, torch.Tensor):
+        predictions = predictions.cpu()
+    if isinstance(labels, torch.Tensor):
+        labels = labels.cpu()
 
     # Classification metrics
     if metric == "accuracy":
         return accuracy(predictions=predictions, labels=labels)
-    elif metric == "f1":
-        return f1(predictions=predictions, labels=labels)
     elif metric == "f1":
         return f1(predictions=predictions, labels=labels)
     elif metric == "f1_micro":
@@ -118,25 +147,10 @@ def compute_metric(
 
     elif metric == "class_dist":
         # Calculate class distribution
-        if not isinstance(labels, torch.Tensor):
-            labels = torch.Tensor(labels)
-        score = (
-            lightning_metrics.to_onehot(tensor=labels, num_classes=num_classes)
-            .double()
-            .mean(dim=0)
-            .tolist()
-        )
-
+        score = class_distribution(labels=labels, num_classes=num_classes)
     elif metric == "pred_dist":
         # Calculate predicted class distribution
-        if not isinstance(predictions, torch.Tensor):
-            predictions = torch.Tensor(predictions)
-        score = (
-            lightning_metrics.to_onehot(tensor=predictions, num_classes=num_classes)
-            .double()
-            .mean(dim=0)
-            .tolist()
-        )
+        score = class_distribution(labels=predictions, num_classes=num_classes)
     else:
         raise NotImplementedError
 

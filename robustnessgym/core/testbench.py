@@ -727,8 +727,8 @@ class TestBench(SemanticVersionerMixin):
             # Set the schema using the task
             # TODO Is the remapping required when not using a task
             self.set_schema("task")
-            input_columns = self.task._input_schema.keys()
-            output_columns = self.task._output_schema.keys()
+            input_columns = self.task.input_schema.columns
+            output_columns = self.task.output_schema.columns
 
         # TODO(karan): Uncomment and fix this assert on the type of outputs that
         #  model(..) returns
@@ -803,9 +803,9 @@ class TestBench(SemanticVersionerMixin):
                     "'metrics' is required if testbench does not have associated task."
                 )
         else:
-            output_columns = self.task._output_schema.keys()
-            num_classes = self.task._output_schema.features[
-                list(self.task._output_schema.keys())[0]
+            output_columns = self.task.output_schema.columns
+            num_classes = self.task.output_schema.features[
+                list(self.task.output_schema.columns)[0]
             ].num_classes
             if self.task.classification():
                 assert len(output_columns) == 1  # , "Only supports classification."
@@ -911,8 +911,8 @@ class TestBench(SemanticVersionerMixin):
                 if self.task is None:
                     class_cds = None
                 else:
-                    class_names = self.task._output_schema.features[
-                        list(self.task._output_schema.keys())[0]
+                    class_names = self.task.output_schema.features[
+                        list(self.task.output_schema.columns)[0]
                     ].names
                     class_cds = [name[0].upper() for name in class_names]
                 columns.append(ClassDistributionColumn(metric_id, class_cds))
@@ -980,7 +980,7 @@ class TestBench(SemanticVersionerMixin):
             return
 
         if schema_type == "task":
-            self.slices = {self.task.remap_schema(slice) for slice in self.slices}
+            self._slices = {self.task.remap_schema(sl) for sl in self.slices}
             self.schema_type = schema_type
         elif schema_type == "default":
             # TODO(karan): undo the schema standardization
