@@ -1,10 +1,10 @@
 import itertools
 import re
 
+from ludwig.api import LudwigModel as ludwigmodel
 from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
-from ludwig.api import LudwigModel as ludwigmodel
 
 try:
     import nltk
@@ -387,7 +387,7 @@ class LudwigModel(Model):
         self,
         dataset: Dataset,
         batch_size: int=128,
-        collect_overall_stats=False,
+        collect_overall_stats: bool=False,
         collect_predictions: bool=True,
 
     ):
