@@ -65,7 +65,7 @@ text = ["nltk", "textblob", "spacy", "stanza", "allennlp", "allennlp-models"]
 adversarial = ["textattack"]
 summarization = ["rouge-score"]
 vision = ["torchvision"]
-ludwig = ["ludwig"]
+ludwig = ["ludwig", "tensorflow"]
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
