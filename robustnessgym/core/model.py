@@ -377,6 +377,7 @@ class HuggingfaceModel(Model):
 
         return evaluation_dict
 
+
 class LudwigModel(Model):
     def __init__(
         self,
@@ -393,16 +394,15 @@ class LudwigModel(Model):
     def evaluate(
         self,
         dataset: Dataset,
-        batch_size: int=128,
-        collect_overall_stats: bool=True,
-        collect_predictions: bool=True,
-
+        batch_size: int = 128,
+        collect_overall_stats: bool = True,
+        collect_predictions: bool = True,
     ):
         eval_stats, predictions, _ = self.ludwig_model.evaluate(
-                dataset=dataset[:],
-                batch_size=batch_size,
-                collect_overall_stats=collect_overall_stats,
-                collect_predictions=collect_predictions
+            dataset=dataset[:],
+            batch_size=batch_size,
+            collect_overall_stats=collect_overall_stats,
+            collect_predictions=collect_predictions,
         )
 
         return (eval_stats, predictions)

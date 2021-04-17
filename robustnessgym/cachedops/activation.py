@@ -21,9 +21,9 @@ class ActivationExtractor:
 
 class ActivationCachedOp(SingleColumnCachedOperation):
     def __init__(self, model: nn.Module, target_module: str, device: int = None):
-        """ A cached operation that runs a forward pass over 
-        each example in the dataset and stores model activations in a new column. 
-        TODO: test on an NLP model 
+        """A cached operation that runs a forward pass over
+        each example in the dataset and stores model activations in a new column.
+        TODO: test on an NLP model
 
         Args:
             model (nn.Module): the torch model from which activations are extracted

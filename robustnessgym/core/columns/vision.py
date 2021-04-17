@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 import copy
 import gzip
 import logging
 import os
 import pickle
-from robustnessgym.core.identifier import Identifier
 import tempfile
 import uuid
 from collections import defaultdict
@@ -14,15 +14,20 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 import cytoolz as tz
 import datasets
 import numpy as np
-import pyarrow as pa
+
+# import pyarrow as pa
 import torch
-from datasets import DatasetInfo, Features
-from joblib import Parallel, delayed
 from torch.utils.data._utils.collate import default_collate
 from tqdm.auto import tqdm
 
-from robustnessgym.core.columns.abstract import AbstractColumn, AbstractCell
-from robustnessgym.core.dataformats.abstract import AbstractDataset
+# from datasets import DatasetInfo, Features
+# from joblib import Parallel, delayed
+from robustnessgym.core.cells.abstract import AbstractCell
+from robustnessgym.core.columns.abstract import AbstractColumn
+from robustnessgym.core.dataformats.vision import TorchDataset, VisionDataset
+
+# from robustnessgym.core.dataformats.abstract import AbstractDataset
+from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.tools import convert_to_batch_fn
 
 logger = logging.getLogger(__name__)
@@ -30,12 +35,113 @@ logger = logging.getLogger(__name__)
 Example = Dict
 Batch = Dict[str, List]
 
+"""
+Map
+-----
+Materialize.
+Cache.
+Batch.
+--> 8 combinations
+
+NumpyColumn: np.ndarray --> no real notion of a Cell (sequence of cells)
+TensorColumn: torch.tensor (len_column, .....) -->
+
+ImageColumn --> list of cells
+PathColumn -> TensorColumn (unmaterialized images)
+
+tensor_column[2:4] --> tensor
+path_column[2:4] --> list of paths
+image_column[2:4] --> list of Image objects
+
+# Storing objects as cells
+DosmaColumn -> [MedicalVolume_1, ..., MedicalVolume_n]
+SpacyColumn --> [Doc_1, Doc_2, ..., Doc_n]
+spacy_column.serialize() --> [Doc_1.serialize(), ..., Doc_n.serialize()]
+
+# Conclusions
+1. we need cells: for complex objects
+2. cell columns can have batching functions (dataloader)
+
+# Workflow (in-memory image workflow)
+How Stored:
+- stored with np.save --> [n, ...]
+    - load it with np.load --> NumpyColumn
+    - chunks?
+
+Apache Arrow:
+- Record, RecordBatch, Column, Table
+
+Candidates:
+- NumpyColumn
+- TensorColumn
+
+# API
+dataset = Dataset.from_batch({
+    'text': ['a', 'b'],
+    'metadata': [{'c': {'d': 2}}, {'c': {'d': 5}}],
+    'arrays': [np.array([1,2,3]), np.array([3,4,5])],
+    'arr': np.array([1, 2]),
+    'paths': [Path('../'), Path('/')], # specify the paths to where the thing is
+    'images': [Image('abc'), Image('b')],
+    'spacy': [nlp('a'), nlp('b')],
+    'tensor': torch.tensor([1, 2]),
+    'tensor_gpu': torch.tensor([1, 2]).cuda(),
+})
+# Functions that mutate datasets
+dataset --> dataset
+# NLI / Dialog
+dataset of conversations where each example is a conversation
+-->
+dataset of turns where each example is a turn in a conversation
+
+dataset[2:4] -- natural + the user has to do fewer steps
+
+# 1 Path --> Multiple examples
+# k Paths --> 1 example
+
+dataset.map(lambda example: activation(example['images'])) # grab activations
+# Procedure
+# Require that the len(column) are equal
+# For each column, determine the appropriate Column to use
+    # Column(data)? or Column.from_sequence()?
+
+
+# Materialized image column is a tensor column
+image_column
+image_column.materialize() -> TensorColumn [in-memory]
+
+# Do I want to materialize the whole column? (Memory)
+vs.
+# Materialize by batch
+
+# Loader
+
+ImageCell
+------------
+| filepath  |
+| loader    |
+| transform |
+------------ materialize
+| data      |
+|           |
+------------
+
+
+
+# Types
+# Lazy vs. eager
+
+"""
+
 
 class Image(AbstractCell):
     """This class acts as an interface to allow the user to manipulate the
     images without actually loading them into memory."""
 
     def __init__(self, filepath: str, transform: callable = None):
+        super(Image, self).__init__()
+
+        # Images contain a filepath and filename
         self.filepath = filepath
         self.name = os.path.split(filepath)[-1]
 
@@ -49,11 +155,11 @@ class Image(AbstractCell):
 
     @property
     def is_materialized(self):
-        return self.data is not None 
+        return self.data is not None
 
     def materialize(self):
         if self.data is not None:
-            return self.data 
+            return self.data
 
         import torchvision.datasets.folder as folder
 
@@ -90,7 +196,7 @@ class VisionColumn(AbstractColumn):
         data: Union[List, Dict, datasets.Dataset],
         transform: Callable = None,
         collate_fn: Callable = None,
-        identifier: Identifier = None
+        identifier: Identifier = None,
     ):
 
         # Data is a dictionary of lists
@@ -122,6 +228,7 @@ class VisionColumn(AbstractColumn):
             # Create an empty Column
             self._data = []
 
+        # Call the superclass
         AbstractColumn.__init__(self, num_rows=len(self._data), identifier=identifier)
 
         # Create attributes for visible rows
@@ -132,11 +239,6 @@ class VisionColumn(AbstractColumn):
 
         # flag indicating whether the images themselves are actually stored in memory
         self._materialized = False
-
-        logger.info(f"Created `VisionColumn` with {len(self)} rows and")
-
-    def __len__(self):
-        return len(self._data)
 
     def _initialize_state(self):
 
@@ -150,7 +252,7 @@ class VisionColumn(AbstractColumn):
         """Convert a list of paths to images data[key] into a list of Image
         instances."""
         if isinstance(paths[0], Image):
-            return paths # Can happen when we're copying a dataset
+            return paths  # Can happen when we're copying a dataset
         return [Image(path) for path in paths]
 
     def _set_features(self):
@@ -253,20 +355,6 @@ class VisionColumn(AbstractColumn):
             if k in self._img_columns:
                 batch[k] = list(map(Image, batch[k]))
             self._data[k].extend(batch[k])
-
-    def _remap_index(self, index):
-        if isinstance(index, int):
-            return self.visible_rows[index].item()
-        elif isinstance(index, slice):
-            return self.visible_rows[index].tolist()
-        elif isinstance(index, str):
-            return index
-        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            return self.visible_rows[index].tolist()
-        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
-            return self.visible_rows[index].tolist()
-        else:
-            raise TypeError("Invalid argument type: {}".format(type(index)))
 
     def _inspect_update_function(
         self,
@@ -498,6 +586,93 @@ class VisionColumn(AbstractColumn):
 
         return new_dataset
 
+    def batch(
+        self,
+        batch_size: int = 32,
+        drop_last_batch: bool = False,
+        num_proc: int = 0,
+    ):
+        """Batch the dataset.
+
+        Args:
+            batch_size: integer batch size
+            drop_last_batch: drop the last batch if its smaller than batch_size
+
+        Returns:
+            batches of data
+        """
+        # Load the images
+        return self.to_dataloader(
+            batch_size=batch_size,
+            shuffle=False,
+            drop_last=drop_last_batch,
+            num_workers=num_proc,
+            collate_fn=self.collate_fn,
+        )
+
+    def _inspect_function(
+        self,
+        function: Callable,
+        with_indices: bool = False,
+        batched: bool = False,
+    ) -> SimpleNamespace:
+
+        # Initialize variables to track
+        no_output = dict_output = bool_output = list_output = False
+
+        # If dict_output = True and `function` is used for updating the dataset
+        # useful to know if any existing column is modified
+        updates_existing_column = True
+        existing_columns_updated = []
+
+        # Run the function to test it
+        if batched:
+            if with_indices:
+                output = function(self[:2].to_batch(), range(2))
+            else:
+                output = function(self[:2].to_batch())
+
+        else:
+            if with_indices:
+                output = function(self[0], 0)
+            else:
+                output = function(self[0])
+
+        if isinstance(output, Mapping):
+            # `function` returns a dict output
+            dict_output = True
+
+            # Set of columns that are updated
+            existing_columns_updated = set(self.all_columns).intersection(
+                set(output.keys())
+            )
+
+            # Check if `function` updates an existing column
+            if len(existing_columns_updated) == 0:
+                updates_existing_column = False
+
+        elif output is None:
+            # `function` returns None
+            no_output = True
+        elif isinstance(output, bool):
+            # `function` returns a bool
+            bool_output = True
+        elif isinstance(output, list):
+            # `function` returns a list
+            list_output = True
+            if batched and isinstance(output[0], bool):
+                # `function` returns a bool per example
+                bool_output = True
+
+        return SimpleNamespace(
+            dict_output=dict_output,
+            no_output=no_output,
+            bool_output=bool_output,
+            list_output=list_output,
+            updates_existing_column=updates_existing_column,
+            existing_columns_updated=existing_columns_updated,
+        )
+
     def map(
         self,
         function: Optional[Callable] = None,
@@ -510,6 +685,8 @@ class VisionColumn(AbstractColumn):
         **kwargs,
     ) -> Optional[Union[Dict, List]]:
         """Apply a map over the dataset."""
+        # Check if need to materialize:
+        # TODO(karan): figure out if we need materialize=False
         materialize = self._materialize if materialize is None else materialize
 
         # Just return if the function is None
@@ -531,6 +708,13 @@ class VisionColumn(AbstractColumn):
             function = convert_to_batch_fn(function, with_indices=with_indices)
             logger.info(f"Converting `function` {function} to a batched function.")
 
+        # # Get some information about the function
+        # function_properties = self._inspect_function(
+        #     function,
+        #     with_indices,
+        #     batched=batched,
+        # )
+
         # If we are updating, prepare image savers and perform sanity checks
         if self._updating_images or self._adding_images:
             assert "update" in self._callstack, (
@@ -538,10 +722,10 @@ class VisionColumn(AbstractColumn):
                 "VisionDataset.update"
             )
             assert "cache_dir" in kwargs, "No cache directory specified"
-            cache_dir = kwargs["cache_dir"]
+            # cache_dir = kwargs["cache_dir"]
         if self._adding_images:
             assert "new_image_columns" in kwargs, "New image column names not specified"
-            new_image_columns = kwargs["new_image_columns"]
+            # new_image_columns = kwargs["new_image_columns"]
 
         # Run the map
         logger.info("Running `map`, the dataset will be left unchanged.")
@@ -551,8 +735,6 @@ class VisionColumn(AbstractColumn):
             total=(len(self) // batch_size)
             + int(not drop_last_batch and len(self) % batch_size != 0),
         ):
-            batch = next(dl)
-
             # Run `function` on the batch
             output = (
                 function(
@@ -564,41 +746,40 @@ class VisionColumn(AbstractColumn):
             )
 
             # Save the modified images
-            if self._updating_images:
-                for key in image_loaders:
-                    images = output[key]
+            # if self._updating_images:
+            #     for key in image_loaders:
+            #         images = output[key]
+            #
+            #         # Save the images in parallel
+            #         Images = Parallel(n_jobs=num_proc)(
+            #             delayed(save_image)(
+            #                 images[idx],
+            #                 os.path.join(
+            #                     cache_dir,
+            #                     "{0}{1}.png".format(key, i * batch_size + idx),
+            #                 ),
+            #             )
+            #             for idx in range(len(images))
+            #         )
+            #         output[key] = Images
 
-                    # Save the images in parallel
-                    Images = Parallel(n_jobs=num_proc)(
-                        delayed(save_image)(
-                            images[idx],
-                            os.path.join(
-                                cache_dir,
-                                "{0}{1}.png".format(key, i * batch_size + idx),
-                            ),
-                        )
-                        for idx in range(len(images))
-                    )
-
-                    output[key] = Images
-
-            if self._adding_images:
-                for key in new_image_columns:
-                    images = output[key]
-
-                    # Save the images in parallel
-                    Images = Parallel(n_jobs=num_proc)(
-                        delayed(save_image)(
-                            images[idx],
-                            os.path.join(
-                                cache_dir,
-                                "{0}{1}.png".format(key, i * batch_size + idx),
-                            ),
-                        )
-                        for idx in range(len(images))
-                    )
-
-                    output[key] = Images
+            # if self._adding_images:
+            #     for key in new_image_columns:
+            #         images = output[key]
+            #
+            #         # Save the images in parallel
+            #         Images = Parallel(n_jobs=num_proc)(
+            #             delayed(save_image)(
+            #                 images[idx],
+            #                 os.path.join(
+            #                     cache_dir,
+            #                     "{0}{1}.png".format(key, i * batch_size + idx),
+            #                 ),
+            #             )
+            #             for idx in range(len(images))
+            #         )
+            #
+            #         output[key] = Images
 
             if i == 0:
                 # Create an empty dict or list for the outputs
@@ -613,8 +794,8 @@ class VisionColumn(AbstractColumn):
                     outputs.extend(output)
 
         # Reset the format
-        if input_columns:
-            self.set_format(previous_format)
+        # if input_columns:
+        #     self.set_format(previous_format)
 
         if not len(outputs):
             return None
