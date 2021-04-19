@@ -3,12 +3,16 @@ from __future__ import annotations
 import abc
 import logging
 from abc import abstractmethod
-from typing import Callable, List, Optional, Sequence
+from types import SimpleNamespace
+from typing import Callable, List, Mapping, Optional, Sequence
 
 import numpy as np
+import torch
 
 from robustnessgym.core.cells.abstract import AbstractCell
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import convert_to_batch_fn
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +36,6 @@ class AbstractColumn(abc.ABC):
         # Log creation
         logger.info(f"Created `{self.__class__.__name__}` with {len(self)} rows.")
 
-    def __len__(self):
-        return len(self._data)
-
     def _remap_index(self, index):
         if isinstance(index, int):
             return self.visible_rows[index].item()
@@ -49,50 +50,13 @@ class AbstractColumn(abc.ABC):
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
-    def __getitem__(self, index):
-        if self.visible_rows is not None:
-            # Remap the index if only some rows are visible
-            index = self._remap_index(index)
-
-        if isinstance(index, int) or isinstance(index, np.int):
-            cell = self._data[index]
-            if self._materialized:
-                return cell.materialize()
-            else:
-                return cell
-
-                # indices that return batches
-        if isinstance(index, slice):
-            # int or slice index => standard list slicing
-            cells = self._data[index]
-        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            cells = [self._data[i] for i in index]
-        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
-            cells = [self._data[int(i)] for i in index]
-        else:
-            raise TypeError("Invalid argument type: {}".format(type(index)))
-
-        if self._materialized:
-            [cell.materialize() for cell in cells]
-
-        return self.from_cells(cells)
-
-    @classmethod
-    def from_cells(cls, cells: List[AbstractCell]):
-        assert cls != AbstractColumn, "Cannot run `from_cells` on abstract class."
-        return cls(data=cells)
-
-    # @abstractmethod
-    # def __getitem__(self):
-    #     raise NotImplementedError()
-
     @abstractmethod
-    def __setitem__(self):
+    def __getitem__(self):
         raise NotImplementedError()
 
-    # @abstractmethod
-    # def __len__(self) -> int:
-    #     raise NotImplementedError()
+    @abstractmethod
+    def __len__(self) -> int:
+        raise NotImplementedError()
 
     def encode(self):
         return self
@@ -109,6 +73,74 @@ class AbstractColumn(abc.ABC):
     @abstractmethod
     def read(cls) -> AbstractColumn:
         raise NotImplementedError()
+
+    def batch(self, batch_size: int = 32, drop_last_batch: bool = False):
+        """Batch the dataset.
+
+        Args:
+            batch_size: integer batch size
+            drop_last_batch: drop the last batch if its smaller than batch_size
+
+        Returns:
+            batches of data
+        """
+        for i in range(0, len(self), batch_size):
+            if drop_last_batch and i + batch_size > len(self):
+                continue
+            yield self[i : i + batch_size]
+
+    def _inspect_function(
+        self,
+        function: Callable,
+        with_indices: bool = False,
+        batched: bool = False,
+    ) -> SimpleNamespace:
+
+        # Initialize variables to track
+        no_output = dict_output = bool_output = list_output = False
+
+        # Run the function to test it
+        if batched:
+            if with_indices:
+                output = function(self[:2], range(2))
+            else:
+                output = function(self[:2])
+
+        else:
+            if with_indices:
+                output = function(self[0], 0)
+            else:
+                output = function(self[0])
+
+        if isinstance(output, Mapping):
+            # `function` returns a dict output
+            dict_output = True
+
+        elif output is None:
+            # `function` returns None
+            no_output = True
+        elif isinstance(output, bool):
+            # `function` returns a bool
+            bool_output = True
+        elif isinstance(output, (Sequence, torch.Tensor, np.ndarray)):
+            # `function` returns a list
+            list_output = True
+            if batched and (
+                isinstance(output[0], bool)
+                or (
+                    hasattr(output[0], "dtype")
+                    and output[0].dtype in (np.bool, torch.bool)
+                )
+            ):
+                # `function` returns a bool per example
+                bool_output = True
+
+        return SimpleNamespace(
+            dict_output=dict_output,
+            no_output=no_output,
+            bool_output=bool_output,
+            list_output=list_output,
+        )
 
     @abstractmethod
     def map(
@@ -133,3 +165,18 @@ class AbstractColumn(abc.ABC):
         **kwargs,
     ) -> AbstractColumn:
         raise NotImplementedError
+
+    def set_visible_rows(self, indices: Optional[Sequence]):
+        """Set the visible rows in the dataset."""
+        if indices is None:
+            self.visible_rows = None
+        else:
+            if len(indices):
+                assert min(indices) >= 0 and max(indices) < len(self), (
+                    f"Ensure min index {min(indices)} >= 0 and "
+                    f"max index {max(indices)} < {len(self)}."
+                )
+            if self.visible_rows is not None:
+                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
+            else:
+                self.visible_rows = np.array(indices, dtype=int)
