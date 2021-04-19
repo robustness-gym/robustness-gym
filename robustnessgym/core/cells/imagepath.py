@@ -1,15 +1,20 @@
+from __future__ import annotations
+
+import dill
+import yaml
+
 from robustnessgym.core.cells.abstract import AbstractCell
 from robustnessgym.core.mixins.file import FileMixin
 
 
-class ImagePath(AbstractCell, FileMixin):
+class ImagePath(FileMixin, AbstractCell):
     """This class acts as an interface to allow the user to manipulate the
     images without actually loading them into memory."""
 
     def __init__(
         self, filepath: str, loader: callable = None, transform: callable = None
     ):
-        super(ImagePath, self).__init__()
+        super(ImagePath, self).__init__(filepath=filepath)
         self.transform = transform
         self.loader = self.default_loader if loader is None else loader
 
@@ -24,15 +29,23 @@ class ImagePath(AbstractCell, FileMixin):
             image = self.transform(image)
         return image
 
-    def write(self):
-        pass
+    def encode(self):
+        return {
+            "filepath": self.filepath,
+            "loader": self.loader,
+            "transform": self.transform,
+        }
 
     @classmethod
-    def read(cls):
-        pass
+    def decode(cls, encoding):
+        return cls(
+            encoding["filepath"],
+            loader=encoding["loader"],
+            transform=encoding["transform"],
+        )
 
     def __getitem__(self, index):
-        image = self.load()
+        image = self.get()
         return image[index]
 
     def __str__(self):
