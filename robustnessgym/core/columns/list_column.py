@@ -8,11 +8,9 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import dill
 import numpy as np
-import torch
 import yaml
 from tqdm.auto import tqdm
 
-from robustnessgym.core.cells.abstract import AbstractCell
 from robustnessgym.core.columns.abstract import AbstractColumn
 from robustnessgym.core.tools import convert_to_batch_fn
 
@@ -23,26 +21,23 @@ def identity_collate(batch: List):
     return batch
 
 
-class CellColumn(AbstractColumn):
+class ListColumn(AbstractColumn):
     def __init__(
         self,
-        cells: Sequence[AbstractCell] = None,
-        materialize: bool = True,
-        collate_fn: Callable = None,
+        data: Sequence = None,
+        *args,
+        **kwargs,
     ):
-        self._cells = cells
-        self._materialize = materialize
+        super(ListColumn, self).__init__(num_rows=len(data), *args, **kwargs)
+        self._data = data
 
-        if collate_fn is not None:
-            self.collate = collate_fn
-        else:
-            self.collate = identity_collate
-
+        self._materialize = True
+        self.collate = identity_collate
         self.visible_rows = None
 
     @classmethod
-    def from_cells(cls, cells: Sequence[AbstractCell], *args, **kwargs):
-        return cls(cells=cells, *args, **kwargs)
+    def from_list(cls, data: Sequence, *args, **kwargs):
+        return cls(data=data, *args, **kwargs)
 
     def metadata(self):
         return {}
@@ -53,8 +48,8 @@ class CellColumn(AbstractColumn):
             return len(self.visible_rows)
 
         # If there are columns, len of any column
-        if self._cells is not None:
-            return len(self._cells)
+        if self._data is not None:
+            return len(self._data)
         return 0
 
     def __getitem__(self, index):
@@ -64,52 +59,53 @@ class CellColumn(AbstractColumn):
 
         # indices that return a single cell
         if isinstance(index, int) or isinstance(index, np.int):
-            cell = self._cells[index]
-            if self._materialize:
-                return cell.get()
-            else:
-                return cell
+            return self._data[index]
 
         # indices that return batches
         if isinstance(index, slice):
             # int or slice index => standard list slicing
-            cells = self._cells[index]
+            data = self._data[index]
         elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            cells = [self._cells[i] for i in index]
+            data = [self._data[i] for i in index]
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
-            cells = [self._cells[int(i)] for i in index]
+            data = [self._data[int(i)] for i in index]
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
-        if self._materialize:
-            # if materializing, return a batch (by default, a list of objects returned
-            # by `Cell.get, otherwise other batch format specified by `self.collate`
-            return self.collate([cell.get() for cell in cells])
-        else:
-            # if not materializing, return a new CellColumn
-            return self.from_cells(cells, materialize=self._materialize)
+        # TODO(karan): do we need collate in ListColumn
+        # if self._materialize:
+        #     # return a batch
+        #     return self.collate([element for element in data])
+        # else:
+        # if not materializing, return a new ListColumn
+        # return self.from_list(data)
+        return self.from_list(data)
 
     def batch(
         self,
         batch_size: int = 32,
         drop_last_batch: bool = False,
-        collate: bool = True,
+        # collate: bool = True,
         *args,
         **kwargs,
     ):
-        if self._materialize:
-            return torch.utils.data.DataLoader(
-                self,
-                batch_size=batch_size,
-                collate_fn=self.collate if collate else lambda x: x,
-                drop_last=drop_last_batch,
-                *args,
-                **kwargs,
-            )
-        else:
-            return super(CellColumn, self).batch(
-                batch_size=batch_size, drop_last_batch=drop_last_batch
-            )
+        # TODO(karan): do we need collate in ListColumn
+        # if self._materialize:
+        #     return torch.utils.data.DataLoader(
+        #         self,
+        #         batch_size=batch_size,
+        #         collate_fn=self.collate if collate else identity_collate,
+        #         drop_last=drop_last_batch,
+        #         *args,
+        #         **kwargs,
+        #     )
+        # else:
+        #     return super(ListColumn, self).batch(
+        #         batch_size=batch_size, drop_last_batch=drop_last_batch
+        #     )
+        return super(ListColumn, self).batch(
+            batch_size=batch_size, drop_last_batch=drop_last_batch
+        )
 
     def map(
         self,
@@ -162,7 +158,7 @@ class CellColumn(AbstractColumn):
                 self.batch(
                     batch_size=batch_size,
                     drop_last_batch=drop_last_batch,
-                    collate=batched,
+                    # collate=batched,
                 )
             ),
             total=(len(self) // batch_size)
@@ -204,7 +200,7 @@ class CellColumn(AbstractColumn):
         drop_last_batch: bool = False,
         num_proc: Optional[int] = 64,
         **kwargs,
-    ) -> Optional[CellColumn]:
+    ) -> Optional[ListColumn]:
         """Apply a filter over the dataset."""
         # Just return if the function is None
         if function is None:
@@ -242,62 +238,42 @@ class CellColumn(AbstractColumn):
         return new_column
 
     @classmethod
-    def read(cls, path: str) -> CellColumn:
+    def read(cls, path: str) -> ListColumn:
+        # Load in the data
         metadata = dict(
             yaml.load(
                 open(os.path.join(path, "meta.yaml"), "r"), Loader=yaml.FullLoader
             )
         )
-        if metadata["write_together"]:
-            data = dill.load(open(os.path.join(path, "data.dill"), "rb"))
-            cells = [
-                dtype.decode(encoding)
-                for dtype, encoding in zip(metadata["cell_dtypes"], data)
-            ]
-        else:
-            cells = [
-                dtype.read(path)
-                for dtype, path in zip(metadata["cell_dtypes"], metadata["cell_paths"])
-            ]
+        data = dill.load(open(os.path.join(path, "data.dill"), "rb"))
 
         column = cls()
         state = metadata["state"]
-        state["_cells"] = cells
+        state["_data"] = data
         column.__setstate__(metadata["state"])
         return column
 
-    def write(self, path: str, write_together: bool = True) -> None:
-        metadata_path = os.path.join(path, "meta.yaml")
+    def write(self, path: str) -> None:
+
         state = self.__getstate__()
-        del state["_cells"]
+        del state["_data"]
         metadata = {
             "dtype": type(self),
-            "cell_dtypes": list(map(type, self._cells)),
+            "data_dtypes": list(map(type, self._data)),
             "len": len(self),
-            "write_together": write_together,
             "state": state,
             **self.metadata(),
         }
 
-        if write_together:
-            # Make directory
-            os.makedirs(path, exist_ok=True)
+        # Make directory
+        os.makedirs(path, exist_ok=True)
 
-            # Get the paths where metadata and data should be stored
-            metadata_path = os.path.join(path, "meta.yaml")
-            data_path = os.path.join(path, "data.dill")
+        # Get the paths where metadata and data should be stored
+        metadata_path = os.path.join(path, "meta.yaml")
+        data_path = os.path.join(path, "data.dill")
 
-            # Saving all cell data in a single pickle file
-            dill.dump([cell.encode() for cell in self._cells], open(data_path, "wb"))
-        else:
-            os.makedirs(path, exist_ok=True)
-            # Save all the cells separately
-            cell_paths = []
-            for index, cell in enumerate(self._cells):
-                cell_path = os.path.join(path, f"cell_{index}")
-                cell.write(cell_path)
-                cell_paths.append(cell_path)
-            metadata["cell_paths"] = cell_paths
+        # Saving all cell data in a single pickle file
+        dill.dump(self._data, open(data_path, "wb"))
 
         # Saving the metadata as a yaml
         yaml.dump(metadata, open(metadata_path, "w"))
@@ -306,14 +282,14 @@ class CellColumn(AbstractColumn):
         if deepcopy:
             return copy.deepcopy(self)
         else:
-            dataset = CellColumn()
+            dataset = ListColumn()
             dataset.__dict__ = {k: copy.copy(v) for k, v in self.__dict__.items()}
             return dataset
 
     @classmethod
     def _state_keys(cls) -> set:
         """List of attributes that describe the state of the object."""
-        return {"_materialize", "collate", "_cells"}
+        return {"_materialize", "collate", "_data"}
 
     # TODO: add these state methods to a mixin, and add support for handling changing
     # state keys
