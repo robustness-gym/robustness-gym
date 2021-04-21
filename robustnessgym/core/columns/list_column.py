@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import copy
 import logging
 import os
@@ -10,9 +11,12 @@ import dill
 import numpy as np
 import yaml
 from tqdm.auto import tqdm
+from yaml.representer import Representer
 
 from robustnessgym.core.columns.abstract import AbstractColumn
-from robustnessgym.core.tools import convert_to_batch_fn
+
+Representer.add_representer(abc.ABCMeta, Representer.represent_name)
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,19 +25,77 @@ def identity_collate(batch: List):
     return batch
 
 
+def convert_to_batch_column_fn(function: Callable, with_indices: bool):
+    """Batch a function that applies to an example."""
+
+    def _function(batch: Sequence, indices: Optional[List[int]], *args, **kwargs):
+        # Pull out the batch size
+        batch_size = len(batch)
+
+        # Iterate and apply the function
+        outputs = None
+        for i in range(batch_size):
+
+            # Apply the unbatched function
+            if with_indices:
+                output = function(
+                    batch[i],
+                    indices[i],
+                    *args,
+                    **kwargs,
+                )
+            else:
+                output = function(
+                    batch[i],
+                    *args,
+                    **kwargs,
+                )
+
+            if i == 0:
+                # Create an empty dict or list for the outputs
+                outputs = defaultdict(list) if isinstance(output, dict) else []
+
+            # Append the output
+            if isinstance(output, dict):
+                for k in output.keys():
+                    outputs[k].append(output[k])
+            else:
+                outputs.append(output)
+
+        if isinstance(outputs, dict):
+            return dict(outputs)
+        return outputs
+
+    if with_indices:
+        # Just return the function as is
+        return _function
+    else:
+        # Wrap in a lambda to apply the indices argument
+        return lambda batch, *args, **kwargs: _function(batch, None, *args, **kwargs)
+
+
+# Q. how to handle collate and materialize here? Always materialized but only sometimes
+# may want to collate (because collate=True should return a batch-style object, while
+# collate=False should return a Column style object).
+
+
 class ListColumn(AbstractColumn):
     def __init__(
         self,
         data: Sequence = None,
+        collate_fn: Callable = None,
         *args,
         **kwargs,
     ):
-        super(ListColumn, self).__init__(num_rows=len(data), *args, **kwargs)
         self._data = data
-
         self._materialize = True
-        self.collate = identity_collate
+        if collate_fn is not None:
+            self.collate = collate_fn
+        else:
+            self.collate = identity_collate
         self.visible_rows = None
+
+        super(ListColumn, self).__init__(num_rows=len(self), *args, **kwargs)
 
     @classmethod
     def from_list(cls, data: Sequence, *args, **kwargs):
@@ -138,7 +200,9 @@ class ListColumn(AbstractColumn):
 
         if not batched:
             # Convert to a batch function
-            function = convert_to_batch_fn(function, with_indices=with_indices)
+            function = convert_to_batch_column_fn(function, with_indices=with_indices)
+            # TODO: Transfer this fix to other classes
+            batched = True
             logger.info(f"Converting `function` {function} to a batched function.")
 
         # # Get some information about the function

@@ -125,6 +125,7 @@ class AbstractColumn(abc.ABC):
         elif isinstance(output, (Sequence, torch.Tensor, np.ndarray)):
             # `function` returns a list
             list_output = True
+            print(output, output[0])
             if batched and (
                 isinstance(output[0], bool)
                 or (
