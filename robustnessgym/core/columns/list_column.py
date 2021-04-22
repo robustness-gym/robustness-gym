@@ -135,12 +135,12 @@ class ListColumn(AbstractColumn):
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
         # TODO(karan): do we need collate in ListColumn
-        # if self._materialize:
+        # if self._materialize:  # self._collate
         #     # return a batch
         #     return self.collate([element for element in data])
         # else:
-        # if not materializing, return a new ListColumn
-        # return self.from_list(data)
+        #     # if not materializing, return a new ListColumn
+        #     return self.from_list(data)
         return self.from_list(data)
 
     def batch(
