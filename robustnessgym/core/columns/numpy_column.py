@@ -5,7 +5,7 @@ import copy
 import logging
 import os
 from collections import defaultdict
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Callable, Dict, List, Mapping, Optional, Union
 
 import dill
 import numpy as np
@@ -15,6 +15,7 @@ from tqdm.auto import tqdm
 from yaml.representer import Representer
 
 from robustnessgym.core.columns.abstract import AbstractColumn
+from robustnessgym.core.columns.list_column import convert_to_batch_column_fn
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
@@ -25,57 +26,10 @@ def identity_collate(batch: List):
     return batch
 
 
-def convert_to_batch_column_fn(function: Callable, with_indices: bool):
-    """Batch a function that applies to an example."""
-
-    def _function(batch: Sequence, indices: Optional[List[int]], *args, **kwargs):
-        # Pull out the batch size
-        batch_size = len(batch)
-
-        # Iterate and apply the function
-        outputs = None
-        for i in range(batch_size):
-
-            # Apply the unbatched function
-            if with_indices:
-                output = function(
-                    batch[i],
-                    indices[i],
-                    *args,
-                    **kwargs,
-                )
-            else:
-                output = function(
-                    batch[i],
-                    *args,
-                    **kwargs,
-                )
-
-            if i == 0:
-                # Create an empty dict or list for the outputs
-                outputs = defaultdict(list) if isinstance(output, dict) else []
-
-            # Append the output
-            if isinstance(output, dict):
-                for k in output.keys():
-                    outputs[k].append(output[k])
-            else:
-                outputs.append(output)
-
-        if isinstance(outputs, dict):
-            return dict(outputs)
-        return outputs
-
-    if with_indices:
-        # Just return the function as is
-        return _function
-    else:
-        # Wrap in a lambda to apply the indices argument
-        return lambda batch, *args, **kwargs: _function(batch, None, *args, **kwargs)
-
-
 class NumpyArrayColumn(
-    AbstractColumn, np.ndarray, numpy.lib.mixins.NDArrayOperatorsMixin
+    AbstractColumn,
+    np.ndarray,
+    numpy.lib.mixins.NDArrayOperatorsMixin,
 ):
     def __init__(
         self,
@@ -93,43 +47,90 @@ class NumpyArrayColumn(
     def __array__(self, *args, **kwargs):
         return np.asarray(self._data)
 
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+    def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
+        # print(ufunc, method)
+        # print(kwargs)
 
+        # print(inputs)
+        # print("This", [type(input_) for input_ in inputs])
         # Convert the inputs to np.ndarray
         inputs = [
             input_.view(np.ndarray) if isinstance(input_, self.__class__) else input_
             for input_ in inputs
         ]
+        # print(inputs)
+
+        outputs = out
+        out_no = []
+        if outputs:
+            out_args = []
+            for j, output in enumerate(outputs):
+                if isinstance(output, self.__class__):
+                    out_no.append(j)
+                    out_args.append(output.view(np.ndarray))
+                else:
+                    out_args.append(output)
+            kwargs["out"] = tuple(out_args)
+        else:
+            outputs = (None,) * ufunc.nout
 
         # Apply ufunc, method
-        outputs = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
+        results = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
+        if results is NotImplemented:
+            return NotImplemented
 
-        # If the output is a single np.ndarray
-        if isinstance(outputs, np.ndarray):
-            outputs = self.__class__.from_array(outputs)
-            outputs._materialize = self._materialize
-            outputs.collate = self.collate
-            outputs.visible_rows = self.visible_rows
-            return outputs
-        elif isinstance(outputs, list):
+        if ufunc.nout == 1:
+            results = (results,)
 
-            # If the output is a list of np.ndarray
-            objects = [self.__class__.from_array(out) for out in outputs]
-            for out in outputs:
-                out = out.view(self.__class__)
+        results = tuple(
+            (
+                np.asarray(result).view(self.__class__)
+                if result.ndim > 0
+                else np.asarray([result]).view(self.__class__)
+                if output is None
+                else output
+            )
+            for result, output in zip(results, outputs)
+        )
 
-                out._materialize = self._materialize
-                out.collate = self.collate
-                out.visible_rows = self.visible_rows
+        if results and isinstance(results[0], self.__class__):
+            results[0]._data = np.asarray(results[0])
+            results[0]._materialize = self._materialize
+            results[0].collate = self.collate
+            results[0].visible_rows = self.visible_rows
 
-                objects.append(out)
-            return objects
-        else:
-            outputs = self.__class__.from_array(np.array([outputs]))
-            outputs._materialize = self._materialize
-            outputs.collate = self.collate
-            outputs.visible_rows = self.visible_rows
-            return outputs
+        return results[0] if len(results) == 1 else results
+        #
+        # # If the output is a single np.ndarray
+        # if isinstance(results, np.ndarray):
+        #     print("CCCC", results)
+        #     results = self.__class__.from_array(results)
+        #     results._materialize = self._materialize
+        #     results.collate = self.collate
+        #     results.visible_rows = self.visible_rows
+        #     return results
+        # elif isinstance(results, list):
+        #
+        #     # If the output is a list of np.ndarray
+        #     objects = [self.__class__.from_array(out) for out in results]
+        #     for out in results:
+        #         out = out.view(self.__class__)
+        #
+        #         out._materialize = self._materialize
+        #         out.collate = self.collate
+        #         out.visible_rows = self.visible_rows
+        #
+        #         objects.append(out)
+        #     return objects
+        # else:
+        #     print(results)
+        #     print("ABC")
+        #     results = self.__class__.from_array(np.array([results]))
+        #     results._materialize = self._materialize
+        #     results.collate = self.collate
+        #     results.visible_rows = self.visible_rows
+        #     print(results, "BCD")
+        #     return results
 
     def __new__(cls, data, *args, **kwargs):
         return np.asarray(data).view(cls)
@@ -173,7 +174,9 @@ class NumpyArrayColumn(
         if isinstance(index, slice):
             # int or slice index => standard list slicing
             data = self._data[index]
-        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
+        elif isinstance(index, tuple) and len(index):
+            data = self.__array__()[index]
+        elif isinstance(index, list) and len(index):
             data = [self._data[i] for i in index]
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
             data = [self._data[int(i)] for i in index]
@@ -187,7 +190,9 @@ class NumpyArrayColumn(
         # else:
         # if not materializing, return a new NumpyArrayColumn
         # return self.from_list(data)
-        return self.from_array(data)
+        if data.ndim > 0:
+            return self.from_array(data)
+        return self.from_array([data])
 
     def batch(
         self,
