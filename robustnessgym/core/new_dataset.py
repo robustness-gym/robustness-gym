@@ -19,12 +19,15 @@ from datasets import DatasetInfo, Features, NamedSplit
 from jsonlines import jsonlines
 from pyarrow import json as jsonarrow
 from pyarrow import table
+from tqdm.auto import tqdm
 
+from robustnessgym.core.columns.list_column import ListColumn
 from robustnessgym.core.columns.abstract import AbstractColumn
 from robustnessgym.core.dataformats.abstract import AbstractDataset
 from robustnessgym.core.dataformats.inmemory import InMemoryDataset
 from robustnessgym.core.dataformats.vision import VisionDataset
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import convert_to_batch_fn
 
 # from robustnessgym.core.tape import InteractionTapeHierarchyMixin
 
@@ -33,6 +36,8 @@ logger = logging.getLogger(__name__)
 Example = Dict
 Batch = Dict[str, List]
 BatchOrDataset = Union[Batch, "Dataset"]
+# TODO(sabri): change the name of this!
+Columnable = Union[AbstractColumn, List]
 
 
 class Dataset(AbstractDataset):
@@ -68,6 +73,7 @@ class Dataset(AbstractDataset):
             # `data` is a dictionary
             if isinstance(data, dict) and len(data):
                 # Assert all columns are the same length
+                data = self._create_columns(data)
                 self._assert_columns_all_equal_length(data)
                 self._data = data
 
@@ -76,6 +82,7 @@ class Dataset(AbstractDataset):
                 # Transpose the list of dicts to a dict of lists i.e. a batch
                 data = tz.merge_with(list, *data)
                 # Assert all columns are the same length
+                data = self._create_columns(data)
                 self._assert_columns_all_equal_length(data)
                 self._data = data
 
@@ -103,16 +110,34 @@ class Dataset(AbstractDataset):
         self.visible_rows = None
 
         # Create an identifier
-        self._identifier = (
+        # TODO(Sabri): make _autobuild_identifier more informative
+        self._identifier = Identifier(
             self._autobuild_identifier() if not identifier else identifier
         )
 
         # Create logging directory
         self._create_logdir()
 
+        self._initialize_state()
+
+        # TODO(Sabri): fix add_index for new datset
         # Add an index to the dataset
         if not self.has_index:
             self._add_index()
+
+    def _create_column(self, data: Columnable):
+        # TODO (sabri): put in a registry
+        if isinstance(data, AbstractColumn):
+            return data
+        else:
+            return ListColumn(data)
+
+    def _create_columns(self, name_to_data: Dict[str, Columnable]):
+        new_data = {}
+        for column_name, data in name_to_data.items():
+            new_data[column_name] = self._create_column(data=data)
+
+        return new_data
 
     @property
     def identifier(self):
@@ -120,33 +145,18 @@ class Dataset(AbstractDataset):
         return self._identifier
 
     @property
-    def features(self):
-        """Dataset features."""
-        return self.features
-
-    @property
-    def info(self):
-        """Dataset info."""
-        return self.info
-
-    @property
-    def split(self):
-        """Dataset split."""
-        return self.split
-
-    @property
     def num_rows(self):
         """Number of rows in the dataset."""
-        return self.num_rows
+        return len(self)
 
     def _set_features(self):
         """Set the features of the dataset."""
         with self.format():
-            self.info.features = Features.from_arrow_schema(
-                pa.Table.from_pydict(
-                    self[:1],
-                ).schema
-            )
+            self.info.features = None  # Features.from_arrow_schema(
+            #     pa.Table.from_pydict(
+            #         self[:1],
+            #     ).schema
+            # )
 
     @contextmanager
     def format(self, columns: List[str] = None):
@@ -171,12 +181,23 @@ class Dataset(AbstractDataset):
         return self.visible_columns
 
     def set_format(self, columns: List[str]):
-        """Set the dataset format."""
-        return self.set_format(columns=columns)
+        """Set the dataset format.
+
+        Only `columns` are visible after set_format is invoked.
+        """
+        # Check that the columns exist
+        self._check_columns_exist(columns)
+
+        # Set visible columns
+        self.visible_columns = columns
 
     def reset_format(self):
-        """Set the dataset format."""
-        return self._dataset.reset_format()
+        """Reset the dataset format.
+
+        All columns are visible.
+        """
+        # All columns are visible
+        self.visible_columns = self.all_columns
 
     def set_visible_rows(self, indices: Sequence):
         """Set the visible rows in the dataset."""
@@ -186,32 +207,29 @@ class Dataset(AbstractDataset):
         """Reset to make all rows visible."""
         self._dataset.reset_visible_rows()
 
-    def add_column(self, column: str, values: List, overwrite=False) -> None:
+    def add_column(self, name: str, data: Columnable, overwrite=False) -> None:
         """Add a column to the dataset."""
 
         assert (
-            column not in self.all_columns
-        ) or overwrite, (
-            f"Column `{column}` already exists, set `overwrite=True` to overwrite."
-        )
-        assert len(values) == len(self), (
-            f"`add_column` failed. "
-            f"Values length {len(values)} != dataset length {len(self)}."
-        )
+            name not in self.all_columns
+        ) or overwrite, f"Column with name `{name}` already exists, set `overwrite=True` to overwrite."
 
-        if self.visible_rows is not None:
-            # Materialize the data
-            self._materialize()
+        column = self._create_column(data)
+
+        assert len(column) == len(self), (
+            f"`add_column` failed. "
+            f"Values length {len(column)} != dataset length {len(self)}."
+        )
 
         # Add the column
-        self._data[column] = list(values)
-        self.all_columns.append(column)
-        self.visible_columns.append(column)
+        self._data[name] = column
+        self.all_columns.append(name)
+        self.visible_columns.append(name)
 
         # Set features
         self._set_features()
 
-        logger.info(f"Added column `{column}` with length `{len(values)}`.")
+        logger.info(f"Added column `{name}` with length `{len(column)}`.")
 
     def remove_column(self, column: str) -> None:
         """Remove a column from the dataset."""
@@ -271,15 +289,11 @@ class Dataset(AbstractDataset):
         """Automatically build an identifier for the dataset using available
         information."""
         # Look for a name, otherwise assign a default
-        _name = (
-            self._dataset.info.builder_name
-            if self._dataset.info.builder_name
-            else "RGDataset"
-        )
+        _name = self.info.builder_name if self.info.builder_name else "RGDataset"
 
         # Check for split, version information
-        split = str(self._dataset.split) if self._dataset.split else None
-        version = str(self._dataset.version) if self._dataset.version else None
+        split = str(self.split) if self.split else None
+        version = str(self.version) if self.version else None
 
         # Add all available information to kwargs dict
         kwargs = {}
@@ -290,9 +304,6 @@ class Dataset(AbstractDataset):
 
         # Create identifier
         return Identifier(_name=_name, **kwargs)
-
-    def __len__(self):
-        return len(self._dataset)
 
     def __getitem__(self, index):
         if self.visible_rows is not None:
@@ -314,6 +325,12 @@ class Dataset(AbstractDataset):
                 return self._data[index]
             raise AttributeError(f"Column {index} does not exist.")
         elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
+
+            if isinstance(index[0], str):
+                return Dataset.from_batch(
+                    {k: self._data[k] for k in index if k in self.visible_columns}
+                )
+
             return {k: [self._data[k][i] for i in index] for k in self.visible_columns}
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
             return {
@@ -331,13 +348,13 @@ class Dataset(AbstractDataset):
     @property
     def column_names(self):
         """Name of the columns in the dataset."""
-        return self._dataset.column_names
+        return self.all_columns
 
     @property
     def has_index(self) -> bool:
         """Check if the dataset has an index column."""
-        if self._dataset.column_names:
-            return "index" in self._dataset.column_names
+        if self.column_names:
+            return "index" in self.column_names
         # Just return True if the dataset is empty
         return True
 
@@ -596,16 +613,42 @@ class Dataset(AbstractDataset):
             for example in self:
                 writer.write(example)
 
-    def batch(self, batch_size: int = 32):
+    def _get_collate_fns(self):
+        return {name: column.collate for name, column in self._data.items()}
+
+    def batch(
+        self, batch_size: int = 32, drop_last_batch: bool = False, *args, **kwargs
+    ):
         """Batch the dataset.
+        TODO: 
 
         Args:
             batch_size: integer batch size
+            drop_last_batch: drop the last batch if its smaller than batch_size
 
         Returns:
+            batches of data
         """
-        for i in range(0, len(self), batch_size):
-            yield self[i : i + batch_size]
+        column_to_collate = self._get_collate_fns()
+
+        def _collate(_batch: List):
+            _batch = tz.merge_with(list, *_batch)
+            new_batch = {}
+            for name, values in _batch.items():
+                new_batch[name] = column_to_collate[name](values)
+
+            return new_batch
+
+        return torch.utils.data.DataLoader(
+            self,
+            batch_size=batch_size,
+            collate_fn=_collate,
+            drop_last=drop_last_batch,
+            *args,
+            **kwargs,
+        )
+
+   
 
     def update(
         self,
@@ -679,46 +722,72 @@ class Dataset(AbstractDataset):
         batched: bool = False,
         batch_size: Optional[int] = 1000,
         drop_last_batch: bool = False,
-        remove_columns: Optional[List[str]] = None,
-        keep_in_memory: bool = False,
-        load_from_cache_file: bool = True,
-        cache_file_name: Optional[str] = None,
-        writer_batch_size: Optional[int] = 1000,
-        features: Optional[Features] = None,
-        disable_nullable: bool = False,
-        fn_kwargs: Optional[dict] = None,
-        num_proc: Optional[int] = None,
-        suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
-        new_fingerprint: Optional[str] = None,
         **kwargs,
-    ) -> Union[Dict, List]:
-        """Map on the dataset."""
+    ) -> Optional[Dict, List]:
+        """Apply a map over the dataset."""
 
-        assert isinstance(self._dataset, InMemoryDataset) or isinstance(
-            self._dataset, VisionDataset
-        ), (
-            "Cannot apply .update() if format isn't InMemoryDataset or" "VisionDataset."
-        )
-        # Compute the map using the underlying dataset's .map()
-        return self._dataset.map(
-            function=function,
-            with_indices=with_indices,
-            input_columns=input_columns,
-            batched=batched,
-            batch_size=batch_size,
-            drop_last_batch=drop_last_batch,
-            remove_columns=remove_columns,
-            keep_in_memory=keep_in_memory,
-            load_from_cache_file=load_from_cache_file,
-            cache_file_name=cache_file_name,
-            writer_batch_size=writer_batch_size,
-            features=features,
-            disable_nullable=disable_nullable,
-            fn_kwargs=fn_kwargs,
-            num_proc=num_proc,
-            suffix_template=suffix_template,
-            new_fingerprint=new_fingerprint,
-        )
+        # Just return if the function is None
+        if function is None:
+            logger.info("`function` None, returning None.")
+            return None
+
+        # Return if `self` has no examples
+        if not len(self):
+            logger.info("Dataset empty, returning None.")
+            return None
+
+        if isinstance(input_columns, str):
+            input_columns = [input_columns]
+
+        # Set the format
+        previous_format = self.visible_columns
+        if input_columns:
+            self.set_format(input_columns)
+
+        if not batched:
+            # Convert to a batch function
+            function = convert_to_batch_fn(function, with_indices=with_indices)
+            logger.info(f"Converting `function` {function} to a batched function.")
+
+        # Run the map
+        logger.info("Running `map`, the dataset will be left unchanged.")
+        outputs = None
+        for i, batch in tqdm(
+            enumerate(self.batch(batch_size, drop_last_batch)),
+            total=(len(self) // batch_size) + (1 - int(drop_last_batch)),
+        ):
+
+            # Run `function` on the batch
+            output = (
+                function(
+                    batch,
+                    range(i * batch_size, min(len(self), (i + 1) * batch_size)),
+                )
+                if with_indices
+                else function(batch)
+            )
+
+            if i == 0:
+                # Create an empty dict or list for the outputs
+                outputs = defaultdict(list) if isinstance(output, Mapping) else []
+
+            # Append the output
+            if output is not None:
+                if isinstance(output, Mapping):
+                    for k in output.keys():
+                        outputs[k].extend(output[k])
+                else:
+                    outputs.extend(output)
+
+        # Reset the format
+        if input_columns:
+            self.set_format(previous_format)
+
+        if not len(outputs):
+            return None
+        elif isinstance(outputs, dict):
+            return dict(outputs)
+        return outputs
 
     def filter(
         self,
