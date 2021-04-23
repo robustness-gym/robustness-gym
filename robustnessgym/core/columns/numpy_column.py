@@ -5,7 +5,7 @@ import copy
 import logging
 import os
 from collections import defaultdict
-from typing import Callable, Dict, List, Mapping, Optional, Union
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import dill
 import numpy as np
@@ -15,15 +15,14 @@ from tqdm.auto import tqdm
 from yaml.representer import Representer
 
 from robustnessgym.core.columns.abstract import AbstractColumn
-from robustnessgym.core.columns.list_column import convert_to_batch_column_fn
+from robustnessgym.core.columns.list_column import (
+    convert_to_batch_column_fn,
+    identity_collate,
+)
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
 logger = logging.getLogger(__name__)
-
-
-def identity_collate(batch: List):
-    return batch
 
 
 class NumpyArrayColumn(
@@ -33,11 +32,11 @@ class NumpyArrayColumn(
 ):
     def __init__(
         self,
-        data: np.ndarray = None,
+        data: Sequence,
         *args,
         **kwargs,
     ):
-        self._data = data
+        self._data = np.asarray(data)
         self._materialize = True
         self.collate = identity_collate
         self.visible_rows = None
@@ -48,17 +47,11 @@ class NumpyArrayColumn(
         return np.asarray(self._data)
 
     def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
-        # print(ufunc, method)
-        # print(kwargs)
-
-        # print(inputs)
-        # print("This", [type(input_) for input_ in inputs])
         # Convert the inputs to np.ndarray
         inputs = [
             input_.view(np.ndarray) if isinstance(input_, self.__class__) else input_
             for input_ in inputs
         ]
-        # print(inputs)
 
         outputs = out
         out_no = []
@@ -100,37 +93,6 @@ class NumpyArrayColumn(
             results[0].visible_rows = self.visible_rows
 
         return results[0] if len(results) == 1 else results
-        #
-        # # If the output is a single np.ndarray
-        # if isinstance(results, np.ndarray):
-        #     print("CCCC", results)
-        #     results = self.__class__.from_array(results)
-        #     results._materialize = self._materialize
-        #     results.collate = self.collate
-        #     results.visible_rows = self.visible_rows
-        #     return results
-        # elif isinstance(results, list):
-        #
-        #     # If the output is a list of np.ndarray
-        #     objects = [self.__class__.from_array(out) for out in results]
-        #     for out in results:
-        #         out = out.view(self.__class__)
-        #
-        #         out._materialize = self._materialize
-        #         out.collate = self.collate
-        #         out.visible_rows = self.visible_rows
-        #
-        #         objects.append(out)
-        #     return objects
-        # else:
-        #     print(results)
-        #     print("ABC")
-        #     results = self.__class__.from_array(np.array([results]))
-        #     results._materialize = self._materialize
-        #     results.collate = self.collate
-        #     results.visible_rows = self.visible_rows
-        #     print(results, "BCD")
-        #     return results
 
     def __new__(cls, data, *args, **kwargs):
         return np.asarray(data).view(cls)
