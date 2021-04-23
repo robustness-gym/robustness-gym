@@ -1026,6 +1026,10 @@ class TestBench(SemanticVersionerMixin):
                 "task": self.task,
                 "identifier": self.identifier,
                 "dataset_id": self.dataset_id,
+                "slices": [
+                    (sl.identifier, sl.category, sl.lineage, len(sl))
+                    for sl in self.slices
+                ],
             },
             open(str(savedir / "metadata.dill"), "wb"),
         )
@@ -1058,6 +1062,24 @@ class TestBench(SemanticVersionerMixin):
                 testbench_identifiers.append(maybe_testbench.name)
 
         return testbench_identifiers
+
+    @classmethod
+    def load_metrics(cls, path: str) -> dict:
+        """Load metrics from disk."""
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Load metrics
+        return dill.load(open(str(savedir / "metrics.dill"), "rb"))
+
+    @classmethod
+    def load_metadata(cls, path: str) -> dict:
+        """Load metrics from disk."""
+        # Path to the save directory
+        savedir = pathlib.Path(path)
+
+        # Load metrics
+        return dill.load(open(str(savedir / "metadata.dill"), "rb"))
 
     @classmethod
     def load(cls, path: str) -> TestBench:
