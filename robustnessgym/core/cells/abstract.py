@@ -75,8 +75,11 @@ class AbstractCell(abc.ABC):
         data_path = os.path.join(path, "data.dill")
         metadata_path = os.path.join(path, "meta.yaml")
 
+        # Load the metadata in
         metadata = dict(yaml.load(open(metadata_path, "r"), Loader=yaml.FullLoader))
-        return metadata["dtype"].decode(dill.load(open(data_path, "rb")))
+        return metadata["dtype"].decode(
+            dill.load(open(data_path, "rb")), *args, **kwargs
+        )
 
     @classmethod
     def read_metadata(cls, path: str, *args, **kwargs) -> dict:
