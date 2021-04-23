@@ -4,6 +4,7 @@ try:
     import spacy
     from spacy.attrs import NAMES
     from spacy.tokens import Doc
+    NAMES = [name for name in NAMES if name != "HEAD"]
 
     _is_spacy_available = True
 except ImportError:
@@ -32,7 +33,7 @@ class SpacyCell(AbstractCell):
     def get(self, *args, **kwargs):
         return self.doc
 
-    def encode(self):
+    def get_state(self):
         arr = self.get().to_array(NAMES)
         return {
             "arr": arr.flatten(),
@@ -41,9 +42,9 @@ class SpacyCell(AbstractCell):
         }
 
     @classmethod
-    def decode(cls, encoding, nlp: spacy.language.Language):
+    def from_state(cls, encoding, nlp: spacy.language.Language):
         doc = Doc(nlp.vocab, words=encoding["words"])
-        return doc.from_array(NAMES, encoding["arr"].reshape(encoding["shape"]))
+        return cls(doc.from_array(NAMES, encoding["arr"].reshape(encoding["shape"])))
 
     def __getitem__(self, index):
         return self.get()[index]

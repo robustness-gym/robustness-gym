@@ -30,8 +30,8 @@ class AbstractCell(abc.ABC):
 
     def metadata(self) -> dict:
         return {}
-
-    def encode(self):
+    
+    def get_state(self):
         """Encode `self` in order to specify what information is important to
         store.
 
@@ -40,6 +40,14 @@ class AbstractCell(abc.ABC):
         return a compressed representation of the object here.
         """
         return self
+    
+    @classmethod
+    def from_state(cls, state) -> AbstractCell:
+        """Recover the object from its compressed representation.
+
+        By default, we don't change the encoding.
+        """
+        return state
 
     def write(self, path: str) -> None:
         """Actually write the encoded object to disk."""
@@ -48,7 +56,7 @@ class AbstractCell(abc.ABC):
         data_path = os.path.join(path, "data.dill")
         metadata_path = os.path.join(path, "meta.yaml")
 
-        encoded_self = self.encode()
+        state = self.get_state()
         yaml.dump(
             {
                 "dtype": type(self),
@@ -56,15 +64,7 @@ class AbstractCell(abc.ABC):
             },
             open(metadata_path, "w"),
         )
-        return dill.dump(encoded_self, open(data_path, "wb"))
-
-    @classmethod
-    def decode(cls, encoding) -> AbstractCell:
-        """Recover the object from its compressed representation.
-
-        By default, we don't change the encoding.
-        """
-        return encoding
+        return dill.dump(state, open(data_path, "wb"))
 
     @classmethod
     def read(cls, path: str, *args, **kwargs) -> AbstractCell:
@@ -77,7 +77,7 @@ class AbstractCell(abc.ABC):
 
         # Load the metadata in
         metadata = dict(yaml.load(open(metadata_path, "r"), Loader=yaml.FullLoader))
-        return metadata["dtype"].decode(
+        return metadata["dtype"].from_state(
             dill.load(open(data_path, "rb")), *args, **kwargs
         )
 

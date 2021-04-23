@@ -29,7 +29,7 @@ class ImagePath(FileMixin, AbstractCell):
             image = self.transform(image)
         return image
 
-    def encode(self):
+    def get_state(self):
         return {
             "filepath": self.filepath,
             "loader": self.loader,
@@ -37,11 +37,11 @@ class ImagePath(FileMixin, AbstractCell):
         }
 
     @classmethod
-    def decode(cls, encoding):
+    def from_state(cls, state):
         return cls(
-            encoding["filepath"],
-            loader=encoding["loader"],
-            transform=encoding["transform"],
+            state["filepath"],
+            loader=state["loader"],
+            transform=state["transform"],
         )
 
     def __getitem__(self, index):

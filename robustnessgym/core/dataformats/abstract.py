@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from datasets.arrow_dataset import DatasetInfoMixin
+import torch
 
 from robustnessgym.core.tools import recmerge
 
@@ -260,7 +261,6 @@ class AbstractDataset(
                 output = function(self[0], 0)
             else:
                 output = function(self[0])
-
         if isinstance(output, Mapping):
             # `function` returns a dict output
             dict_output = True
@@ -277,13 +277,21 @@ class AbstractDataset(
         elif output is None:
             # `function` returns None
             no_output = True
-        elif isinstance(output, bool):
+        elif isinstance(output, bool) or (
+            hasattr(output, "dtype") and output.dtype in (np.bool, torch.bool)
+        ):
             # `function` returns a bool
             bool_output = True
-        elif isinstance(output, list):
+        elif isinstance(output, (Sequence, torch.Tensor, np.ndarray)):
             # `function` returns a list
             list_output = True
-            if batched and isinstance(output[0], bool):
+            if batched and (
+                isinstance(output[0], bool)
+                or (
+                    hasattr(output[0], "dtype")
+                    and output[0].dtype in (np.bool, torch.bool)
+                )
+            ):
                 # `function` returns a bool per example
                 bool_output = True
 
