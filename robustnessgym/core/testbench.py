@@ -1027,7 +1027,8 @@ class TestBench(SemanticVersionerMixin):
                 "identifier": self.identifier,
                 "dataset_id": self.dataset_id,
                 "slices": [
-                    (sl.identifier, sl.category, sl.lineage) for sl in self.slices
+                    (sl.identifier, sl.category, sl.lineage, len(sl))
+                    for sl in self.slices
                 ],
             },
             open(str(savedir / "metadata.dill"), "wb"),
