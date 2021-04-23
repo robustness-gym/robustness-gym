@@ -15,10 +15,8 @@ from tqdm.auto import tqdm
 from yaml.representer import Representer
 
 from robustnessgym.core.columns.abstract import AbstractColumn
-from robustnessgym.core.columns.list_column import (
-    convert_to_batch_column_fn,
-    identity_collate,
-)
+from robustnessgym.core.columns.list_column import (identity_collate)
+from robustnessgym.core.tools import convert_to_batch_column_fn
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 

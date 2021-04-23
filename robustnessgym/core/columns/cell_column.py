@@ -4,6 +4,7 @@ import copy
 import logging
 import os
 from collections import defaultdict
+from robustnessgym.core.mixins.state import StateDictMixin
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import dill
@@ -14,7 +15,7 @@ from tqdm.auto import tqdm
 
 from robustnessgym.core.cells.abstract import AbstractCell
 from robustnessgym.core.columns.abstract import AbstractColumn
-from robustnessgym.core.tools import convert_to_batch_fn
+from robustnessgym.core.tools import convert_to_batch_column_fn
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def identity_collate(batch: List):
     return batch
 
 
-class CellColumn(AbstractColumn):
+class CellColumn(StateDictMixin, AbstractColumn):
     def __init__(
         self,
         cells: Sequence[AbstractCell] = None,
@@ -142,7 +143,8 @@ class CellColumn(AbstractColumn):
 
         if not batched:
             # Convert to a batch function
-            function = convert_to_batch_fn(function, with_indices=with_indices)
+            function = convert_to_batch_column_fn(function, with_indices=with_indices)
+            batched = True
             logger.info(f"Converting `function` {function} to a batched function.")
 
         # # Get some information about the function
@@ -242,7 +244,8 @@ class CellColumn(AbstractColumn):
         return new_column
 
     @classmethod
-    def read(cls, path: str) -> CellColumn:
+    def read(cls, path: str, *args, **kwargs) -> CellColumn:
+        # TODO: make this based off of `get_state` `from_state`
         metadata = dict(
             yaml.load(
                 open(os.path.join(path, "meta.yaml"), "r"), Loader=yaml.FullLoader
@@ -251,12 +254,12 @@ class CellColumn(AbstractColumn):
         if metadata["write_together"]:
             data = dill.load(open(os.path.join(path, "data.dill"), "rb"))
             cells = [
-                dtype.decode(encoding)
+                dtype.decode(encoding, *args, **kwargs)
                 for dtype, encoding in zip(metadata["cell_dtypes"], data)
             ]
         else:
             cells = [
-                dtype.read(path)
+                dtype.read(path, *args, **kwargs)
                 for dtype, path in zip(metadata["cell_dtypes"], metadata["cell_paths"])
             ]
 
@@ -267,6 +270,7 @@ class CellColumn(AbstractColumn):
         return column
 
     def write(self, path: str, write_together: bool = True) -> None:
+        # TODO: make this based off of `get_state` `from_state`
         metadata_path = os.path.join(path, "meta.yaml")
         state = self.__getstate__()
         del state["_cells"]
@@ -315,29 +319,4 @@ class CellColumn(AbstractColumn):
         """List of attributes that describe the state of the object."""
         return {"_materialize", "collate", "_cells"}
 
-    # TODO: add these state methods to a mixin, and add support for handling changing
-    # state keys
-    def __getstate__(self) -> Dict:
-        """Get the internal state of the dataset."""
-        state = {key: getattr(self, key) for key in self._state_keys()}
-        self._assert_state_keys(state)
-        return state
-
-    @classmethod
-    def _assert_state_keys(cls, state: Dict) -> None:
-        """Assert that a state contains all required keys."""
-        assert (
-            set(state.keys()) == cls._state_keys()
-        ), f"State must contain all state keys: {cls._state_keys()}."
-
-    def __setstate__(self, state: Dict) -> None:
-        """Set the internal state of the dataset."""
-        if not isinstance(state, dict):
-            raise ValueError(
-                f"`state` must be a dictionary containing " f"{self._state_keys()}."
-            )
-
-        self._assert_state_keys(state)
-
-        for key in self._state_keys():
-            setattr(self, key, state[key])
+    

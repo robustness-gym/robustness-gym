@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 from yaml.representer import Representer
 
 from robustnessgym.core.columns.abstract import AbstractColumn
+from robustnessgym.core.tools import convert_to_batch_column_fn
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
@@ -23,55 +24,6 @@ logger = logging.getLogger(__name__)
 
 def identity_collate(batch: List):
     return batch
-
-
-def convert_to_batch_column_fn(function: Callable, with_indices: bool):
-    """Batch a function that applies to an example."""
-
-    def _function(batch: Sequence, indices: Optional[List[int]], *args, **kwargs):
-        # Pull out the batch size
-        batch_size = len(batch)
-
-        # Iterate and apply the function
-        outputs = None
-        for i in range(batch_size):
-
-            # Apply the unbatched function
-            if with_indices:
-                output = function(
-                    batch[i],
-                    indices[i],
-                    *args,
-                    **kwargs,
-                )
-            else:
-                output = function(
-                    batch[i],
-                    *args,
-                    **kwargs,
-                )
-
-            if i == 0:
-                # Create an empty dict or list for the outputs
-                outputs = defaultdict(list) if isinstance(output, dict) else []
-
-            # Append the output
-            if isinstance(output, dict):
-                for k in output.keys():
-                    outputs[k].append(output[k])
-            else:
-                outputs.append(output)
-
-        if isinstance(outputs, dict):
-            return dict(outputs)
-        return outputs
-
-    if with_indices:
-        # Just return the function as is
-        return _function
-    else:
-        # Wrap in a lambda to apply the indices argument
-        return lambda batch, *args, **kwargs: _function(batch, None, *args, **kwargs)
 
 
 # Q. how to handle collate and materialize here? Always materialized but only sometimes

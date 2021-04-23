@@ -7,7 +7,11 @@ import os
 import pathlib
 from contextlib import contextmanager
 from copy import copy, deepcopy
+from robustnessgym.core.columns.cell_column import CellColumn
+from robustnessgym.core.cells.abstract import AbstractCell
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
+from collections import defaultdict
+
 
 import cytoolz as tz
 import datasets
@@ -129,6 +133,8 @@ class Dataset(AbstractDataset):
         # TODO (sabri): put in a registry
         if isinstance(data, AbstractColumn):
             return data
+        elif len(data) != 0 and isinstance(data[0], AbstractCell):
+            return CellColumn(data)
         else:
             return ListColumn(data)
 
@@ -201,11 +207,22 @@ class Dataset(AbstractDataset):
 
     def set_visible_rows(self, indices: Sequence):
         """Set the visible rows in the dataset."""
-        self._dataset.set_visible_rows(indices)
+        if indices is None:
+            self.visible_rows = None
+        else:
+            if len(indices):
+                assert min(indices) >= 0 and max(indices) < len(self), (
+                    f"Ensure min index {min(indices)} >= 0 and "
+                    f"max index {max(indices)} < {len(self)}."
+                )
+            if self.visible_rows is not None:
+                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
+            else:
+                self.visible_rows = np.array(indices, dtype=int)
 
     def reset_visible_rows(self):
         """Reset to make all rows visible."""
-        self._dataset.reset_visible_rows()
+        self.visible_rows = None
 
     def add_column(self, name: str, data: Columnable, overwrite=False) -> None:
         """Add a column to the dataset."""
@@ -336,6 +353,20 @@ class Dataset(AbstractDataset):
             return {
                 k: [self._data[k][int(i)] for i in index] for k in self.visible_columns
             }
+        else:
+            raise TypeError("Invalid argument type: {}".format(type(index)))
+
+    def _remap_index(self, index):
+        if isinstance(index, int):
+            return self.visible_rows[index].item()
+        elif isinstance(index, slice):
+            return self.visible_rows[index].tolist()
+        elif isinstance(index, str):
+            return index
+        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
+            return self.visible_rows[index].tolist()
+        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
+            return self.visible_rows[index].tolist()
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
@@ -566,47 +597,6 @@ class Dataset(AbstractDataset):
         """Convert a Dataset to a pandas DataFrame."""
         return pd.DataFrame(self[:])
 
-    def to_dataloader(
-        self,
-        columns: Sequence[str],
-        column_to_transform: Optional[Mapping[str, Callable]] = None,
-        **kwargs,
-    ) -> torch.utils.data.DataLoader:
-        """Get a PyTorch dataloader that iterates over a subset of the columns
-        (specified by `columns`) in the dataset. This is handy when using the dataset
-        with training or evaluation loops outside of robustnessgym.  For example:
-        ```
-        dataset = Dataset(...)
-        for img, target in dataset.to_dataloader(
-            columns=["img_path", "label"],
-            batch_size=16,
-            num_workers=12
-        ):
-            out = model(target)
-            loss = loss(out, target)
-            ...
-        ```
-
-        Args:
-            columns (Sequence[str]): A subset of the columns in the dataset.
-                Specifies the columns to load. The dataloader will return values in same
-                 order as `columns` here.
-            column_to_transform (Optional[Mapping[str, Callable]], optional): A mapping
-                from zero or more `columns` to callable transforms to be applied by the
-                dataloader. Defaults to None, in which case no transforms are applied.
-                e.g. `column_to_transform={"img_path": transforms.Resize((128,128))}`.
-
-        Returns:
-            torch.utils.data.DataLoader: dataloader that iterates over dataset
-        """
-        if not hasattr(self._dataset, "to_dataloader"):
-            raise NotImplementedError(
-                f'`to_dataloader` is not supported for format "{self._dataset_fmt}"'
-            )
-        return self._dataset.to_dataloader(
-            columns=columns, column_to_transform=column_to_transform, **kwargs
-        )
-
     def to_jsonl(self, path: str) -> None:
         """Save a Dataset to a jsonl file."""
         with jsonlines.open(path, mode="w") as writer:
@@ -620,7 +610,7 @@ class Dataset(AbstractDataset):
         self, batch_size: int = 32, drop_last_batch: bool = False, *args, **kwargs
     ):
         """Batch the dataset.
-        TODO: 
+        TODO:
 
         Args:
             batch_size: integer batch size
@@ -648,8 +638,6 @@ class Dataset(AbstractDataset):
             **kwargs,
         )
 
-   
-
     def update(
         self,
         function: Optional[Callable] = None,
@@ -657,62 +645,118 @@ class Dataset(AbstractDataset):
         # input_columns: Optional[Union[str, List[str]]] = None,
         batched: bool = False,
         batch_size: Optional[int] = 1000,
-        drop_last_batch: bool = False,
-        # remove_columns: Optional[List[str]] = None,
-        # keep_in_memory: bool = False,
-        # load_from_cache_file: bool = True,
-        # cache_file_name: Optional[str] = None,
-        # writer_batch_size: Optional[int] = 1000,
-        # features: Optional[Features] = None,
-        # disable_nullable: bool = False,
-        # fn_kwargs: Optional[dict] = None,
-        # num_proc: Optional[int] = None,
-        # suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
-        # new_fingerprint: Optional[str] = None,
+        remove_columns: Optional[List[str]] = None,
         **kwargs,
     ) -> Dataset:
-        """Map on the dataset."""
+        """Update the columns of the dataset."""
+        # TODO(karan): make this fn go faster
+        # most of the time is spent on the merge, speed it up further
 
-        assert isinstance(self._dataset, InMemoryDataset) or isinstance(
-            self._dataset, VisionDataset
-        ), "Cannot apply .update() if format isn't InMemoryDataset."
-        # Compute the map using the underlying dataset's .map()
-        output = self._dataset.update(
-            function=function,
-            with_indices=with_indices,
-            # input_columns=input_columns,
-            batched=batched,
-            batch_size=batch_size,
-            drop_last_batch=drop_last_batch,
-            # remove_columns=remove_columns,
-            # keep_in_memory=keep_in_memory,
-            # load_from_cache_file=load_from_cache_file,
-            # cache_file_name=cache_file_name,
-            # writer_batch_size=writer_batch_size,
-            # features=features,
-            # disable_nullable=disable_nullable,
-            # fn_kwargs=fn_kwargs,
-            # num_proc=num_proc,
-            # suffix_template=suffix_template,
-            # new_fingerprint=new_fingerprint,
-            **kwargs,
-        )
+        # Return if the function is None
+        if function is None:
+            logger.info("`function` None, returning None.")
+            return self
 
-        if isinstance(output, datasets.Dataset):
-            dataset = copy(self)
-            dataset._dataset = output
-        elif isinstance(output, InMemoryDataset):
-            dataset = copy(self)
-            dataset._dataset = output
-        elif isinstance(output, VisionDataset):
-            dataset = copy(self)
-            dataset._dataset = output
-        elif output is None:
-            dataset = self
+        # Return if `self` has no examples
+        if not len(self):
+            logger.info("Dataset empty, returning None.")
+            return self
+
+        # Get some information about the function
+        function_properties = self._inspect_function(function, with_indices, batched)
+        assert (
+            function_properties.dict_output
+        ), f"`function` {function} must return dict."
+
+        if not batched:
+            # Convert to a batch function
+            function = convert_to_batch_fn(function, with_indices=with_indices)
+            logger.info(f"Converting `function` {function} to batched function.")
+
+        # Update always returns a new dataset
+        logger.info("Running update, a new dataset will be returned.")
+        if self.visible_rows is not None:
+            # Run .map() to get updated batches and pass them into a new dataset
+            new_dataset = Dataset(
+                self.map(
+                    (
+                        lambda batch, indices: self._merge_batch_and_output(
+                            batch, function(batch, indices)
+                        )
+                    )
+                    if with_indices
+                    else (
+                        lambda batch: self._merge_batch_and_output(
+                            batch, function(batch)
+                        )
+                    ),
+                    with_indices=with_indices,
+                    batched=True,
+                    batch_size=batch_size,
+                )
+            )
         else:
-            raise NotImplementedError("Unrecognized dataset.")
+            if function_properties.updates_existing_column:
+                # Copy the ._data dict with a reference to the actual columns
+                new_dataset = self.copy()
 
-        return dataset
+                # Calculate the values for the updated columns using a .map()
+                output = self.map(
+                    (
+                        lambda batch, indices:
+                        # Only merge columns that get updated
+                        self._merge_batch_and_output(
+                            {
+                                k: v
+                                for k, v in batch.items()
+                                if k in function_properties.existing_columns_updated
+                            },
+                            function(batch, indices),
+                        )
+                    )
+                    if with_indices
+                    else (
+                        lambda batch:
+                        # Only merge columns that get updated
+                        self._merge_batch_and_output(
+                            {
+                                k: v
+                                for k, v in batch.items()
+                                if k in function_properties.existing_columns_updated
+                            },
+                            function(batch),
+                        )
+                    ),
+                    with_indices=with_indices,
+                    batched=True,
+                    batch_size=batch_size,
+                )
+
+                # Add new columns / overwrite existing columns for the update
+                for col, vals in output.items():
+                    new_dataset.add_column(col, vals, overwrite=True)
+            else:
+                # Copy the ._data dict with a reference to the actual columns
+                new_dataset = self.copy()
+
+                # Calculate the values for the new columns using a .map()
+                output = new_dataset.map(
+                    function=function,
+                    with_indices=with_indices,
+                    batched=True,
+                    batch_size=batch_size,
+                )
+                # Add new columns for the update
+                for col, vals in output.items():
+                    new_dataset.add_column(col, vals)
+
+        # Remove columns
+        if remove_columns:
+            for col in remove_columns:
+                new_dataset.remove_column(col)
+            logger.info(f"Removed columns {remove_columns}.")
+
+        return new_dataset
 
     def map(
         self,
@@ -794,48 +838,50 @@ class Dataset(AbstractDataset):
         function: Optional[Callable] = None,
         with_indices=False,
         input_columns: Optional[Union[str, List[str]]] = None,
+        batched: bool = False,
         batch_size: Optional[int] = 1000,
-        remove_columns: Optional[List[str]] = None,
-        keep_in_memory: bool = False,
-        load_from_cache_file: bool = True,
-        cache_file_name: Optional[str] = None,
-        writer_batch_size: Optional[int] = 1000,
-        fn_kwargs: Optional[dict] = None,
-        num_proc: Optional[int] = None,
-        suffix_template: str = "_{rank:05d}_of_{num_proc:05d}",
-        new_fingerprint: Optional[str] = None,
+        drop_last_batch: bool = False,
+        **kwargs,
     ) -> Dataset:
         """Filter operation on the dataset."""
         # Compute the filter using the underlying dataset's .filter()
-        output = self._dataset.filter(
+        # Just return if the function is None
+        if function is None:
+            logger.info("`function` None, returning None.")
+            return None
+
+        # Return if `self` has no examples
+        if not len(self):
+            logger.info("Dataset empty, returning None.")
+            return None
+
+        # Get some information about the function
+        function_properties = self._inspect_function(
+            function,
+            with_indices,
+            batched=batched,
+        )
+        assert function_properties.bool_output, "function must return boolean."
+
+        # Map to get the boolean outputs and indices
+        logger.info("Running `filter`, a new dataset will be returned.")
+        outputs = self.map(
             function=function,
             with_indices=with_indices,
             input_columns=input_columns,
+            batched=batched,
             batch_size=batch_size,
-            remove_columns=remove_columns,
-            keep_in_memory=keep_in_memory,
-            load_from_cache_file=load_from_cache_file,
-            cache_file_name=cache_file_name,
-            writer_batch_size=writer_batch_size,
-            fn_kwargs=fn_kwargs,
-            num_proc=num_proc,
-            suffix_template=suffix_template,
-            new_fingerprint=new_fingerprint,
+            drop_last_batch=drop_last_batch,
         )
+        indices = np.where(outputs)[0]
 
-        if isinstance(output, datasets.Dataset):
-            dataset = copy(self)
-            dataset._dataset = output
-        elif isinstance(output, InMemoryDataset):
-            dataset = copy(self)
-            dataset._dataset = output
-        elif isinstance(output, VisionDataset):
-            dataset = deepcopy(self)
-            dataset._dataset = output
-        else:
-            raise NotImplementedError("Unrecognized dataset generated after .filter().")
+        # Reset the format to set visible columns for the filter
+        with self.format():
+            # Filter returns a new dataset
+            new_dataset = self.copy()
+            new_dataset.set_visible_rows(indices)
 
-        return dataset
+        return new_dataset
 
     @classmethod
     def interleave(
@@ -911,8 +957,10 @@ class Dataset(AbstractDataset):
 
         return dataset
 
-    def save_to_disk(self, path: str = None) -> None:
+    def write(self, path: str = None, write_together: bool = True) -> None:
         """Save a dataset to disk."""
+        # TODO: make this based off of `get_state` `from_state`
+
         if path is None:
             path = str(self.logdir)
 
@@ -921,10 +969,16 @@ class Dataset(AbstractDataset):
 
         # Get the dataset state
         state = self.__getstate__()
+        del state["_data"]
 
-        # Save the data to disk
-        os.makedirs(os.path.join(path, "_dataset"), exist_ok=True)
-        state["_dataset"].save_to_disk(os.path.join(path, "_dataset"))
+        if write_together:
+            pass
+        else: 
+            # Save the data to disk
+            columns_path = os.path.join(path, "columns")
+            os.makedirs(columns_path, exist_ok=True)
+            for name, column in self._data.items():
+                column.write(os.path.join(columns_path, name))
 
         # Save the metadata to disk
         json.dump(
@@ -932,14 +986,25 @@ class Dataset(AbstractDataset):
             open(os.path.join(path, "metadata.json"), "w"),
         )
 
+    def copy(self, deepcopy=False):
+        """Return a copy of the dataset."""
+        if deepcopy:
+            return copy.deepcopy(self)
+        else:
+            dataset = Dataset()
+            dataset.__dict__ = {k: copy(v) for k, v in self.__dict__.items()}
+            return dataset
+
     @classmethod
     def _state_keys(cls) -> set:
         """List of attributes that describe the state of the object."""
         return {
-            "interactions",
             "_identifier",
-            "_dataset",
-            "_dataset_fmt",
+            "_data",
+            "all_columns",
+            "visible_rows",
+            "_info",
+            "_split",
         }
 
     @classmethod
@@ -948,19 +1013,19 @@ class Dataset(AbstractDataset):
         assert (
             set(state.keys()) == cls._state_keys()
         ), f"State must contain all state keys: {cls._state_keys()}."
+    
 
     def __getstate__(self):
         """Get the current state of the dataset."""
 
         state = {
-            # Interaction state
-            "interactions": self.dumps_interactions(),
-            # Identifier
             "_identifier": self.identifier.dumps() if self.identifier else None,
-            # Dataset
-            "_dataset": self._dataset,
-            # Dataset format
-            "_dataset_fmt": self._dataset_fmt,
+            "_data": {name: col.__getstate__() for name, col in self._data.items()},
+            **{
+                key: getattr(self, key)
+                for key in self._state_keys()
+                if key not in ["_identifier", "_data"]
+            },
         }
         Dataset._assert_state_keys(state)
 

@@ -58,12 +58,12 @@ class AbstractColumn(abc.ABC):
     def __len__(self) -> int:
         raise NotImplementedError()
 
-    def encode(self):
+    def get_state(self):
         return self
 
     @classmethod
-    def decode(cls):
-        raise NotImplementedError()
+    def from_state(cls, state) -> AbstractColumn:
+        return state
 
     @abstractmethod
     def write(self, path) -> None:
@@ -95,6 +95,7 @@ class AbstractColumn(abc.ABC):
         with_indices: bool = False,
         batched: bool = False,
     ) -> SimpleNamespace:
+        # TODO(Sabri): unify this function with dataset
 
         # Initialize variables to track
         no_output = dict_output = bool_output = list_output = False
@@ -125,7 +126,6 @@ class AbstractColumn(abc.ABC):
         elif isinstance(output, (Sequence, torch.Tensor, np.ndarray)):
             # `function` returns a list
             list_output = True
-            print(output, output[0])
             if batched and (
                 isinstance(output[0], bool)
                 or (
