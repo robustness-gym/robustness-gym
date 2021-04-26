@@ -1,17 +1,13 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Callable, Sequence, Union
-import dill
-from dosma.data_io.dicom_io import DicomReader
-import yaml
-import os
-
-from robustnessgym.core.cells.abstract import AbstractCell
-from robustnessgym.core.mixins.file import FileMixin
 
 from dosma.data_io.format_io import DataReader, ImageDataFormat
 from dosma.data_io.format_io_utils import get_reader
+
+from robustnessgym.mosaic.cells.abstract import AbstractCell
 
 
 class MedicalVolumeCell(AbstractCell):
@@ -20,10 +16,12 @@ class MedicalVolumeCell(AbstractCell):
     Examples:
 
         # Specify xray dicoms with default orientation ``("SI", "AP")``:
-        >>> cell = MedicalVolumeCell("/path/to/xray.dcm", loader=DicomReader(group_by=None, default_ornt=("SI", "AP"))
+        >>> cell = MedicalVolumeCell("/path/to/xray.dcm",
+        loader=DicomReader(group_by=None, default_ornt=("SI", "AP"))
 
         # Load multi-echo MRI volumes
-        >>> cell = MedicalVolumeCell("/path/to/mri/scan/dir", loader=DicomReader(group_by="EchoNumbers"))
+        >>> cell = MedicalVolumeCell("/path/to/mri/scan/dir",
+        loader=DicomReader(group_by="EchoNumbers"))
     """
 
     def __init__(
@@ -42,7 +40,7 @@ class MedicalVolumeCell(AbstractCell):
         self.path = path
         self.transform = transform
         self.loader = self.get_default_reader(path) if loader is None else loader
-        self.transform = transform 
+        self.transform = transform
 
     def get_default_reader(self, path):
         # TODO (arjundd): Make issue in DOSMA asking them to handle these cases.

@@ -14,12 +14,8 @@ class FileMixin:
         # Assign the path
         self.filepath = filepath
 
-    @property
-    def filename(self):
-        # TODO:
-        return self.filepath.name
-
-    @property
-    def extension(self):
-        # TODO:
-        return self.filepath.extension
+    def __getattr__(self, item):
+        try:
+            return getattr(self.filepath, item)
+        except AttributeError:
+            raise AttributeError(f"Attribute {item} not found.")

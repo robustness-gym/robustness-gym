@@ -4,12 +4,13 @@ try:
     import spacy
     from spacy.attrs import NAMES
     from spacy.tokens import Doc
+
     NAMES = [name for name in NAMES if name != "HEAD"]
 
     _is_spacy_available = True
 except ImportError:
     _is_spacy_available = False
-from robustnessgym.core.cells.abstract import AbstractCell
+from robustnessgym.mosaic.cells.abstract import AbstractCell
 
 
 class SpacyCell(AbstractCell):
@@ -56,14 +57,14 @@ class SpacyCell(AbstractCell):
             raise AttributeError(f"Attribute {item} not found.")
 
     def __repr__(self):
-        return self.get().__repr__()
+        return f"{self.__class__.__name__}({self.get().__repr__()})"
 
 
 class LazySpacyCell(AbstractCell):
     def __init__(
         self,
         text: str,
-        nlp: spacy.language.Langauge,
+        nlp: spacy.language.Language,
         *args,
         **kwargs,
     ):
@@ -82,18 +83,14 @@ class LazySpacyCell(AbstractCell):
     def get(self, *args, **kwargs):
         return self.nlp(self.text)
 
-    def encode(self):
-        arr = self.get().to_array(NAMES)
+    def get_state(self):
         return {
-            "arr": arr.flatten(),
-            "shape": list(arr.shape),
-            "words": [t.text for t in self.get()],
+            "text": self.text,
         }
 
     @classmethod
-    def decode(cls, encoding, nlp: spacy.language.Language):
-        doc = Doc(nlp.vocab, words=encoding["words"])
-        return doc.from_array(NAMES, encoding["arr"].reshape(encoding["shape"]))
+    def from_state(cls, state, nlp: spacy.language.Language):
+        return cls(text=state["text"], nlp=nlp)
 
     def __getitem__(self, index):
         return self.get()[index]
@@ -105,4 +102,5 @@ class LazySpacyCell(AbstractCell):
             raise AttributeError(f"Attribute {item} not found.")
 
     def __repr__(self):
-        return self.get().__repr__()
+        snippet = f"{self.text[:15]}..." if len(self.text) > 20 else self.text
+        return f"{self.__class__.__name__}({snippet})"
