@@ -10,6 +10,17 @@ import progressbar
 import yaml
 
 
+def transpose_dict_of_lists(d: Dict):
+    """Transpose a dict of lists to a list of dicts.
+
+    Args:
+        d (Dict): a dictionary mapping keys to lists
+
+    Returns: list of dicts, each dict corresponding to a single entry
+    """
+    return [dict(zip(d, t)) for t in zip(*d.values())]
+
+
 def convert_to_batch_column_fn(function: Callable, with_indices: bool):
     """Batch a function that applies to an example."""
 
@@ -57,6 +68,7 @@ def convert_to_batch_column_fn(function: Callable, with_indices: bool):
     else:
         # Wrap in a lambda to apply the indices argument
         return lambda batch, *args, **kwargs: _function(batch, None, *args, **kwargs)
+
 
 def convert_to_batch_fn(function: Callable, with_indices: bool):
     """Batch a function that applies to an example."""
@@ -297,14 +309,11 @@ class class_or_instancemethod(classmethod):
 
 def nested_map(f, *args):
     """ Recursively transpose a nested structure of tuples, lists, and dicts """
-    assert len(args) > 0, 'Must have at least one argument.'
+    assert len(args) > 0, "Must have at least one argument."
     arg = args[0]
     if isinstance(arg, Sequence):
         return [nested_map(f, *a) for a in zip(*args)]
     elif isinstance(arg, Mapping):
-        return {
-            k: nested_map(f, *[a[k] for a in args])
-            for k in arg
-        }
+        return {k: nested_map(f, *[a[k] for a in args]) for k in arg}
     else:
         return f(*args)

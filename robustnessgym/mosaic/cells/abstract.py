@@ -12,27 +12,45 @@ Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
 
 class AbstractCell(abc.ABC):
-    data: object = None
-    loader: object = None
-
-    @abstractmethod
     def __init__(self, *args, **kwargs):
         super(AbstractCell, self).__init__(*args, **kwargs)
-
-    @abstractmethod
-    def default_loader(self, *args, **kwargs):
-        raise NotImplementedError("Must implement `default_loader`.")
 
     @abstractmethod
     def get(self, *args, **kwargs):
         """Get me the thing that this cell exists for."""
         raise NotImplementedError("Must implement `get`.")
 
+    def loader(self, *args, **kwargs) -> object:
+        return self
+
+    @property
+    def data(self) -> object:
+        """Get the data associated with this cell."""
+        return NotImplemented
+
+    @property
     def metadata(self) -> dict:
+        """Get the metadata associated with this cell."""
         return {}
-    
-    def get_state(self):
-        """Encode `self` in order to specify what information is important to
+
+    def __getitem__(self, index):
+        return self.get()[index]
+
+    def __getattr__(self, item):
+        try:
+            return getattr(self.get(), item)
+        except AttributeError:
+            raise AttributeError(f"Attribute {item} not found.")
+
+    def __str__(self):
+        return f"{self.__class__.__name__}"
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
+
+    def get_state(self) -> object:
+        """
+        Encode `self` in order to specify what information is important to
         store.
 
         By default, we just return `self` so the entire object is
@@ -40,12 +58,12 @@ class AbstractCell(abc.ABC):
         return a compressed representation of the object here.
         """
         return self
-    
+
     @classmethod
     def from_state(cls, state) -> AbstractCell:
         """Recover the object from its compressed representation.
 
-        By default, we don't change the encoding.
+        By default, we don't change the state.
         """
         return state
 

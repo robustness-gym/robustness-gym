@@ -9,103 +9,48 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import dill
 import numpy as np
-import numpy.lib.mixins
 import yaml
 from tqdm.auto import tqdm
 from yaml.representer import Representer
 
-from robustnessgym.core.columns.abstract import AbstractColumn
-from robustnessgym.core.columns.list_column import (identity_collate)
 from robustnessgym.core.tools import convert_to_batch_column_fn
+from robustnessgym.mosaic.columns.abstract import AbstractColumn
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
+
 
 logger = logging.getLogger(__name__)
 
 
-class NumpyArrayColumn(
-    AbstractColumn,
-    np.ndarray,
-    numpy.lib.mixins.NDArrayOperatorsMixin,
-):
+def identity_collate(batch: List):
+    return batch
+
+
+# Q. how to handle collate and materialize here? Always materialized but only sometimes
+# may want to collate (because collate=True should return a batch-style object, while
+# collate=False should return a Column style object).
+
+
+class ListColumn(AbstractColumn):
     def __init__(
         self,
-        data: Sequence,
+        data: Sequence = None,
+        collate_fn: Callable = None,
         *args,
         **kwargs,
     ):
-        self._data = np.asarray(data)
+        self._data = data
         self._materialize = True
-        self.collate = identity_collate
+        if collate_fn is not None:
+            self.collate = collate_fn
+        else:
+            self.collate = identity_collate
         self.visible_rows = None
 
-        super(NumpyArrayColumn, self).__init__(num_rows=len(self), *args, **kwargs)
-
-    def __array__(self, *args, **kwargs):
-        return np.asarray(self._data)
-
-    def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
-        # Convert the inputs to np.ndarray
-        inputs = [
-            input_.view(np.ndarray) if isinstance(input_, self.__class__) else input_
-            for input_ in inputs
-        ]
-
-        outputs = out
-        out_no = []
-        if outputs:
-            out_args = []
-            for j, output in enumerate(outputs):
-                if isinstance(output, self.__class__):
-                    out_no.append(j)
-                    out_args.append(output.view(np.ndarray))
-                else:
-                    out_args.append(output)
-            kwargs["out"] = tuple(out_args)
-        else:
-            outputs = (None,) * ufunc.nout
-
-        # Apply ufunc, method
-        results = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
-        if results is NotImplemented:
-            return NotImplemented
-
-        if ufunc.nout == 1:
-            results = (results,)
-
-        results = tuple(
-            (
-                np.asarray(result).view(self.__class__)
-                if result.ndim > 0
-                else np.asarray([result]).view(self.__class__)
-                if output is None
-                else output
-            )
-            for result, output in zip(results, outputs)
-        )
-
-        if results and isinstance(results[0], self.__class__):
-            results[0]._data = np.asarray(results[0])
-            results[0]._materialize = self._materialize
-            results[0].collate = self.collate
-            results[0].visible_rows = self.visible_rows
-
-        return results[0] if len(results) == 1 else results
-
-    def __new__(cls, data, *args, **kwargs):
-        return np.asarray(data).view(cls)
-
-    def __array_finalize__(self, obj) -> None:
-        if obj is None:
-            return
-
-        self._data = getattr(obj, "_data", None)
-        self._materialize = getattr(obj, "_materialize", True)
-        self.collate = getattr(obj, "collate", identity_collate)
-        self.visible_rows = getattr(obj, "visible_rows", None)
+        super(ListColumn, self).__init__(num_rows=len(self), *args, **kwargs)
 
     @classmethod
-    def from_array(cls, data: np.ndarray, *args, **kwargs):
+    def from_list(cls, data: Sequence, *args, **kwargs):
         return cls(data=data, *args, **kwargs)
 
     def metadata(self):
@@ -134,25 +79,21 @@ class NumpyArrayColumn(
         if isinstance(index, slice):
             # int or slice index => standard list slicing
             data = self._data[index]
-        elif isinstance(index, tuple) and len(index):
-            data = self.__array__()[index]
-        elif isinstance(index, list) and len(index):
+        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
             data = [self._data[i] for i in index]
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
             data = [self._data[int(i)] for i in index]
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
-        # TODO(karan): do we need collate in NumpyArrayColumn
-        # if self._materialize:
+        # TODO(karan): do we need collate in ListColumn
+        # if self._materialize:  # self._collate
         #     # return a batch
         #     return self.collate([element for element in data])
         # else:
-        # if not materializing, return a new NumpyArrayColumn
-        # return self.from_list(data)
-        if data.ndim > 0:
-            return self.from_array(data)
-        return self.from_array([data])
+        #     # if not materializing, return a new ListColumn
+        #     return self.from_list(data)
+        return self.from_list(data)
 
     def batch(
         self,
@@ -162,7 +103,7 @@ class NumpyArrayColumn(
         *args,
         **kwargs,
     ):
-        # TODO(karan): do we need collate in NumpyArrayColumn
+        # TODO(karan): do we need collate in ListColumn
         # if self._materialize:
         #     return torch.utils.data.DataLoader(
         #         self,
@@ -173,10 +114,10 @@ class NumpyArrayColumn(
         #         **kwargs,
         #     )
         # else:
-        #     return super(NumpyArrayColumn, self).batch(
+        #     return super(ListColumn, self).batch(
         #         batch_size=batch_size, drop_last_batch=drop_last_batch
         #     )
-        return super(NumpyArrayColumn, self).batch(
+        return super(ListColumn, self).batch(
             batch_size=batch_size, drop_last_batch=drop_last_batch
         )
 
@@ -275,7 +216,7 @@ class NumpyArrayColumn(
         drop_last_batch: bool = False,
         num_proc: Optional[int] = 64,
         **kwargs,
-    ) -> Optional[NumpyArrayColumn]:
+    ) -> Optional[ListColumn]:
         """Apply a filter over the dataset."""
         # Just return if the function is None
         if function is None:
@@ -313,7 +254,7 @@ class NumpyArrayColumn(
         return new_column
 
     @classmethod
-    def read(cls, path: str) -> NumpyArrayColumn:
+    def read(cls, path: str) -> ListColumn:
         # Load in the data
         metadata = dict(
             yaml.load(
@@ -357,7 +298,7 @@ class NumpyArrayColumn(
         if deepcopy:
             return copy.deepcopy(self)
         else:
-            dataset = NumpyArrayColumn()
+            dataset = ListColumn()
             dataset.__dict__ = {k: copy.copy(v) for k, v in self.__dict__.items()}
             return dataset
 
@@ -381,7 +322,7 @@ class NumpyArrayColumn(
             set(state.keys()) == cls._state_keys()
         ), f"State must contain all state keys: {cls._state_keys()}."
 
-    def __setstate__(self, state: Dict, **kwargs) -> None:
+    def __setstate__(self, state: Dict) -> None:
         """Set the internal state of the dataset."""
         if not isinstance(state, dict):
             raise ValueError(

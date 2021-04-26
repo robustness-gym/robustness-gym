@@ -4,7 +4,6 @@ import copy
 import logging
 import os
 from collections import defaultdict
-from robustnessgym.core.mixins.state import StateDictMixin
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import dill
@@ -13,9 +12,10 @@ import torch
 import yaml
 from tqdm.auto import tqdm
 
-from robustnessgym.core.cells.abstract import AbstractCell
-from robustnessgym.core.columns.abstract import AbstractColumn
 from robustnessgym.core.tools import convert_to_batch_column_fn
+from robustnessgym.mosaic.cells.abstract import AbstractCell
+from robustnessgym.mosaic.columns.abstract import AbstractColumn
+from robustnessgym.mosaic.mixins.state import StateDictMixin
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,8 @@ class CellColumn(StateDictMixin, AbstractColumn):
             self.collate = identity_collate
 
         self.visible_rows = None
+
+        super(CellColumn, self).__init__(num_rows=len(self))
 
     @classmethod
     def from_cells(cls, cells: Sequence[AbstractCell], *args, **kwargs):
@@ -318,5 +320,3 @@ class CellColumn(StateDictMixin, AbstractColumn):
     def _state_keys(cls) -> set:
         """List of attributes that describe the state of the object."""
         return {"_materialize", "collate", "_cells"}
-
-    

@@ -9,15 +9,14 @@ from typing import Callable, Mapping, Optional, Sequence
 import numpy as np
 import torch
 
-# from robustnessgym.core.cells.abstract import AbstractCell
 from robustnessgym.core.identifier import Identifier
-
-# from robustnessgym.core.tools import convert_to_batch_fn
 
 logger = logging.getLogger(__name__)
 
 
 class AbstractColumn(abc.ABC):
+    """An abstract class for Mosaic columns."""
+
     visible_rows: Optional[np.ndarray]
     _data: Sequence
 
@@ -25,9 +24,11 @@ class AbstractColumn(abc.ABC):
         super(AbstractColumn, self).__init__(*args, **kwargs)
 
         # Identifier for the column
-        self._identifier = Identifier("column") if not identifier else identifier
+        self._identifier = (
+            Identifier(self.__class__.__name__) if not identifier else identifier
+        )
 
-        # Index associated with each cell of the column
+        # Index associated with each element of the column
         self.index = [str(i) for i in range(num_rows)]
 
         # Whether data in the column is materialized
@@ -35,6 +36,60 @@ class AbstractColumn(abc.ABC):
 
         # Log creation
         logger.info(f"Created `{self.__class__.__name__}` with {len(self)} rows.")
+
+    @abstractmethod
+    def __getitem__(self, index):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __len__(self) -> int:
+        raise NotImplementedError()
+
+    def get_state(self):
+        """Get the state of the column."""
+        return self
+
+    @classmethod
+    def from_state(cls, state) -> AbstractColumn:
+        """Create a column from a state."""
+        return state
+
+    @abstractmethod
+    def write(self, path) -> None:
+        """Write a column to disk."""
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def read(cls) -> AbstractColumn:
+        """Read a column from disk."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def map(
+        self,
+        function: Optional[Callable] = None,
+        with_indices: bool = False,
+        batched: bool = False,
+        batch_size: Optional[int] = 1000,
+        drop_last_batch: bool = False,
+        **kwargs,
+    ) -> AbstractColumn:
+        """Map a function over the elements of the column."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def filter(
+        self,
+        function: Optional[Callable] = None,
+        with_indices: bool = False,
+        batched: bool = False,
+        batch_size: Optional[int] = 1000,
+        drop_last_batch: bool = False,
+        **kwargs,
+    ) -> AbstractColumn:
+        """Filter the elements of the column using a function."""
+        raise NotImplementedError
 
     def _remap_index(self, index):
         if isinstance(index, int):
@@ -50,32 +105,23 @@ class AbstractColumn(abc.ABC):
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
-    @abstractmethod
-    def __getitem__(self):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def __len__(self) -> int:
-        raise NotImplementedError()
-
-    def get_state(self):
-        return self
-
-    @classmethod
-    def from_state(cls, state) -> AbstractColumn:
-        return state
-
-    @abstractmethod
-    def write(self, path) -> None:
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
-    def read(cls) -> AbstractColumn:
-        raise NotImplementedError()
+    def set_visible_rows(self, indices: Optional[Sequence]):
+        """Set the visible rows of the column."""
+        if indices is None:
+            self.visible_rows = None
+        else:
+            if len(indices):
+                assert min(indices) >= 0 and max(indices) < len(self), (
+                    f"Ensure min index {min(indices)} >= 0 and "
+                    f"max index {max(indices)} < {len(self)}."
+                )
+            if self.visible_rows is not None:
+                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
+            else:
+                self.visible_rows = np.array(indices, dtype=int)
 
     def batch(self, batch_size: int = 32, drop_last_batch: bool = False):
-        """Batch the dataset.
+        """Batch the column.
 
         Args:
             batch_size: integer batch size
@@ -142,42 +188,3 @@ class AbstractColumn(abc.ABC):
             bool_output=bool_output,
             list_output=list_output,
         )
-
-    @abstractmethod
-    def map(
-        self,
-        function: Optional[Callable] = None,
-        with_indices: bool = False,
-        batched: bool = False,
-        batch_size: Optional[int] = 1000,
-        drop_last_batch: bool = False,
-        **kwargs,
-    ) -> AbstractColumn:
-        raise NotImplementedError
-
-    @abstractmethod
-    def filter(
-        self,
-        function: Optional[Callable] = None,
-        with_indices: bool = False,
-        batched: bool = False,
-        batch_size: Optional[int] = 1000,
-        drop_last_batch: bool = False,
-        **kwargs,
-    ) -> AbstractColumn:
-        raise NotImplementedError
-
-    def set_visible_rows(self, indices: Optional[Sequence]):
-        """Set the visible rows in the dataset."""
-        if indices is None:
-            self.visible_rows = None
-        else:
-            if len(indices):
-                assert min(indices) >= 0 and max(indices) < len(self), (
-                    f"Ensure min index {min(indices)} >= 0 and "
-                    f"max index {max(indices)} < {len(self)}."
-                )
-            if self.visible_rows is not None:
-                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
-            else:
-                self.visible_rows = np.array(indices, dtype=int)

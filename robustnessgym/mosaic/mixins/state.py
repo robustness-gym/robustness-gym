@@ -1,5 +1,5 @@
-from typing import Collection, Dict
 from dataclasses import dataclass
+from typing import Collection, Dict
 
 from robustnessgym.core.tools import nested_map
 
@@ -20,6 +20,7 @@ class StateDictMixin:
 
     def get_state(self) -> Dict:
         """Get the internal state of the dataset."""
+
         def _apply_get_state(obj):
             if hasattr(obj, "get_state"):
                 return StateClass(**{"klass": type(obj), "state": obj.get_state()})

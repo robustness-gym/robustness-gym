@@ -10,6 +10,14 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 import dill
 import numpy as np
 import yaml
+
+try:
+    import faiss
+
+    _is_faiss_available = True
+except ImportError:
+    _is_faiss_available = False
+
 from tqdm.auto import tqdm
 from yaml.representer import Representer
 
@@ -18,7 +26,6 @@ from robustnessgym.core.tools import convert_to_batch_column_fn
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,12 +33,7 @@ def identity_collate(batch: List):
     return batch
 
 
-# Q. how to handle collate and materialize here? Always materialized but only sometimes
-# may want to collate (because collate=True should return a batch-style object, while
-# collate=False should return a Column style object).
-
-
-class ListColumn(AbstractColumn):
+class EmbeddingsColumn(AbstractColumn):
     def __init__(
         self,
         data: Sequence = None,
@@ -40,6 +42,10 @@ class ListColumn(AbstractColumn):
         **kwargs,
     ):
         self._data = data
+        if len(self._data) > 0:
+            self._dim = len(self._data[0])
+        else:
+            self._dim = 0
         self._materialize = True
         if collate_fn is not None:
             self.collate = collate_fn
@@ -47,11 +53,28 @@ class ListColumn(AbstractColumn):
             self.collate = identity_collate
         self.visible_rows = None
 
-        super(ListColumn, self).__init__(num_rows=len(self), *args, **kwargs)
+        super(EmbeddingsColumn, self).__init__(num_rows=len(self), *args, **kwargs)
 
     @classmethod
-    def from_list(cls, data: Sequence, *args, **kwargs):
+    def from_array(cls, data: Sequence, *args, **kwargs):
         return cls(data=data, *args, **kwargs)
+
+    def build_faiss_index(self):
+        self.index = faiss.IndexFlatL2(self._dim)
+        self.index.add(self._data)
+
+    def search(self, query, k):
+        return self.index.search(query, k)
+
+    def __getattr__(self, item):
+        try:
+            return [getattr(doc, item) for doc in self]
+        except AttributeError:
+            raise AttributeError(f"Attribute {item} not found.")
+
+    @property
+    def tokens(self):
+        return [list(doc) for doc in self]
 
     def metadata(self):
         return {}
@@ -86,12 +109,12 @@ class ListColumn(AbstractColumn):
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
-        # TODO(karan): do we need collate in ListColumn
+        # TODO(karan): do we need collate in EmbeddingsColumn
         # if self._materialize:  # self._collate
         #     # return a batch
         #     return self.collate([element for element in data])
         # else:
-        #     # if not materializing, return a new ListColumn
+        #     # if not materializing, return a new EmbeddingsColumn
         #     return self.from_list(data)
         return self.from_list(data)
 
@@ -103,7 +126,7 @@ class ListColumn(AbstractColumn):
         *args,
         **kwargs,
     ):
-        # TODO(karan): do we need collate in ListColumn
+        # TODO(karan): do we need collate in EmbeddingsColumn
         # if self._materialize:
         #     return torch.utils.data.DataLoader(
         #         self,
@@ -114,10 +137,10 @@ class ListColumn(AbstractColumn):
         #         **kwargs,
         #     )
         # else:
-        #     return super(ListColumn, self).batch(
+        #     return super(EmbeddingsColumn, self).batch(
         #         batch_size=batch_size, drop_last_batch=drop_last_batch
         #     )
-        return super(ListColumn, self).batch(
+        return super(EmbeddingsColumn, self).batch(
             batch_size=batch_size, drop_last_batch=drop_last_batch
         )
 
@@ -216,7 +239,7 @@ class ListColumn(AbstractColumn):
         drop_last_batch: bool = False,
         num_proc: Optional[int] = 64,
         **kwargs,
-    ) -> Optional[ListColumn]:
+    ) -> Optional[EmbeddingsColumn]:
         """Apply a filter over the dataset."""
         # Just return if the function is None
         if function is None:
@@ -254,7 +277,7 @@ class ListColumn(AbstractColumn):
         return new_column
 
     @classmethod
-    def read(cls, path: str) -> ListColumn:
+    def read(cls, path: str) -> EmbeddingsColumn:
         # Load in the data
         metadata = dict(
             yaml.load(
@@ -298,7 +321,7 @@ class ListColumn(AbstractColumn):
         if deepcopy:
             return copy.deepcopy(self)
         else:
-            dataset = ListColumn()
+            dataset = EmbeddingsColumn()
             dataset.__dict__ = {k: copy.copy(v) for k, v in self.__dict__.items()}
             return dataset
 

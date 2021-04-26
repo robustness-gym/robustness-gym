@@ -1,54 +1,50 @@
-"""Dataset class."""
+"""DataPane class."""
 from __future__ import annotations
 
 import json
 import logging
 import os
 import pathlib
+from collections import defaultdict
 from contextlib import contextmanager
 from copy import copy, deepcopy
-from robustnessgym.core.columns.cell_column import CellColumn
-from robustnessgym.core.cells.abstract import AbstractCell
+from types import SimpleNamespace
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
-from collections import defaultdict
-
 
 import cytoolz as tz
 import datasets
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 import torch
-from datasets import DatasetInfo, Features, NamedSplit
+from datasets import DatasetInfo, NamedSplit
+from datasets.arrow_dataset import DatasetInfoMixin
 from jsonlines import jsonlines
 from pyarrow import json as jsonarrow
 from pyarrow import table
 from tqdm.auto import tqdm
 
-from robustnessgym.core.columns.list_column import ListColumn
-from robustnessgym.core.columns.abstract import AbstractColumn
-from robustnessgym.core.dataformats.abstract import AbstractDataset
 from robustnessgym.core.dataformats.inmemory import InMemoryDataset
-from robustnessgym.core.dataformats.vision import VisionDataset
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tools import convert_to_batch_fn
-
-# from robustnessgym.core.tape import InteractionTapeHierarchyMixin
+from robustnessgym.core.tools import convert_to_batch_fn, recmerge
+from robustnessgym.mosaic.cells.abstract import AbstractCell
+from robustnessgym.mosaic.columns.abstract import AbstractColumn
+from robustnessgym.mosaic.columns.cell_column import CellColumn
+from robustnessgym.mosaic.columns.list_column import ListColumn
 
 logger = logging.getLogger(__name__)
 
 Example = Dict
 Batch = Dict[str, List]
-BatchOrDataset = Union[Batch, "Dataset"]
+BatchOrDataset = Union[Batch, "DataPane"]
 # TODO(sabri): change the name of this!
 Columnable = Union[AbstractColumn, List]
 
 
-class Dataset(AbstractDataset):
-    """RobustnessGym Dataset class."""
+class DataPane(DatasetInfoMixin):
+    """Mosaic DataPane class."""
 
     # Path to a log directory
-    logdir: pathlib.Path = pathlib.Path.home() / "robustnessgym/datasets/"
+    logdir: pathlib.Path = pathlib.Path.home() / "robustnessgym/mosaic/"
 
     # Create a directory
     logdir.mkdir(parents=True, exist_ok=True)
@@ -63,7 +59,7 @@ class Dataset(AbstractDataset):
         **kwargs,
     ):
 
-        logger.debug("Creating Dataset.")
+        logger.debug("Creating DataPane.")
 
         # Data is a dictionary of lists
         self._data = {}
@@ -104,7 +100,7 @@ class Dataset(AbstractDataset):
 
         # Setup the DatasetInfo
         info = info.copy() if info is not None else DatasetInfo()
-        AbstractDataset.__init__(self, info=info, split=split)
+        DatasetInfoMixin.__init__(self, info=info, split=split)
 
         # Create attributes for all columns and visible columns
         self.all_columns = list(self._data.keys())
@@ -129,7 +125,8 @@ class Dataset(AbstractDataset):
         if not self.has_index:
             self._add_index()
 
-    def _create_column(self, data: Columnable):
+    @classmethod
+    def _create_column(cls, data: Columnable):
         # TODO (sabri): put in a registry
         if isinstance(data, AbstractColumn):
             return data
@@ -138,31 +135,97 @@ class Dataset(AbstractDataset):
         else:
             return ListColumn(data)
 
-    def _create_columns(self, name_to_data: Dict[str, Columnable]):
+    @classmethod
+    def _create_columns(cls, name_to_data: Dict[str, Columnable]):
         new_data = {}
         for column_name, data in name_to_data.items():
-            new_data[column_name] = self._create_column(data=data)
+            new_data[column_name] = cls._create_column(data=data)
 
         return new_data
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}" f"(num_rows: {self.num_rows})"
+
+    def __len__(self):
+        # If only a subset of rows are visible
+        if self.visible_rows is not None:
+            return len(self.visible_rows)
+
+        # If there are columns, len of any column
+        if self.column_names:
+            return len(self._data[self.column_names[0]])
+        return 0
+
     @property
-    def identifier(self):
-        """Identifier."""
-        return self._identifier
+    def column_names(self):
+        """Column names in the dataset."""
+        return self.all_columns
+
+    @property
+    def columns(self):
+        """Column names in the dataset."""
+        return self.column_names
 
     @property
     def num_rows(self):
         """Number of rows in the dataset."""
         return len(self)
 
-    def _set_features(self):
-        """Set the features of the dataset."""
-        with self.format():
-            self.info.features = None  # Features.from_arrow_schema(
-            #     pa.Table.from_pydict(
-            #         self[:1],
-            #     ).schema
-            # )
+    @property
+    def shape(self):
+        """Shape of the dataset (num_rows, num_columns)."""
+        return self.num_rows, len(self.columns)
+
+    @classmethod
+    def _assert_columns_all_equal_length(cls, batch: Batch):
+        """Check that all columns have the same length so that the data is
+        tabular."""
+        assert cls._columns_all_equal_length(
+            batch
+        ), "All columns must have equal length."
+
+    @classmethod
+    def _columns_all_equal_length(cls, batch: Batch):
+        """Check that all columns have the same length so that the data is
+        tabular."""
+        if len(set([len(v) for k, v in batch.items()])) == 1:
+            return True
+        return False
+
+    def _check_columns_exist(self, columns: List[str]):
+        """Check that every column in `columns` exists."""
+        for col in columns:
+            assert col in self.all_columns, f"{col} is not a valid column."
+
+    def _initialize_state(self):
+        """Dataset state initialization."""
+        # Show all columns by default
+        self.visible_columns = copy(self.all_columns)
+
+        # Show all rows by default
+        self.visible_rows = None
+
+        # Set the features
+        self._set_features()
+
+    def set_visible_rows(self, indices: Optional[Sequence]):
+        """Set the visible rows in the dataset."""
+        if indices is None:
+            self.visible_rows = None
+        else:
+            if len(indices):
+                assert min(indices) >= 0 and max(indices) < len(self), (
+                    f"Ensure min index {min(indices)} >= 0 and "
+                    f"max index {max(indices)} < {len(self)}."
+                )
+            if self.visible_rows is not None:
+                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
+            else:
+                self.visible_rows = np.array(indices, dtype=int)
+
+    def reset_visible_rows(self):
+        """Reset to make all rows visible."""
+        self.visible_rows = None
 
     @contextmanager
     def format(self, columns: List[str] = None):
@@ -205,31 +268,137 @@ class Dataset(AbstractDataset):
         # All columns are visible
         self.visible_columns = self.all_columns
 
-    def set_visible_rows(self, indices: Sequence):
-        """Set the visible rows in the dataset."""
-        if indices is None:
-            self.visible_rows = None
-        else:
-            if len(indices):
-                assert min(indices) >= 0 and max(indices) < len(self), (
-                    f"Ensure min index {min(indices)} >= 0 and "
-                    f"max index {max(indices)} < {len(self)}."
-                )
-            if self.visible_rows is not None:
-                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
-            else:
-                self.visible_rows = np.array(indices, dtype=int)
+    def _example_or_batch_to_batch(
+        self, example_or_batch: Union[Example, Batch]
+    ) -> Batch:
 
-    def reset_visible_rows(self):
-        """Reset to make all rows visible."""
-        self.visible_rows = None
+        # Check if example_or_batch is a batch
+        is_batch = all(
+            [isinstance(v, List) for v in example_or_batch.values()]
+        ) and self._columns_all_equal_length(example_or_batch)
+
+        # Convert to a batch if not
+        if not is_batch:
+            batch = {k: [v] for k, v in example_or_batch.items()}
+        else:
+            batch = example_or_batch
+
+        return batch
+
+    @classmethod
+    def _merge_batch_and_output(cls, batch: Batch, output: Batch):
+        """Merge an output during .map() into a batch."""
+        combined = batch
+        for k in output.keys():
+            if k not in batch:
+                combined[k] = output[k]
+            else:
+                if isinstance(batch[k][0], dict) and isinstance(output[k][0], dict):
+                    combined[k] = [
+                        recmerge(b_i, o_i) for b_i, o_i in zip(batch[k], output[k])
+                    ]
+                else:
+                    combined[k] = output[k]
+        return combined
+
+    @classmethod
+    def _mask_batch(cls, batch: Batch, boolean_mask: List[bool]):
+        """Remove elements in `batch` that are masked by `boolean_mask`."""
+        return {
+            k: [e for i, e in enumerate(v) if boolean_mask[i]] for k, v in batch.items()
+        }
+
+    def _inspect_function(
+        self,
+        function: Callable,
+        with_indices: bool = False,
+        batched: bool = False,
+    ) -> SimpleNamespace:
+
+        # Initialize variables to track
+        no_output = dict_output = bool_output = list_output = False
+
+        # If dict_output = True and `function` is used for updating the dataset
+        # useful to know if any existing column is modified
+        updates_existing_column = True
+        existing_columns_updated = []
+
+        # Run the function to test it
+        if batched:
+            if with_indices:
+                output = function(self[:2], range(2))
+            else:
+                output = function(self[:2])
+
+        else:
+            if with_indices:
+                output = function(self[0], 0)
+            else:
+                output = function(self[0])
+        if isinstance(output, Mapping):
+            # `function` returns a dict output
+            dict_output = True
+
+            # Set of columns that are updated
+            existing_columns_updated = set(self.all_columns).intersection(
+                set(output.keys())
+            )
+
+            # Check if `function` updates an existing column
+            if len(existing_columns_updated) == 0:
+                updates_existing_column = False
+
+        elif output is None:
+            # `function` returns None
+            no_output = True
+        elif isinstance(output, bool) or (
+            hasattr(output, "dtype") and output.dtype in (np.bool, torch.bool)
+        ):
+            # `function` returns a bool
+            bool_output = True
+        elif isinstance(output, (Sequence, torch.Tensor, np.ndarray)):
+            # `function` returns a list
+            list_output = True
+            if batched and (
+                isinstance(output[0], bool)
+                or (
+                    hasattr(output[0], "dtype")
+                    and output[0].dtype in (np.bool, torch.bool)
+                )
+            ):
+                # `function` returns a bool per example
+                bool_output = True
+
+        return SimpleNamespace(
+            dict_output=dict_output,
+            no_output=no_output,
+            bool_output=bool_output,
+            list_output=list_output,
+            updates_existing_column=updates_existing_column,
+            existing_columns_updated=existing_columns_updated,
+        )
+
+    @property
+    def identifier(self):
+        """Identifier."""
+        return self._identifier
+
+    def _set_features(self):
+        """Set the features of the dataset."""
+        with self.format():
+            self.info.features = None  # Features.from_arrow_schema(
+            #     pa.Table.from_pydict(
+            #         self[:1],
+            #     ).schema
+            # )
 
     def add_column(self, name: str, data: Columnable, overwrite=False) -> None:
         """Add a column to the dataset."""
 
-        assert (
-            name not in self.all_columns
-        ) or overwrite, f"Column with name `{name}` already exists, set `overwrite=True` to overwrite."
+        assert (name not in self.all_columns) or overwrite, (
+            f"Column with name `{name}` already exists, "
+            f"set `overwrite=True` to overwrite."
+        )
 
         column = self._create_column(data)
 
@@ -344,7 +513,7 @@ class Dataset(AbstractDataset):
         elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
 
             if isinstance(index[0], str):
-                return Dataset.from_batch(
+                return DataPane.from_batch(
                     {k: self._data[k] for k in index if k in self.visible_columns}
                 )
 
@@ -369,17 +538,6 @@ class Dataset(AbstractDataset):
             return self.visible_rows[index].tolist()
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
-
-    def __repr__(self):
-        return (
-            f"RG{self.__class__.__name__}["
-            f"num_rows: {self.num_rows}]({self.identifier})"
-        )
-
-    @property
-    def column_names(self):
-        """Name of the columns in the dataset."""
-        return self.all_columns
 
     @property
     def has_index(self) -> bool:
@@ -458,7 +616,7 @@ class Dataset(AbstractDataset):
         cls,
         columns: Dict[str, AbstractColumn],
         identifier: Identifier = None,
-    ) -> Dataset:
+    ) -> DataPane:
         """Create a Dataset from a dict of columns."""
         return cls(
             columns,
@@ -471,7 +629,7 @@ class Dataset(AbstractDataset):
         dataset: datasets.Dataset,
         identifier: Identifier = None,
         dataset_fmt: str = None,
-    ) -> Dataset:
+    ) -> DataPane:
         """Create a Dataset from a Huggingface datasets.Dataset."""
         return cls(
             dataset,
@@ -485,7 +643,7 @@ class Dataset(AbstractDataset):
         json_path: str,
         identifier: Identifier = None,
         dataset_fmt: str = "in_memory",
-    ) -> Dataset:
+    ) -> DataPane:
         """Load a dataset from a .jsonl file on disk, where each line of the
         json file consists of a single example."""
 
@@ -518,7 +676,7 @@ class Dataset(AbstractDataset):
         batch: Batch,
         identifier: Identifier = None,
         dataset_fmt: str = "in_memory",
-    ) -> Dataset:
+    ) -> DataPane:
         """Convert a batch to a Dataset."""
 
         if dataset_fmt == "in_memory":
@@ -534,7 +692,7 @@ class Dataset(AbstractDataset):
         batches: Sequence[Batch],
         identifier: Identifier = None,
         dataset_fmt: str = "in_memory",
-    ) -> Dataset:
+    ) -> DataPane:
         """Convert a list of batches to a dataset."""
 
         return cls.from_batch(
@@ -552,7 +710,7 @@ class Dataset(AbstractDataset):
         d: Dict,
         identifier: Identifier = None,
         dataset_fmt: str = "in_memory",
-    ) -> Dataset:
+    ) -> DataPane:
         """Convert a dictionary to a dataset.
 
         Alias for Dataset.from_batch(..).
@@ -647,7 +805,7 @@ class Dataset(AbstractDataset):
         batch_size: Optional[int] = 1000,
         remove_columns: Optional[List[str]] = None,
         **kwargs,
-    ) -> Dataset:
+    ) -> DataPane:
         """Update the columns of the dataset."""
         # TODO(karan): make this fn go faster
         # most of the time is spent on the merge, speed it up further
@@ -677,7 +835,7 @@ class Dataset(AbstractDataset):
         logger.info("Running update, a new dataset will be returned.")
         if self.visible_rows is not None:
             # Run .map() to get updated batches and pass them into a new dataset
-            new_dataset = Dataset(
+            new_dataset = DataPane(
                 self.map(
                     (
                         lambda batch, indices: self._merge_batch_and_output(
@@ -767,7 +925,7 @@ class Dataset(AbstractDataset):
         batch_size: Optional[int] = 1000,
         drop_last_batch: bool = False,
         **kwargs,
-    ) -> Optional[Dict, List]:
+    ) -> Optional[Union[Dict, List]]:
         """Apply a map over the dataset."""
 
         # Just return if the function is None
@@ -842,7 +1000,7 @@ class Dataset(AbstractDataset):
         batch_size: Optional[int] = 1000,
         drop_last_batch: bool = False,
         **kwargs,
-    ) -> Dataset:
+    ) -> Optional[DataPane]:
         """Filter operation on the dataset."""
         # Compute the filter using the underlying dataset's .filter()
         # Just return if the function is None
@@ -886,9 +1044,9 @@ class Dataset(AbstractDataset):
     @classmethod
     def interleave(
         cls,
-        datasets: List[Dataset],
+        datasets: List[DataPane],
         identifier: Identifier,
-    ) -> Dataset:
+    ) -> DataPane:
 
         """Interleave a list of datasets."""
         return cls.from_batch(
@@ -902,9 +1060,9 @@ class Dataset(AbstractDataset):
     @classmethod
     def chain(
         cls,
-        datasets: List[Dataset],
+        datasets: List[DataPane],
         identifier: Identifier,
-    ) -> Dataset:
+    ) -> DataPane:
 
         """Chain a list of datasets."""
         return cls.from_batch(
@@ -916,7 +1074,9 @@ class Dataset(AbstractDataset):
         )
 
     @classmethod
-    def load_from_disk(cls, path: str = None, identifier: Identifier = None) -> Dataset:
+    def load_from_disk(
+        cls, path: str = None, identifier: Identifier = None
+    ) -> DataPane:
         """Load a dataset stored on disk."""
         assert (
             path or identifier and not (path and identifier)
@@ -973,7 +1133,7 @@ class Dataset(AbstractDataset):
 
         if write_together:
             pass
-        else: 
+        else:
             # Save the data to disk
             columns_path = os.path.join(path, "columns")
             os.makedirs(columns_path, exist_ok=True)
@@ -991,7 +1151,7 @@ class Dataset(AbstractDataset):
         if deepcopy:
             return copy.deepcopy(self)
         else:
-            dataset = Dataset()
+            dataset = DataPane()
             dataset.__dict__ = {k: copy(v) for k, v in self.__dict__.items()}
             return dataset
 
@@ -1013,7 +1173,6 @@ class Dataset(AbstractDataset):
         assert (
             set(state.keys()) == cls._state_keys()
         ), f"State must contain all state keys: {cls._state_keys()}."
-    
 
     def __getstate__(self):
         """Get the current state of the dataset."""
@@ -1027,17 +1186,14 @@ class Dataset(AbstractDataset):
                 if key not in ["_identifier", "_data"]
             },
         }
-        Dataset._assert_state_keys(state)
+        DataPane._assert_state_keys(state)
 
         return state
 
     def __setstate__(self, state):
         """Set the current state of the dataset."""
         # Check that the state contains all keys
-        Dataset._assert_state_keys(state)
-
-        # Load the interactions
-        self.interactions = self.loads_interactions(state["interactions"]).interactions
+        DataPane._assert_state_keys(state)
 
         # Load the identifier
         self._identifier = (
@@ -1051,15 +1207,4 @@ class Dataset(AbstractDataset):
         self._dataset_fmt = state["_dataset_fmt"]
 
         # Update the logging directory
-        self.logdir = Dataset.logdir / str(self.identifier)
-
-
-def transpose_batch(batch: Batch):
-    """Transpose a batch of data from a dict of lists to a list of dicts.
-
-    Args:
-        batch: batch of data which is a dictionary mapping columns to lists
-
-    Returns: list of dicts, each dict corresponding to a single example
-    """
-    return [dict(zip(batch, t)) for t in zip(*batch.values())]
+        self.logdir = DataPane.logdir / str(self.identifier)
