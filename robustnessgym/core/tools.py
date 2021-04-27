@@ -311,7 +311,7 @@ def nested_map(f, *args):
     """ Recursively transpose a nested structure of tuples, lists, and dicts """
     assert len(args) > 0, "Must have at least one argument."
     arg = args[0]
-    if isinstance(arg, Sequence):
+    if isinstance(arg, Sequence) and not isinstance(arg, str):
         return [nested_map(f, *a) for a in zip(*args)]
     elif isinstance(arg, Mapping):
         return {k: nested_map(f, *[a[k] for a in args]) for k in arg}
