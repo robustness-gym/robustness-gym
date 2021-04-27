@@ -14,8 +14,7 @@ from yaml.representer import Representer
 
 from robustnessgym.core.tools import convert_to_batch_column_fn
 from robustnessgym.mosaic.columns.abstract import AbstractColumn
-from robustnessgym.mosaic.mixins.copying import CopyMixin
-from robustnessgym.mosaic.mixins.state import StateDictMixin
+from robustnessgym.mosaic.mixins.collate import identity_collate
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
@@ -23,16 +22,12 @@ Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 logger = logging.getLogger(__name__)
 
 
-def identity_collate(batch: List):
-    return batch
-
-
 # Q. how to handle collate and materialize here? Always materialized but only sometimes
 # may want to collate (because collate=True should return a batch-style object, while
 # collate=False should return a Column style object).
 
 
-class ListColumn(StateDictMixin, CopyMixin, AbstractColumn):
+class ListColumn(AbstractColumn):
     def __init__(
         self,
         data: Sequence = None,
@@ -72,18 +67,18 @@ class ListColumn(StateDictMixin, CopyMixin, AbstractColumn):
             # Remap the index if only some rows are visible
             index = self._remap_index(index)
 
-        # indices that return a single cell
+        # `index` should return a single element
         if isinstance(index, int) or isinstance(index, np.int):
-            return self._data[index]
+            return self.data[int(index)]
 
         # indices that return batches
         if isinstance(index, slice):
             # int or slice index => standard list slicing
-            data = self._data[index]
+            data = self.data[index]
         elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            data = [self._data[i] for i in index]
+            data = [self.data[i] for i in index]
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
-            data = [self._data[int(i)] for i in index]
+            data = [self.data[int(i)] for i in index]
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
@@ -265,12 +260,12 @@ class ListColumn(StateDictMixin, CopyMixin, AbstractColumn):
         column = cls()
         state = metadata["state"]
         state["_data"] = data
-        column.__setstate__(metadata["state"])
+        column.from_state(metadata["state"])
         return column
 
     def write(self, path: str) -> None:
 
-        state = self.__getstate__()
+        state = self.get_state()
         del state["_data"]
         metadata = {
             "dtype": type(self),

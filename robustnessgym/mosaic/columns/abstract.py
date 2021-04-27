@@ -3,67 +3,127 @@ from __future__ import annotations
 import abc
 import logging
 from abc import abstractmethod
-from types import SimpleNamespace
-from typing import Callable, Mapping, Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 import numpy as np
 import torch
 
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.mosaic.mixins.collate import CollateMixin
+from robustnessgym.mosaic.mixins.copying import CopyMixin
+from robustnessgym.mosaic.mixins.identifier import IdentifierMixin
+from robustnessgym.mosaic.mixins.index import IndexableMixin
+from robustnessgym.mosaic.mixins.inspect_fn import FunctionInspectorMixin
+from robustnessgym.mosaic.mixins.materialize import MaterializationMixin
+from robustnessgym.mosaic.mixins.state import StateDictMixin
+from robustnessgym.mosaic.mixins.storage import ColumnStorageMixin
 
 logger = logging.getLogger(__name__)
 
 
-class AbstractColumn(abc.ABC):
+class AbstractColumn(
+    CollateMixin,
+    ColumnStorageMixin,
+    CopyMixin,
+    FunctionInspectorMixin,
+    IdentifierMixin,
+    IndexableMixin,
+    MaterializationMixin,
+    StateDictMixin,
+    abc.ABC,
+):
     """An abstract class for Mosaic columns."""
 
-    visible_rows: Optional[np.ndarray]
-    _data: Sequence
+    visible_rows: Optional[np.ndarray] = None
+    _data: Sequence = None
 
-    def __init__(self, num_rows: int, identifier: Identifier = None, *args, **kwargs):
-        super(AbstractColumn, self).__init__(*args, **kwargs)
-
-        # Identifier for the column
-        self._identifier = (
-            Identifier(self.__class__.__name__) if not identifier else identifier
+    def __init__(
+        self,
+        num_rows: int,
+        identifier: Identifier = None,
+        *args,
+        **kwargs,
+    ):
+        super(AbstractColumn, self).__init__(
+            n=num_rows,
+            identifier=identifier,
+            *args,
+            **kwargs,
         )
-
-        # Index associated with each element of the column
-        self.index = [str(i) for i in range(num_rows)]
-
-        # Whether data in the column is materialized
-        self._materialized = False
 
         # Log creation
         logger.info(f"Created `{self.__class__.__name__}` with {len(self)} rows.")
 
-    @abstractmethod
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def metadata(self):
+        return {}
+
+    @classmethod
+    def _state_keys(cls) -> set:
+        """List of attributes that describe the state of the object."""
+        return {"_materialize", "_collate_fn", "_data"}
+
     def __getitem__(self, index):
-        raise NotImplementedError()
+        if self.visible_rows is not None:
+            # Remap the index if only some rows are visible
+            index = self._remap_index(index)
 
-    @abstractmethod
-    def __len__(self) -> int:
-        raise NotImplementedError()
+        # indices that return a single cell
+        if isinstance(index, int) or isinstance(index, np.int):
+            data = self.data[index]
 
-    def get_state(self):
-        """Get the state of the column."""
-        return self
+            # check if the column implements materialization
+            if self.materialize:
+                return data.get()
+            else:
+                return data
 
-    @classmethod
-    def from_state(cls, state) -> AbstractColumn:
-        """Create a column from a state."""
-        return state
+        # indices that return batches
+        if isinstance(index, slice):
+            # int or slice index => standard list slicing
+            data = self.data[index]
+        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
+            data = [self.data[i] for i in index]
+        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
+            data = [self.data[int(i)] for i in index]
+        else:
+            raise TypeError("Invalid argument type: {}".format(type(index)))
 
-    @abstractmethod
-    def write(self, path) -> None:
-        """Write a column to disk."""
-        raise NotImplementedError()
+        if self.materialize:
+            # if materializing, return a batch (by default, a list of objects returned
+            # by `element.get`, otherwise the batch format specified by `self.collate`
+            return self.collate([element.get() for element in data])
+        else:
+            # if not materializing, return a new Column
+            return self.__class__(data, materialize=self.materialize)
 
-    @classmethod
-    @abstractmethod
-    def read(cls, *args, **kwargs) -> AbstractColumn:
-        """Read a column from disk."""
-        raise NotImplementedError()
+    def _remap_index(self, index):
+        if isinstance(index, int):
+            return self.visible_rows[index].item()
+        elif isinstance(index, slice):
+            return self.visible_rows[index].tolist()
+        elif isinstance(index, str):
+            return index
+        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
+            return self.visible_rows[index].tolist()
+        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
+            return self.visible_rows[index].tolist()
+        else:
+            raise TypeError("Invalid argument type: {}".format(type(index)))
+
+    def __len__(self):
+        # If only a subset of rows are visible
+        if self.visible_rows is not None:
+            return len(self.visible_rows)
+
+        # Length of the underlying data stored in the column
+        if self.data is not None:
+            return len(self.data)
+        return 0
 
     @abstractmethod
     def map(
@@ -91,20 +151,6 @@ class AbstractColumn(abc.ABC):
         """Filter the elements of the column using a function."""
         raise NotImplementedError
 
-    def _remap_index(self, index):
-        if isinstance(index, int):
-            return self.visible_rows[index].item()
-        elif isinstance(index, slice):
-            return self.visible_rows[index].tolist()
-        elif isinstance(index, str):
-            return index
-        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            return self.visible_rows[index].tolist()
-        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
-            return self.visible_rows[index].tolist()
-        else:
-            raise TypeError("Invalid argument type: {}".format(type(index)))
-
     def set_visible_rows(self, indices: Optional[Sequence]):
         """Set the visible rows of the column."""
         if indices is None:
@@ -120,71 +166,35 @@ class AbstractColumn(abc.ABC):
             else:
                 self.visible_rows = np.array(indices, dtype=int)
 
-    def batch(self, batch_size: int = 32, drop_last_batch: bool = False):
+    def batch(
+        self,
+        batch_size: int = 32,
+        drop_last_batch: bool = False,
+        collate: bool = True,
+        *args,
+        **kwargs,
+    ):
         """Batch the column.
 
         Args:
             batch_size: integer batch size
             drop_last_batch: drop the last batch if its smaller than batch_size
+            collate: whether to collate the returned batches
 
         Returns:
             batches of data
         """
-        for i in range(0, len(self), batch_size):
-            if drop_last_batch and i + batch_size > len(self):
-                continue
-            yield self[i : i + batch_size]
-
-    def _inspect_function(
-        self,
-        function: Callable,
-        with_indices: bool = False,
-        batched: bool = False,
-    ) -> SimpleNamespace:
-        # TODO(Sabri): unify this function with dataset
-
-        # Initialize variables to track
-        no_output = dict_output = bool_output = list_output = False
-
-        # Run the function to test it
-        if batched:
-            if with_indices:
-                output = function(self[:2], range(2))
-            else:
-                output = function(self[:2])
-
+        if self.materialize:
+            return torch.utils.data.DataLoader(
+                self,
+                batch_size=batch_size,
+                collate_fn=self.collate if collate else lambda x: x,
+                drop_last=drop_last_batch,
+                *args,
+                **kwargs,
+            )
         else:
-            if with_indices:
-                output = function(self[0], 0)
-            else:
-                output = function(self[0])
-
-        if isinstance(output, Mapping):
-            # `function` returns a dict output
-            dict_output = True
-
-        elif output is None:
-            # `function` returns None
-            no_output = True
-        elif isinstance(output, bool):
-            # `function` returns a bool
-            bool_output = True
-        elif isinstance(output, (Sequence, torch.Tensor, np.ndarray)):
-            # `function` returns a list
-            list_output = True
-            if batched and (
-                isinstance(output[0], bool)
-                or (
-                    hasattr(output[0], "dtype")
-                    and output[0].dtype in (np.bool, torch.bool)
-                )
-            ):
-                # `function` returns a bool per example
-                bool_output = True
-
-        return SimpleNamespace(
-            dict_output=dict_output,
-            no_output=no_output,
-            bool_output=bool_output,
-            list_output=list_output,
-        )
+            for i in range(0, len(self), batch_size):
+                if drop_last_batch and i + batch_size > len(self):
+                    continue
+                yield self[i : i + batch_size]
