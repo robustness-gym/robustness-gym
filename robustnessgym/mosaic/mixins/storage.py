@@ -3,9 +3,57 @@ import os
 import dill
 import yaml
 
+from robustnessgym.mosaic.mixins.state import StateClass
+
+
+class CellStorageMixin:
+    def write(self, path: str) -> None:
+        """Write a cell to disk."""
+
+        # Create the paths
+        os.makedirs(path, exist_ok=True)
+        data_path = os.path.join(path, "data.dill")
+        metadata_path = os.path.join(path, "meta.yaml")
+
+        # Get the object state
+        state = self.get_state()
+
+        # Store the metadata
+        yaml.dump(
+            {
+                "dtype": type(self),
+                **self.metadata,
+            },
+            open(metadata_path, "w"),
+        )
+
+        # Store the data
+        dill.dump(state, open(data_path, "wb"))
+
+    @classmethod
+    def read(cls, path: str, *args, **kwargs) -> object:
+        """Read the cell from disk."""
+        # Assert that the path exists
+        assert os.path.exists(path), f"`path` {path} does not exist."
+
+        # Create the paths
+        data_path = os.path.join(path, "data.dill")
+        metadata_path = os.path.join(path, "meta.yaml")
+
+        # Load the metadata in
+        metadata = dict(yaml.load(open(metadata_path), Loader=yaml.FullLoader))
+        return metadata["dtype"].from_state(
+            dill.load(open(data_path, "rb")), *args, **kwargs
+        )
+
+    @classmethod
+    def read_metadata(cls, path: str) -> dict:
+        """Lightweight alternative to full read."""
+        meta_path = os.path.join(path, "meta.yaml")
+        return dict(yaml.load(open(meta_path, "r"), Loader=yaml.FullLoader))
+
 
 class ColumnStorageMixin:
-
     _write_together: bool = True
 
     @property
@@ -17,6 +65,7 @@ class ColumnStorageMixin:
         path: str,
         write_together: bool = None,
     ) -> None:
+        assert hasattr(self, "_data"), f"{self.__class__.__name__} requires `self.data`"
 
         # If unspecified, use the column's property to decide whether to write together
         if write_together is None:
@@ -27,8 +76,9 @@ class ColumnStorageMixin:
 
         # Get the column state
         state = self.get_state()
+        _data = state["_data"]
 
-        # Remove the actual data and put into a metadata dict
+        # Remove the data key and put the rest of `state` into a metadata dict
         del state["_data"]
         metadata = {
             "dtype": type(self),
@@ -40,20 +90,25 @@ class ColumnStorageMixin:
         }
 
         if write_together:
-            # Get the paths where metadata and data should be stored
+            # Get the path where data should be stored
             data_path = os.path.join(path, "data.dill")
 
-            # Saving all column data in a single dill file
-            dill.dump(
-                [element.get_state() for element in self.data], open(data_path, "wb")
-            )
+            # Saving all of the column data in a single dill file
+            dill.dump(_data, open(data_path, "wb"))
         else:
             # Save all the elements of the column separately
             data_paths = []
             for index, element in enumerate(self.data):
                 data_path = os.path.join(path, f"element_{index}")
-                element.write(data_path)
+                if hasattr(element, "write"):
+                    # Element has its own `write` method
+                    element.write(data_path)
+                else:
+                    # No `write` method: default to writing with dill
+                    dill.dump(element, open(data_path, "wb"))
                 data_paths.append(data_path)
+
+            # Store all the data paths in the metadata dict
             metadata["data_paths"] = data_paths
 
         # Save the metadata as a yaml file
@@ -61,7 +116,10 @@ class ColumnStorageMixin:
         yaml.dump(metadata, open(metadata_path, "w"))
 
     @classmethod
-    def read(cls, path: str, *args, **kwargs):
+    def read(cls, path: str, *args, **kwargs) -> object:
+        # Assert that the path exists
+        assert os.path.exists(path), f"`path` {path} does not exist."
+
         # Load in the metadata
         metadata = dict(
             yaml.load(
@@ -70,16 +128,31 @@ class ColumnStorageMixin:
             )
         )
 
-        # Load the data
+        # Load in the data
         if metadata["write_together"]:
+            # All the data is written to a single dill file
             data = dill.load(open(os.path.join(path, "data.dill"), "rb"))
+
             data = [
-                dtype.from_state(state, *args, **kwargs)
+                # `dtype` implements `from_state`, run it to get back an instance of
+                # dtype
+                dtype.from_state(
+                    state.state if isinstance(state, StateClass) else state,
+                    *args,
+                    **kwargs,
+                )
+                if hasattr(dtype, "from_state")
+                # `dtype` doesn't implement `from_state`, just return `state` directly
+                else state
                 for dtype, state in zip(metadata["data_dtypes"], data)
             ]
         else:
+            # Each element of the data is written to individual paths
             data = [
-                dtype.read(path, *args, **kwargs)
+                # `dtype` implements `read`, run it to read back the element instance
+                dtype.read(path, *args, **kwargs) if hasattr(dtype, "read")
+                # `dtype` doesn't implement `read`, just load with dill directly
+                else dill.load(open(path, "rb"))
                 for dtype, path in zip(metadata["data_dtypes"], metadata["data_paths"])
             ]
 
@@ -87,3 +160,9 @@ class ColumnStorageMixin:
         state = metadata["state"]
         state["_data"] = data
         return cls.from_state(state, *args, **kwargs)
+
+    @classmethod
+    def read_metadata(cls, path: str) -> dict:
+        """Lightweight alternative to full read."""
+        meta_path = os.path.join(path, "meta.yaml")
+        return dict(yaml.load(open(meta_path), Loader=yaml.FullLoader))

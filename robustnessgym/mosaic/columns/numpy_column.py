@@ -16,7 +16,7 @@ from yaml.representer import Representer
 
 from robustnessgym.core.tools import convert_to_batch_column_fn
 from robustnessgym.mosaic.columns.abstract import AbstractColumn
-from robustnessgym.mosaic.columns.list_column import identity_collate
+from robustnessgym.mosaic.mixins.collate import identity_collate
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
@@ -35,9 +35,6 @@ class NumpyArrayColumn(
         **kwargs,
     ):
         self._data = np.asarray(data)
-        self._materialize = True
-        self.collate = identity_collate
-        self.visible_rows = None
 
         super(NumpyArrayColumn, self).__init__(num_rows=len(self), *args, **kwargs)
 
@@ -132,7 +129,7 @@ class NumpyArrayColumn(
             or isinstance(index, np.int)
             # np.ndarray indexed with a tuple of length 1 does not return an np.ndarray
             # but the element at the index
-            # TODO: interestingly, np.ndarray indexed with a list of length 1 DOES 
+            # TODO: interestingly, np.ndarray indexed with a list of length 1 DOES
             # return a np.ndarray. Discuss how we want to handle this for columns in RG,
             # ideally all columns should share the same behavior w.r.t. this.
             or (isinstance(index, tuple) and len(index) == 1)

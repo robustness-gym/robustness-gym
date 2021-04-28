@@ -2,19 +2,15 @@ from __future__ import annotations
 
 import abc
 import logging
-import os
 from collections import defaultdict
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
-import dill
 import numpy as np
-import yaml
 from tqdm.auto import tqdm
 from yaml.representer import Representer
 
 from robustnessgym.core.tools import convert_to_batch_column_fn
 from robustnessgym.mosaic.columns.abstract import AbstractColumn
-from robustnessgym.mosaic.mixins.collate import identity_collate
 
 Representer.add_representer(abc.ABCMeta, Representer.represent_name)
 
@@ -31,36 +27,15 @@ class ListColumn(AbstractColumn):
     def __init__(
         self,
         data: Sequence = None,
-        collate_fn: Callable = None,
         *args,
         **kwargs,
     ):
         self._data = data
-        self._materialize = True
-        if collate_fn is not None:
-            self.collate = collate_fn
-        else:
-            self.collate = identity_collate
-        self.visible_rows = None
-
         super(ListColumn, self).__init__(num_rows=len(self), *args, **kwargs)
 
     @classmethod
     def from_list(cls, data: Sequence, *args, **kwargs):
         return cls(data=data, *args, **kwargs)
-
-    def metadata(self):
-        return {}
-
-    def __len__(self):
-        # If only a subset of rows are visible
-        if self.visible_rows is not None:
-            return len(self.visible_rows)
-
-        # If there are columns, len of any column
-        if self._data is not None:
-            return len(self._data)
-        return 0
 
     def __getitem__(self, index):
         if self.visible_rows is not None:
@@ -201,94 +176,3 @@ class ListColumn(AbstractColumn):
             # turns the defaultdict into dict
             return dict(outputs)
         return outputs
-
-    def filter(
-        self,
-        function: Optional[Callable] = None,
-        with_indices=False,
-        input_columns: Optional[Union[str, List[str]]] = None,
-        batched: bool = False,
-        batch_size: Optional[int] = 1000,
-        drop_last_batch: bool = False,
-        num_proc: Optional[int] = 64,
-        **kwargs,
-    ) -> Optional[ListColumn]:
-        """Apply a filter over the dataset."""
-        # Just return if the function is None
-        if function is None:
-            logger.info("`function` None, returning None.")
-            return None
-
-        # Return if `self` has no examples
-        if not len(self):
-            logger.info("Dataset empty, returning None.")
-            return None
-
-        # Get some information about the function
-        function_properties = self._inspect_function(
-            function,
-            with_indices,
-            batched=batched,
-        )
-        assert function_properties.bool_output, "function must return boolean."
-
-        # Map to get the boolean outputs and indices
-        logger.info("Running `filter`, a new dataset will be returned.")
-        outputs = self.map(
-            function=function,
-            with_indices=with_indices,
-            input_columns=input_columns,
-            batched=batched,
-            batch_size=batch_size,
-            drop_last_batch=drop_last_batch,
-            num_proc=num_proc,
-        )
-        indices = np.where(outputs)[0]
-
-        new_column = self.copy()
-        new_column.set_visible_rows(indices)
-        return new_column
-
-    @classmethod
-    def read(cls, path: str) -> ListColumn:
-        # Load in the data
-        metadata = dict(
-            yaml.load(open(os.path.join(path, "meta.yaml")), Loader=yaml.FullLoader)
-        )
-        data = dill.load(open(os.path.join(path, "data.dill"), "rb"))
-
-        column = cls()
-        state = metadata["state"]
-        state["_data"] = data
-        column.from_state(metadata["state"])
-        return column
-
-    def write(self, path: str) -> None:
-
-        state = self.get_state()
-        del state["_data"]
-        metadata = {
-            "dtype": type(self),
-            "data_dtypes": list(map(type, self._data)),
-            "len": len(self),
-            "state": state,
-            **self.metadata(),
-        }
-
-        # Make directory
-        os.makedirs(path, exist_ok=True)
-
-        # Get the paths where metadata and data should be stored
-        metadata_path = os.path.join(path, "meta.yaml")
-        data_path = os.path.join(path, "data.dill")
-
-        # Saving all cell data in a single pickle file
-        dill.dump(self._data, open(data_path, "wb"))
-
-        # Saving the metadata as a yaml
-        yaml.dump(metadata, open(metadata_path, "w"))
-
-    @classmethod
-    def _state_keys(cls) -> set:
-        """List of attributes that describe the state of the object."""
-        return {"_materialize", "collate", "_data"}
