@@ -17,10 +17,8 @@ class CellColumn(AbstractColumn):
         *args,
         **kwargs,
     ):
-        self._data = cells
-
         super(CellColumn, self).__init__(
-            num_rows=len(self),
+            data=cells,
             materialize=materialize,
             *args,
             **kwargs,
@@ -32,4 +30,4 @@ class CellColumn(AbstractColumn):
 
     @property
     def cells(self):
-        return self._data
+        return self.data

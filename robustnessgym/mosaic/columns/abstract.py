@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import logging
+import reprlib
 from collections import defaultdict
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
 
@@ -42,20 +43,43 @@ class AbstractColumn(
 
     def __init__(
         self,
-        num_rows: int,
+        data: Sequence = None,
         identifier: Identifier = None,
+        materialize: bool = True,
+        collate_fn: Callable = None,
         *args,
         **kwargs,
     ):
+        # Assign to data
+        self._data = data
+
         super(AbstractColumn, self).__init__(
-            n=num_rows,
+            n=len(data) if data is not None else 0,
             identifier=identifier,
+            materialize=materialize,
+            collate_fn=collate_fn,
             *args,
             **kwargs,
         )
 
         # Log creation
         logger.info(f"Created `{self.__class__.__name__}` with {len(self)} rows.")
+
+    def __repr__(self):
+        if self.visible_rows is not None:
+            return (
+                f"{self.__class__.__name__}View"
+                f"({reprlib.repr([self.data[i] for i in self.visible_rows[:8]])})"
+            )
+        return f"{self.__class__.__name__}({reprlib.repr(self.data)})"
+
+    def __str__(self):
+        if self.visible_rows is not None:
+            return (
+                f"{self.__class__.__name__}View"
+                f"({reprlib.repr([self.data[i] for i in self.visible_rows[:8]])})"
+            )
+        return f"{self.__class__.__name__}({reprlib.repr(self.data)})"
 
     @property
     def data(self):
@@ -75,22 +99,28 @@ class AbstractColumn(
             # Remap the index if only some rows are visible
             index = self._remap_index(index)
 
-        # indices that return a single cell
+        # `index` should return a single element
         if isinstance(index, int) or isinstance(index, np.int):
-            data = self.data[index]
+            data = self.data[int(index)]
 
-            # check if the column implements materialization
+            # Check if the column implements materialization
             if self.materialize:
-                return data.get()
+                if hasattr(data, "get"):
+                    # `data` has a `get` method that can be called for retrieving the
+                    # "expensive" information
+                    return data.get()
+                else:
+                    # `data` has no `get` method, return directly
+                    return data
             else:
                 return data
 
-        # indices that return batches
+        # `index` should return a batch
         if isinstance(index, slice):
             # int or slice index => standard list slicing
             data = self.data[index]
         elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            data = [self.data[i] for i in index]
+            data = [self.data[int(i)] for i in index]
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
             data = [self.data[int(i)] for i in index]
         else:
@@ -99,7 +129,12 @@ class AbstractColumn(
         if self.materialize:
             # if materializing, return a batch (by default, a list of objects returned
             # by `element.get`, otherwise the batch format specified by `self.collate`
-            return self.collate([element.get() for element in data])
+            return self.collate(
+                [
+                    element.get() if hasattr(element, "get") else element
+                    for element in data
+                ]
+            )
         else:
             # if not materializing, return a new Column
             return self.__class__(data, materialize=self.materialize)
@@ -167,6 +202,7 @@ class AbstractColumn(
                     batch_size=batch_size,
                     drop_last_batch=drop_last_batch,
                     collate=batched,
+                    # TODO: collate=batched was commented out in list_column
                 )
             ),
             total=(len(self) // batch_size)
