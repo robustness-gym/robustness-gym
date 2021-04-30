@@ -6,7 +6,6 @@ from typing import List
 import numpy as np
 from datasets import DatasetInfo
 from torch.utils.data._utils.collate import default_collate
-from wilds.datasets.wilds_dataset import WILDSSubset
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.mosaic.columns.abstract import AbstractColumn
@@ -18,6 +17,7 @@ from .transforms import initialize_transform
 
 try:
     import wilds
+    from wilds.datasets.wilds_dataset import WILDSSubset
 except ImportError:
     raise ImportError(
         "The WILDS package is not installed. To use the RG WILDS module, please "
