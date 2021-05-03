@@ -138,6 +138,12 @@ class DataPane(
 
         return new_data
 
+    def _repr_pandas_(self):
+        return pd.DataFrame({f"{k}({v.__class__.__name__})": v._repr_pandas_() for k,v in self._data.items()})
+    
+    def _repr_html_(self):
+        return self._repr_pandas_()._repr_html_()
+
     def __repr__(self):
         return f"{self.__class__.__name__}" f"(num_rows: {self.num_rows})"
 
@@ -746,7 +752,7 @@ class DataPane(
         logger.info("Running update, a new dataset will be returned.")
         if self.visible_rows is not None:
             # Run .map() to get updated batches and pass them into a new dataset
-            new_dataset = DataPane(
+            new_dp = DataPane(
                 self.map(
                     (
                         lambda batch, indices: self._merge_batch_and_output(
@@ -767,7 +773,7 @@ class DataPane(
         else:
             if function_properties.updates_existing_column:
                 # Copy the ._data dict with a reference to the actual columns
-                new_dataset = self.copy()
+                new_dp = self.copy()
 
                 # Calculate the values for the updated columns using a .map()
                 output = self.map(
@@ -802,14 +808,16 @@ class DataPane(
                 )
 
                 # Add new columns / overwrite existing columns for the update
-                for col, vals in output.items():
-                    new_dataset.add_column(col, vals, overwrite=True)
+                for col, vals in output._data.items():
+                    if col == "index":
+                        continue
+                    new_dp.add_column(col, vals, overwrite=True)
             else:
                 # Copy the ._data dict with a reference to the actual columns
-                new_dataset = self.copy()
+                new_dp = self.copy()
 
                 # Calculate the values for the new columns using a .map()
-                output = new_dataset.map(
+                output = new_dp.map(
                     function=function,
                     with_indices=with_indices,
                     batched=True,
@@ -817,16 +825,18 @@ class DataPane(
                     num_workers=num_workers,
                 )
                 # Add new columns for the update
-                for col, vals in output.items():
-                    new_dataset.add_column(col, vals)
+                for col, vals in output._data.items():
+                    if col == "index":
+                        continue
+                    new_dp.add_column(col, vals)
 
         # Remove columns
         if remove_columns:
             for col in remove_columns:
-                new_dataset.remove_column(col)
+                new_dp.remove_column(col)
             logger.info(f"Removed columns {remove_columns}.")
 
-        return new_dataset
+        return new_dp
 
     def map(
         self,
@@ -853,104 +863,6 @@ class DataPane(
                 mmap=mmap,
                 **kwargs,
             )
-
-    def _map(self):
-        """Apply a map over the dataset."""
-        # Just return if `function` is None or `self` has no examples
-        if function is None or not len(self):
-            return None
-
-        # Convert `input_columns` to a list
-        if isinstance(input_columns, str):
-            input_columns = [input_columns]
-
-        # Convert to a batched function
-        if not batched:
-            function = convert_to_batch_fn(function, with_indices=with_indices)
-            batched = True
-
-        with self.format(input_columns):
-
-            # Create the batches
-            batches = self.batch(batch_size, drop_last_batch, num_workers=num_workers)
-            num_batches = (len(self) // batch_size) + (1 - int(drop_last_batch))
-
-            # Run the map
-            for i, batch in tqdm(enumerate(batches), total=num_batches):
-
-                # Calculate the start and end indexes for the batch
-                start_index = i * batch_size
-                end_index = min(len(self), (i + 1) * batch_size)
-
-                # Use the first batch for setup
-                if i == 0:
-
-                    # Get some information about the function
-                    function_properties = self._inspect_function(
-                        function,
-                        with_indices,
-                        batched,
-                        batch,
-                        range(start_index, end_index),
-                    )
-
-                    # Pull out information
-                    output = function_properties.output
-                    dtype = function_properties.output_dtype
-                    if function_properties.output_shape is not None:
-                        shape = (len(self), *function_properties.output_shape)
-
-                    if output_type is None:
-                        output_type = type(AbstractColumn.from_data(output))
-                    writer = output_type.get_writer(mmap=mmap)
-
-                    # Setup for writing to a certain output column
-                    if mmap:
-                        # Construct the mmap file path
-                        # TODO: how/where to store the files
-                        path = self.logdir / f"{hash(function)}"
-                        # Open the output writer
-                        writer.open(str(path), dtype, shape=shape)
-                    else:
-                        # Create an empty dict or list for the outputs
-                        writer.open()
-
-                else:
-                    # Run `function` on the batch
-                    output = (
-                        function(batch, range(start_index, end_index))
-                        if with_indices
-                        else function(batch)
-                    )
-
-                # Append the output
-                if output is not None:
-                    if isinstance(output, Mapping):
-                        for k in output.keys():
-                            outputs[k].append(output[k])
-                    else:
-                        writer.write(output)
-
-        # Check if we are returning a special output type
-        if mmap:
-            writer.flush()
-            # TODO: Writers should have correspondence to their own columns
-            outputs = output_type.read(
-                str(path),
-                mmap=mmap,
-                dtype=dtype,
-                shape=shape,
-            )
-        else:
-            outputs = writer.flush()
-            outputs = output_type.from_data(outputs)
-
-        if outputs is None or not len(outputs):
-            return None
-
-        if isinstance(outputs, dict):
-            return {k: v for k, v in outputs.items()}
-        return outputs
 
     @staticmethod
     def _concat_batches(batches):
