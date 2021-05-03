@@ -285,7 +285,8 @@ class AbstractColumn(
         #             continue
         #         yield self[i : i + batch_size]
 
-    def get_writer(self, mmap: bool = False):
+    @classmethod
+    def get_writer(cls, mmap: bool = False):
         if mmap:
             raise ValueError("Memmapping not supported with this column type.")
         else:

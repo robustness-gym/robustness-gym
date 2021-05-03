@@ -94,7 +94,8 @@ class NumpyArrayColumn(
     def _get_batch(self, indices):
         return self.from_array(self.__array__()[indices])
 
-    def get_writer(self, mmap: bool = False):
+    @classmethod
+    def get_writer(cls, mmap: bool = False):
         if mmap:
             return NumpyMemmapWriter()
         else:
