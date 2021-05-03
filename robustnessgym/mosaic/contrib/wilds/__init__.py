@@ -200,12 +200,15 @@ class WILDSInputColumn(AbstractColumn):
     def write(
         self, path: str, write_together: bool = None, write_data: bool = None
     ) -> None:
-        """ Write this column KHBSDKHBSDJHBSDBJ
+        """ Write the state of this input column to disk at `path`. Warning: this write
+        is very lightweight, only the name of the dataset (`dataset_name`), the 
+        directory of the dataset `root_dir`, and the other args to `__init__` are 
+        written to disk. If the data at `root_dir` is modified, `read` will return a 
+        column with different data.
         """
         # TODO (Sabri): Ideally, `write` and `read` should not be reimplemented here,
         # but instead only `get_state` and `from_state`. This requires significant
         # changes to ColumnStorageMixin and StateDictMixin, so I'm punting to another PR.
-        
         yaml.dump(self._state, open(path, "w"))
 
     @classmethod
