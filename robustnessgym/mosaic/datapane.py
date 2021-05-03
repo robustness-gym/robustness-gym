@@ -139,8 +139,13 @@ class DataPane(
         return new_data
 
     def _repr_pandas_(self):
-        return pd.DataFrame({f"{k}({v.__class__.__name__})": v._repr_pandas_() for k,v in self._data.items()})
-    
+        return pd.DataFrame(
+            {
+                f"{k}({v.__class__.__name__})": v._repr_pandas_()
+                for k, v in self._data.items()
+            }
+        )
+
     def _repr_html_(self):
         return self._repr_pandas_()._repr_html_()
 
@@ -441,10 +446,12 @@ class DataPane(
                 return self._data[index]
             raise AttributeError(f"Column {index} does not exist.")
 
-        # TODO(sabri): discuss with others returning a DataPane here
+        # cases where `index` returns a datapane
         elif isinstance(index, slice):
             # slice index => multiple row selection (DataPane)
-            return {k: self._data[k][index] for k in self.visible_columns}
+            return DataPane.from_batch(
+                {k: self._data[k][index] for k in self.visible_columns}
+            )
 
         elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
             # tuple or list index => multiple row selection (DataPane)
@@ -452,10 +459,14 @@ class DataPane(
                 return DataPane.from_batch(
                     {k: self._data[k] for k in index if k in self.visible_columns}
                 )
-            return {k: self._data[k][index] for k in self.visible_columns}
+            return DataPane.from_batch(
+                {k: self._data[k][index] for k in self.visible_columns}
+            )
         elif isinstance(index, np.ndarray) and len(index.shape) == 1:
             # numpy array index => multiple row selection (DataPane)
-            return {k: self._data[k][index] for k in self.visible_columns}
+            return DataPane.from_batch(
+                {k: self._data[k][index] for k in self.visible_columns}
+            )
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
@@ -641,7 +652,7 @@ class DataPane(
         for name, values in batch.items():
             new_batch[name] = column_to_collate[name](values)
 
-        return new_batch
+        return DataPane.from_batch(new_batch)
 
     @staticmethod
     def _convert_to_batch_fn(function: Callable, with_indices: bool) -> callable:
@@ -696,7 +707,7 @@ class DataPane(
                 batch_indices.append(indices[i : i + batch_size])
 
             batch_dl = torch.utils.data.DataLoader(
-                self,
+                self[batch_columns],
                 sampler=batch_indices,
                 batch_size=None,
                 batch_sampler=None,
@@ -704,8 +715,8 @@ class DataPane(
             )
 
         if batch_columns and cell_columns:
-            for cell_batch, batch_batch in zip(batch_dl, cell_dl):
-                yield {**cell_batch, **batch_batch}
+            for batch_batch, cell_batch in zip(batch_dl, cell_dl):
+                yield DataPane.from_batch({**cell_batch._data, **batch_batch._data})
 
         elif batch_columns:
             return batch_dl
@@ -783,7 +794,7 @@ class DataPane(
                         self._merge_batch_and_output(
                             {
                                 k: v
-                                for k, v in batch.items()
+                                for k, v in batch._data.items()
                                 if k in function_properties.existing_columns_updated
                             },
                             function(batch, indices),
@@ -796,7 +807,7 @@ class DataPane(
                         self._merge_batch_and_output(
                             {
                                 k: v
-                                for k, v in batch.items()
+                                for k, v in batch._data.items()
                                 if k in function_properties.existing_columns_updated
                             },
                             function(batch),
@@ -930,6 +941,9 @@ class DataPane(
             new_datapane.set_visible_rows(indices)
 
         return new_datapane
+    
+    def items(self):
+        return self._data.items()
 
     @classmethod
     def read(

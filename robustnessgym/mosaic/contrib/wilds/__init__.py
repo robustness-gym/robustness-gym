@@ -12,6 +12,7 @@ from robustnessgym.core.identifier import Identifier
 from robustnessgym.mosaic.columns.abstract import AbstractColumn
 from robustnessgym.mosaic.columns.numpy_column import NumpyArrayColumn
 from robustnessgym.mosaic.datapane import DataPane
+import yaml
 
 from .config import base_config, populate_defaults
 from .transforms import initialize_transform
@@ -73,7 +74,7 @@ class WILDSDataPane(DataPane):
         """
         self.dataset_name = dataset_name
         self.root_dir = root_dir
-        input_column = WildsInputColumn(
+        input_column = WILDSInputColumn(
             dataset_name=dataset_name,
             version=version,
             root_dir=root_dir,
@@ -82,16 +83,13 @@ class WILDSDataPane(DataPane):
         )
         output_column = input_column.get_y_column()
         metadata_columns = input_column.get_metadata_columns()
-        super(WildsDataPane, self).__init__(
+        super(WILDSDataPane, self).__init__(
             {"input": input_column, "y": output_column, **metadata_columns},
             identifier=identifier,
             column_names=column_names,
             info=info,
             split=split,
         )
-
-        if "fmow" == self.dataset_name:
-            pass
 
 
 class WILDSInputColumn(AbstractColumn):
@@ -120,6 +118,8 @@ class WILDSInputColumn(AbstractColumn):
             "dataset_name": dataset_name,
             "version": version,
             "root_dir": root_dir,
+            "split": split,
+            "use_transform": use_transform,
             **dataset_kwargs,
         }
         dataset = wilds.get_dataset(
@@ -170,7 +170,7 @@ class WILDSInputColumn(AbstractColumn):
             f"meta_{field}": NumpyArrayColumn(data=dataset.metadata_array[:, idx])
             for idx, field in enumerate(dataset.metadata_fields)
         })
-        super(WildsInputColumn, self).__init__(data=dataset, collate_fn=collate)
+        super(WILDSInputColumn, self).__init__(data=dataset, collate_fn=collate)
 
     def get_y_column(self):
         """
@@ -200,17 +200,23 @@ class WILDSInputColumn(AbstractColumn):
     def write(
         self, path: str, write_together: bool = None, write_data: bool = None
     ) -> None:
-        # TODO (Sabri): implement read and write – I think this requires significant
-        # changes to ColumnStorageMixin and StateDictMixin, so I'm punting to another PR
-        raise NotImplementedError("Writing `WildsInputColumn` not supported.")
-
-    def get_state(self):
-        raise NotImplementedError("Writing `WildsInputColumn` not supported.")
-
-    @classmethod
-    def from_state(cls, state, *args, **kwargs) -> object:
-        raise NotImplementedError("Reading `WildsInputColumn` not supported.")
+        """ Write this column KHBSDKHBSDJHBSDBJ
+        """
+        # TODO (Sabri): Ideally, `write` and `read` should not be reimplemented here,
+        # but instead only `get_state` and `from_state`. This requires significant
+        # changes to ColumnStorageMixin and StateDictMixin, so I'm punting to another PR.
+        
+        yaml.dump(self._state, open(path, "w"))
 
     @classmethod
     def read(cls, path: str, *args, **kwargs) -> object:
-        raise NotImplementedError("Reading `WildsInputColumn` not supported.")
+        state = dict(yaml.load(open(path),Loader=yaml.FullLoader))
+        return cls(**state)
+
+    def get_state(self):
+        raise NotImplementedError(" `WILDSInputColumn` not supported.")
+
+    @classmethod
+    def from_state(cls, state, *args, **kwargs) -> object:
+        raise NotImplementedError("Reading `WILDSInputColumn` not supported.")
+
