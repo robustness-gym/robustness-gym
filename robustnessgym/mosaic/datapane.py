@@ -5,11 +5,10 @@ import json
 import logging
 import os
 import pathlib
-from collections import defaultdict
 from contextlib import contextmanager
 from copy import copy, deepcopy
 from functools import partial
-from typing import Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import cytoolz as tz
 import datasets
@@ -25,12 +24,10 @@ from jsonlines import jsonlines
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.tools import convert_to_batch_fn, recmerge
 from robustnessgym.mosaic.columns.abstract import AbstractColumn
-from robustnessgym.mosaic.columns.numpy_column import NumpyArrayColumn
 from robustnessgym.mosaic.mixins.copying import CopyMixin
 from robustnessgym.mosaic.mixins.inspect_fn import FunctionInspectorMixin
 from robustnessgym.mosaic.mixins.mapping import MappableMixin
 from robustnessgym.mosaic.mixins.state import StateDictMixin
-from robustnessgym.mosaic.writers.numpy_writer import NumpyMemmapWriter
 
 logger = logging.getLogger(__name__)
 
@@ -944,7 +941,7 @@ class DataPane(
             new_datapane.set_visible_rows(indices)
 
         return new_datapane
-    
+
     def items(self):
         for name, column in self._data.items():
             if name in self.visible_columns:  

@@ -3,12 +3,10 @@ from __future__ import annotations
 import abc
 import logging
 import reprlib
-from collections import defaultdict
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
-from robustnessgym.mosaic.writers.list_writer import ListWriter
 import torch
 
 from robustnessgym.core.identifier import Identifier
@@ -24,6 +22,7 @@ from robustnessgym.mosaic.mixins.materialize import MaterializationMixin
 from robustnessgym.mosaic.mixins.state import StateDictMixin
 from robustnessgym.mosaic.mixins.storage import ColumnStorageMixin
 from robustnessgym.mosaic.mixins.visibility import VisibilityMixin
+from robustnessgym.mosaic.writers.list_writer import ListWriter
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +155,7 @@ class AbstractColumn(
             new_column = self.copy()
             new_column.visible_rows = indices
             return new_column
-    
+
     @staticmethod
     def _convert_to_batch_fn(function: Callable, with_indices: bool) -> callable:
         return convert_to_batch_column_fn(function=function, with_indices=with_indices)
@@ -170,10 +169,10 @@ class AbstractColumn(
         if self.data is not None:
             return len(self.data)
         return 0
-    
+
     def _repr_pandas_(self) -> pd.Series:
         raise NotImplementedError
-    
+
     def _repr_html_(self):
         # pd.Series objects do not implement _repr_html_
         return self._repr_pandas_()
@@ -286,7 +285,7 @@ class AbstractColumn(
         #             continue
         #         yield self[i : i + batch_size]
 
-    def get_writer(mmap: bool = False):
+    def get_writer(self, mmap: bool = False):
         if mmap:
             raise ValueError("Memmapping not supported with this column type.")
         else:
