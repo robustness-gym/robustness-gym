@@ -135,10 +135,7 @@ class DataPane(
 
     def _repr_pandas_(self):
         return pd.DataFrame(
-            {
-                f"{k}({v.__class__.__name__})": v._repr_pandas_()
-                for k, v in self._data.items()
-            }
+            {f"{k}({v.__class__.__name__})": v._repr_pandas_() for k, v in self.items()}
         )
 
     def _repr_html_(self):
@@ -937,7 +934,7 @@ class DataPane(
         with self.format():
             # Filter returns a new dataset
             new_datapane = self.copy()
-            new_datapane.set_visible_rows(indices)
+            new_datapane.visible_rows = indices
 
         return new_datapane
 
