@@ -95,7 +95,7 @@ class AbstractColumn(
     @classmethod
     def _state_keys(cls) -> set:
         """List of attributes that describe the state of the object."""
-        return {"_materialize", "_collate_fn", "_data"}
+        return {"_materialize", "_collate_fn", "_data", "_visible_rows"}
 
     def _get_cell(self, index: int):
         return self.data[index]
@@ -229,7 +229,7 @@ class AbstractColumn(
         batch_size: int = 32,
         drop_last_batch: bool = False,
         collate: bool = True,
-        num_workers: int = 4, 
+        num_workers: int = 4,
         *args,
         **kwargs,
     ):
@@ -249,7 +249,7 @@ class AbstractColumn(
                 batch_size=batch_size,
                 collate_fn=self.collate if collate else lambda x: x,
                 drop_last=drop_last_batch,
-                num_workers=num_workers, 
+                num_workers=num_workers,
                 *args,
                 **kwargs,
             )
@@ -266,9 +266,9 @@ class AbstractColumn(
                 batch_size=None,
                 batch_sampler=None,
                 drop_last=drop_last_batch,
-                num_workers=num_workers, 
-                *args, 
-                **kwargs
+                num_workers=num_workers,
+                *args,
+                **kwargs,
             )
         # if self.materialize:
         #     return torch.utils.data.DataLoader(

@@ -27,6 +27,7 @@ from robustnessgym.mosaic.mixins.copying import CopyMixin
 from robustnessgym.mosaic.mixins.inspect_fn import FunctionInspectorMixin
 from robustnessgym.mosaic.mixins.mapping import MappableMixin
 from robustnessgym.mosaic.mixins.state import StateDictMixin
+from robustnessgym.mosaic.mixins.visibility import VisibilityMixin
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class DataPane(
     FunctionInspectorMixin,
     MappableMixin,
     StateDictMixin,
+    VisibilityMixin,
 ):
     """Mosaic DataPane class."""
 
@@ -107,9 +109,6 @@ class DataPane(
         # Create attributes for all columns and visible columns
         self.all_columns = list(self._data.keys())
         self.visible_columns = None
-
-        # Create attributes for visible rows
-        self.visible_rows = None
 
         # Create an identifier
         # TODO(Sabri): make _autobuild_identifier more informative
@@ -207,25 +206,6 @@ class DataPane(
 
         # Set the features
         self._set_features()
-
-    def set_visible_rows(self, indices: Optional[Sequence]):
-        """Set the visible rows in the dataset."""
-        if indices is None:
-            self.visible_rows = None
-        else:
-            if len(indices):
-                assert min(indices) >= 0 and max(indices) < len(self), (
-                    f"Ensure min index {min(indices)} >= 0 and "
-                    f"max index {max(indices)} < {len(self)}."
-                )
-            if self.visible_rows is not None:
-                self.visible_rows = self.visible_rows[np.array(indices, dtype=int)]
-            else:
-                self.visible_rows = np.array(indices, dtype=int)
-
-    def reset_visible_rows(self):
-        """Reset to make all rows visible."""
-        self.visible_rows = None
 
     @contextmanager
     def format(self, columns: List[str] = None):
@@ -460,20 +440,6 @@ class DataPane(
             return DataPane.from_batch(
                 {k: self._data[k][index] for k in self.visible_columns}
             )
-        else:
-            raise TypeError("Invalid argument type: {}".format(type(index)))
-
-    def _remap_index(self, index):
-        if isinstance(index, int):
-            return self.visible_rows[index].item()
-        elif isinstance(index, slice):
-            return self.visible_rows[index].tolist()
-        elif isinstance(index, str):
-            return index
-        elif (isinstance(index, tuple) or isinstance(index, list)) and len(index):
-            return self.visible_rows[index].tolist()
-        elif isinstance(index, np.ndarray) and len(index.shape) == 1:
-            return self.visible_rows[index].tolist()
         else:
             raise TypeError("Invalid argument type: {}".format(type(index)))
 
@@ -1046,7 +1012,7 @@ class DataPane(
             "_identifier",
             "_data",
             "all_columns",
-            "visible_rows",
+            "_visible_rows",
             "_info",
             "_split",
         }
