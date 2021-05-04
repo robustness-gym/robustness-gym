@@ -38,6 +38,7 @@ class WILDSDataPane(DataPane):
         info: DatasetInfo = None,
         split: str = None,
         use_transform: bool = True,
+        include_raw_input: bool = True
     ):
         """A DataPane that hols a `WildsInputColumn` alongside `NumpyColumn`s for
         targets and metadata.
@@ -71,6 +72,8 @@ class WILDSDataPane(DataPane):
             column_names (List[str], optional): [description]. Defaults to None.
             info (DatasetInfo, optional): [description]. Defaults to None.
             use_transform (bool, optional): [description]. Defaults to True.
+            include_raw_input (bool, optional): include a column for the input without
+                the transform applied – useful for visualizing images. Defaults to True.
         """
         self.dataset_name = dataset_name
         self.root_dir = root_dir
@@ -83,8 +86,16 @@ class WILDSDataPane(DataPane):
         )
         output_column = input_column.get_y_column()
         metadata_columns = input_column.get_metadata_columns()
+
+        data = {"input": input_column, "y": output_column, **metadata_columns}
+        if include_raw_input:
+            # remove 
+            data["raw_input"] = input_column.copy()
+            data["raw_input"]._data.transform = lambda x: x
+
+            
         super(WILDSDataPane, self).__init__(
-            {"input": input_column, "y": output_column, **metadata_columns},
+            data,
             identifier=identifier,
             column_names=column_names,
             info=info,

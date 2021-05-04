@@ -261,7 +261,6 @@ class DataPane(
         """
         # Check that the columns exist
         self._check_columns_exist(columns)
-
         # Set visible columns
         self.visible_columns = columns
 
@@ -676,7 +675,7 @@ class DataPane(
             batches of data
         """
         cell_columns, batch_columns = [], []
-        for name, column in self._data.items():
+        for name, column in self.items():
             # check if the column has overriden the base `batch`
             if column._get_batch.__func__ == AbstractColumn._get_batch:
                 # if not, include it in the cell dataloader
@@ -728,7 +727,7 @@ class DataPane(
         self,
         function: Optional[Callable] = None,
         with_indices: bool = False,
-        # input_columns: Optional[Union[str, List[str]]] = None,
+        input_columns: Optional[Union[str, List[str]]] = None,
         batched: bool = False,
         batch_size: Optional[int] = 1000,
         remove_columns: Optional[List[str]] = None,
@@ -780,6 +779,7 @@ class DataPane(
                     with_indices=with_indices,
                     batched=True,
                     batch_size=batch_size,
+                    input_columns=input_columns
                 )
             )
         else:
@@ -817,6 +817,7 @@ class DataPane(
                     with_indices=with_indices,
                     batched=True,
                     batch_size=batch_size,
+                    input_columns=input_columns
                 )
 
                 # Add new columns / overwrite existing columns for the update
@@ -835,6 +836,7 @@ class DataPane(
                     batched=True,
                     batch_size=batch_size,
                     num_workers=num_workers,
+                    input_columns=input_columns
                 )
                 # Add new columns for the update
                 for col, vals in output._data.items():
@@ -946,7 +948,7 @@ class DataPane(
     def items(self):
         for name, column in self._data.items():
             if name in self.visible_columns:  
-                yield self._data.items()
+                yield name, column
 
     @classmethod
     def read(

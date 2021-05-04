@@ -162,7 +162,7 @@ class NumpyArrayColumn(
 
     def __array_finalize__(self, obj) -> None:
         if obj is None:
-            # TODO(sabri): my undestanding is that `obj` is always `None`. I think this
+            # TODO(sabri): my understanding is that `obj` is always `None`. I think this
             # is because in `PyArray_NewFromDescr`, `NULL` is passed in for `obj`.
             # See docs here (under creatin arrays) https://numpy.org/devdocs/reference/c-api/array.html
             # and the call here https://github.com/numpy/numpy/blob/2416ff43c4feb199890c13046f5f3e666a29f7e5/numpy/core/src/multiarray/multiarraymodule.c#L3082
