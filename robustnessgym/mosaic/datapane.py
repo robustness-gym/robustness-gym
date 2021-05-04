@@ -7,7 +7,6 @@ import os
 import pathlib
 from contextlib import contextmanager
 from copy import copy, deepcopy
-from functools import partial
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import cytoolz as tz
@@ -776,7 +775,7 @@ class DataPane(
                     with_indices=with_indices,
                     batched=True,
                     batch_size=batch_size,
-                    input_columns=input_columns
+                    input_columns=input_columns,
                 )
             )
         else:
@@ -814,7 +813,7 @@ class DataPane(
                     with_indices=with_indices,
                     batched=True,
                     batch_size=batch_size,
-                    input_columns=input_columns
+                    input_columns=input_columns,
                 )
 
                 # Add new columns / overwrite existing columns for the update
@@ -833,7 +832,7 @@ class DataPane(
                     batched=True,
                     batch_size=batch_size,
                     num_workers=num_workers,
-                    input_columns=input_columns
+                    input_columns=input_columns,
                 )
                 # Add new columns for the update
                 for col, vals in output._data.items():
@@ -944,8 +943,18 @@ class DataPane(
 
     def items(self):
         for name, column in self._data.items():
-            if name in self.visible_columns:  
+            if name in self.visible_columns:
                 yield name, column
+
+    def keys(self):
+        for name in self._data.keys():
+            if name in self.visible_columns:
+                yield name
+
+    def values(self):
+        for name, column in self._data.items():
+            if name in self.visible_columns:
+                yield column
 
     @classmethod
     def read(
