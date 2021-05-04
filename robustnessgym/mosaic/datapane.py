@@ -59,6 +59,8 @@ class DataPane(
         split: Optional[NamedSplit] = None,
         **kwargs,
     ):
+        # TODO(karan, sabri): copy columns when they're passed in and prevent users
+        #  from setting visible_rows inside columns that belong to a datapane
 
         logger.debug("Creating DataPane.")
 
