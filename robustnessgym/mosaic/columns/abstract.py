@@ -77,12 +77,7 @@ class AbstractColumn(
         return f"{self.__class__.__name__}({reprlib.repr(self.data)})"
 
     def __str__(self):
-        if self.visible_rows is not None:
-            return (
-                f"{self.__class__.__name__}View"
-                f"({reprlib.repr([self.data[i] for i in self.visible_rows[:8]])})"
-            )
-        return f"{self.__class__.__name__}({reprlib.repr(self.data)})"
+        return str(repr(self))
 
     @property
     def data(self):

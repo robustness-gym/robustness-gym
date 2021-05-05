@@ -136,7 +136,10 @@ class DataPane(
 
     def _repr_pandas_(self):
         return pd.DataFrame(
-            {f"{k}({v.__class__.__name__})": v._repr_pandas_() for k, v in self.items()}
+            {
+                f"{k} ({v.__class__.__name__})": v._repr_pandas_()
+                for k, v in self.items()
+            }
         )
 
     def _repr_html_(self):
@@ -403,10 +406,6 @@ class DataPane(
         return Identifier(_name=_name, **kwargs)
 
     def __getitem__(self, index):
-        if self.visible_rows is not None:
-            # Remap the index if only some rows are visible
-            index = self._remap_index(index)
-
         if isinstance(index, int) or isinstance(index, np.int):
             # int index => single row (dict)
             return {k: self._data[k][index] for k in self.visible_columns}
@@ -414,8 +413,6 @@ class DataPane(
         elif isinstance(index, str):
             # str index => column selection (AbstractColumn)
             if index in self.column_names:
-                if self.visible_rows is not None:
-                    return [self._data[index][i] for i in self.visible_rows]
                 return self._data[index]
             raise AttributeError(f"Column {index} does not exist.")
 
