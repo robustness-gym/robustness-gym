@@ -308,7 +308,7 @@ class class_or_instancemethod(classmethod):
 
 
 def nested_map(f, *args):
-    """ Recursively transpose a nested structure of tuples, lists, and dicts """
+    """Recursively transpose a nested structure of tuples, lists, and dicts."""
     assert len(args) > 0, "Must have at least one argument."
     arg = args[0]
     if isinstance(arg, Sequence) and not isinstance(arg, str):
