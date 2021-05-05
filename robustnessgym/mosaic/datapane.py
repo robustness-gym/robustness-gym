@@ -465,8 +465,7 @@ class DataPane(
 
     @classmethod
     def load_huggingface(cls, *args, **kwargs):
-        """
-        Load a Huggingface dataset as a DataPane.
+        """Load a Huggingface dataset as a DataPane.
 
         Use this to replace `datasets.load_dataset`, so
 
@@ -707,10 +706,13 @@ class DataPane(
             return self
 
         # Get some information about the function
-        function_properties = self._inspect_function(function, with_indices, batched)
-        assert (
-            function_properties.dict_output
-        ), f"`function` {function} must return dict."
+        with self.format(input_columns):
+            function_properties = self._inspect_function(
+                function, with_indices, batched
+            )
+            assert (
+                function_properties.dict_output
+            ), f"`function` {function} must return dict."
 
         if not batched:
             # Convert to a batch function
@@ -875,12 +877,13 @@ class DataPane(
             return None
 
         # Get some information about the function
-        function_properties = self._inspect_function(
-            function,
-            with_indices,
-            batched=batched,
-        )
-        assert function_properties.bool_output, "function must return boolean."
+        with self.format(input_columns):
+            function_properties = self._inspect_function(
+                function,
+                with_indices,
+                batched=batched,
+            )
+            assert function_properties.bool_output, "function must return boolean."
 
         # Map to get the boolean outputs and indices
         logger.info("Running `filter`, a new DataPane will be returned.")

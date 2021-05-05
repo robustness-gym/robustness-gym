@@ -9,8 +9,8 @@ import cytoolz as tz
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-from datasets.arrow_dataset import DatasetInfoMixin
 import torch
+from datasets.arrow_dataset import DatasetInfoMixin
 
 from robustnessgym.core.tools import recmerge
 
