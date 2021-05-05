@@ -88,9 +88,9 @@ class WILDSDataPane(DataPane):
 
         data = {"input": input_column, "y": output_column, **metadata_columns}
         if include_raw_input:
-            # remove
             data["raw_input"] = input_column.copy()
             data["raw_input"]._data.transform = lambda x: x
+            data["raw_input"]._collate_fn = lambda x: x
 
         super(WILDSDataPane, self).__init__(
             data,
