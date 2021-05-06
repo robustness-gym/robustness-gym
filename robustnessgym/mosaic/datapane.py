@@ -653,7 +653,6 @@ class DataPane(
                 if drop_last_batch and i + batch_size > len(self):
                     continue
                 batch_indices.append(indices[i : i + batch_size])
-            print(batch_indices)
             batch_dl = torch.utils.data.DataLoader(
                 self[batch_columns],
                 sampler=batch_indices,
@@ -678,7 +677,6 @@ class DataPane(
 
         if batch_columns and cell_columns:
             for cell_batch, batch_batch in zip(cell_dl, batch_dl):
-                print(cell_batch._data)
                 yield DataPane.from_batch({**cell_batch._data, **batch_batch._data})
         elif batch_columns:
             for batch_batch in batch_dl:
