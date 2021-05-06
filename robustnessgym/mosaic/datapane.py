@@ -956,7 +956,7 @@ class DataPane(
         datapane = cls.from_state(state)
         datapane._create_logdir()
         datapane._initialize_state()
-        datapane.visible_rows = state["visible_rows"]
+        datapane.visible_rows = state["_visible_rows"]
 
         return datapane
 
