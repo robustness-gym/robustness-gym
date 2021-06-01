@@ -2,10 +2,11 @@ from functools import partial
 from types import SimpleNamespace
 
 import numpy as np
-import scipy.optimize
-import scipy.stats
-from scipy.special import logsumexp
-from sklearn.metrics.pairwise import rbf_kernel
+from robustnessgym.core.lazy_loader import LazyLoader
+
+scipy_optimize = LazyLoader('scipy.optimize')
+scipy_special = LazyLoader('scipy.special')
+skmetrics = LazyLoader('sklearn.metrics.pairwise')
 
 
 def Phi(D, edge_list: list = None):
@@ -16,8 +17,8 @@ def Phi(D, edge_list: list = None):
     """
     if edge_list is not None:
         pairwise_terms = (
-            D[np.arange(len(D)), edge_list[:, 0][:, np.newaxis]].T
-            * D[np.arange(len(D)), edge_list[:, 1][:, np.newaxis]].T
+                D[np.arange(len(D)), edge_list[:, 0][:, np.newaxis]].T
+                * D[np.arange(len(D)), edge_list[:, 1][:, np.newaxis]].T
         )
         return np.concatenate([D, pairwise_terms], axis=1)
     else:
@@ -26,14 +27,14 @@ def Phi(D, edge_list: list = None):
 
 def log_partition_ratio(x, Phi_D_src, n_src):
     """Calculate the log-partition ratio in the KLIEP problem."""
-    return np.log(n_src) - logsumexp(Phi_D_src.dot(x))
+    return np.log(n_src) - scipy_special.logsumexp(Phi_D_src.dot(x))
 
 
 def mandoline(
-    D_src,
-    D_tgt,
-    edge_list,
-    sigma=None,
+        D_src,
+        D_tgt,
+        edge_list,
+        sigma=None,
 ):
     """
     Mandoline solver.
@@ -70,25 +71,25 @@ def mandoline(
     n_src, n_tgt = Phi_D_src.shape[0], Phi_D_tgt.shape[0]
 
     def f(x):
-        obj = Phi_D_tgt.dot(x).sum() - n_tgt * logsumexp(Phi_D_src.dot(x))
+        obj = Phi_D_tgt.dot(x).sum() - n_tgt * scipy_special.logsumexp(Phi_D_src.dot(x))
         return -obj
 
     # Set the kernel
-    kernel = partial(rbf_kernel, gamma=sigma)
+    kernel = partial(skmetrics.rbf_kernel, gamma=sigma)
 
     def llkliep_f(x):
-        obj = kernel(Phi_D_tgt, x[:, np.newaxis]).sum() - n_tgt * logsumexp(
+        obj = kernel(Phi_D_tgt, x[:, np.newaxis]).sum() - n_tgt * scipy_special.logsumexp(
             kernel(Phi_D_src, x[:, np.newaxis])
         )
         return -obj
 
     # Solve
     if not sigma:
-        opt = scipy.optimize.minimize(
+        opt = scipy_optimize.minimize(
             f, np.random.randn(Phi_D_tgt.shape[1]), method="BFGS"
         )
     else:
-        opt = scipy.optimize.minimize(
+        opt = scipy_optimize.minimize(
             llkliep_f, np.random.randn(Phi_D_tgt.shape[1]), method="BFGS"
         )
 
@@ -133,10 +134,10 @@ def weighted_estimator(weights, empirical_mat):
 
 
 def estimate_performance(
-    D_src,
-    D_tgt,
-    edge_list,
-    empirical_mat_list_src,
+        D_src,
+        D_tgt,
+        edge_list,
+        empirical_mat_list_src,
 ):
     """Estimate performance on a target distribution using slices from the
     source and target data."""
