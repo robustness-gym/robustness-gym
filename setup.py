@@ -55,6 +55,7 @@ REQUIRED = [
     "plotly>=4.14.1",
     "kaleido>=0.1.0",
     "pytorch-lightning>=1.1.2",
+    "sklearn",
 ]
 
 # What packages are optional?
