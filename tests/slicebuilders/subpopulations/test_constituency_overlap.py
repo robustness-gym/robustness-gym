@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
+from robustnessgym.ops.allen.constituency_parser import AllenConstituencyParser
 from robustnessgym.slicebuilders.subpopulations.constituency_overlap import (
     ConstituencyOverlapSubpopulation,
     ConstituencySubtreeSubpopulation,

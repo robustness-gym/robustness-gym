@@ -1,5 +1,6 @@
-"""Easy data augmentation techniques for text classification. Jason Wei and Kai
-Zou.
+"""
+Easy data augmentation techniques for text classification.
+Jason Wei and Kai Zou.
 
 Taken from https://github.com/jasonwei20/eda_nlp
 """
@@ -8,13 +9,9 @@ import random
 import re
 from random import shuffle
 
-try:
-    from nltk.corpus import wordnet
-except ImportError:
-    _nltk_available = False
-    wordnet = None
-else:
-    _nltk_available = True
+from mosaic.tools.lazy_loader import LazyLoader
+
+nltk_corpus = LazyLoader('nltk.corpus')
 
 random.seed(1)
 
@@ -206,7 +203,7 @@ def synonym_replacement(words, n):
 
 def get_synonyms(word):
     synonyms = set()
-    for syn in wordnet.synsets(word):
+    for syn in nltk_corpus.wordnet.synsets(word):
         for l in syn.lemmas():
             synonym = l.name().replace("_", " ").replace("-", " ").lower()
             synonym = "".join(

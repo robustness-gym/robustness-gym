@@ -1,37 +1,58 @@
+from __future__ import annotations
 from typing import List, Sequence
 
 import cytoolz as tz
 import numpy as np
 from datasets import load_metric
 
-from robustnessgym.cachedops.spacy import Spacy
-from robustnessgym.core.cachedops import CachedOperation
-from robustnessgym.core.dataset import Batch, transpose_batch
+from robustnessgym.core.dataset import transpose_batch
+from robustnessgym.core.operation import Operation, lookup
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.ops.spacy import SpacyOp
 
 
-class SentenceSimilarityMatrix(CachedOperation):
+class SentenceSimilarityMatrixOp(Operation):
     def __init__(self):
-        super(SentenceSimilarityMatrix, self).__init__()
+        super(SentenceSimilarityMatrixOp, self).__init__()
 
     def similarity(
-        self, batch_sentences_1: List[List[str]], batch_sentences_2: List[List[str]]
+        self,
+        batch_sentences_1: List[List[str]],
+        batch_sentences_2: List[List[str]],
     ) -> List:
         raise NotImplementedError("Must implement a similarity computation.")
 
-    def apply(self, batch: Batch, columns: List[str], **kwargs):
-        assert len(columns) == 2, "Must specify exactly two columns."
+    def process_batch(
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        **kwargs,
+    ) -> tuple:
+        """
 
-        # Retrieve the sentences in the given columns
-        sentences = Spacy.retrieve(
-            batch=batch,
+        Args:
+            dp (DataPanel): DataPanel
+            columns (list): list of columns
+            **kwargs: optional keyword arguments
+
+        Returns:
+            Tuple with single output
+        """
+
+        assert len(columns) == 2, "Exactly two columns required."
+
+        # Lookup the sentences in the given columns
+        [lookup(dp, SpacyOp, [col]) for col in columns]
+        sentences = SpacyOp.retrieve(
+            batch=dp,
             columns=[[col] for col in columns],
-            proc_fns=Spacy.sentences,
+            proc_fns=SpacyOp.sentences,
         )
 
         return self.similarity(*[sentences[col] for col in columns])
 
 
-class DocumentSimilarityScore(CachedOperation):
+class DocumentSimilarityScore(Operation):
     def __init__(self):
         super(DocumentSimilarityScore, self).__init__()
         self.metric = load_metric("rouge")
@@ -39,9 +60,9 @@ class DocumentSimilarityScore(CachedOperation):
     def similarity(self, batch_doc_1: List[str], batch_doc_2: List[str]):
         raise NotImplementedError("Must implement a similarity computation.")
 
-    def apply(self, batch, columns, **kwargs):
+    def apply(self, dp, columns, **kwargs):
         assert len(columns) == 2
-        return self.similarity(*[batch[col] for col in columns])
+        return self.similarity(*[dp[col] for col in columns])
 
 
 class RougeScore(DocumentSimilarityScore):
@@ -80,7 +101,7 @@ class RougeScore(DocumentSimilarityScore):
             raise ValueError(f"metric {metric} must be a sequence of length <= 2.")
 
 
-class RougeMatrix(SentenceSimilarityMatrix):
+class RougeMatrix(SentenceSimilarityMatrixOp):
     def __init__(self):
         super(RougeMatrix, self).__init__()
         self.metric = load_metric("rouge")

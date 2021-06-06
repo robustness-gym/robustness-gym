@@ -3,14 +3,16 @@ from typing import Callable, List, Optional, Tuple
 
 import cytoolz as tz
 import numpy as np
+from mosaic import DataPanel as MosaicDataPanel
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
 from robustnessgym.core.constants import TRANSFORMATION
-from robustnessgym.core.dataset import Batch, Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
 class Transformation(SliceBuilder):
+
     def __init__(
         self,
         num_transformed: int = None,
@@ -23,7 +25,6 @@ class Transformation(SliceBuilder):
         ), "Must pass in num_transformed if no identifiers are given."
 
         super(Transformation, self).__init__(
-            category=category if category else TRANSFORMATION,
             identifiers=[
                 Identifier(
                     _name=f"{self.__class__.__name__}-{i + 1}",
@@ -32,6 +33,7 @@ class Transformation(SliceBuilder):
             ]
             if not identifiers
             else identifiers,
+            category=category if category else TRANSFORMATION,
             apply_fn=apply_fn,
         )
 
@@ -41,59 +43,51 @@ class Transformation(SliceBuilder):
 
     def apply(
         self,
-        skeleton_batches: List[Batch],
-        slice_membership: np.ndarray,
-        batch: Batch,
+        batch: DataPanel,
         columns: List[str],
+        skeleton_batches: List[DataPanel],
+        slice_membership: np.ndarray,
         *args,
         **kwargs,
-    ) -> Tuple[List[Batch], np.ndarray]:
+    ) -> Tuple[List[DataPanel], np.ndarray]:
         raise NotImplementedError
 
     def process_batch(
         self,
-        batch: Batch,
+        dp: DataPanel,
         columns: List[str],
         *args,
         **kwargs,
-    ) -> Tuple[List[Batch], Optional[np.ndarray]]:
+    ) -> Tuple[List[DataPanel], Optional[np.ndarray]]:
 
         # Determine the size of the batch
-        batch_size = len(batch[list(batch.keys())[0]])
+        batch_size = len(dp[list(dp.keys())[0]])
 
         # Construct the matrix of slice labels: (batch_size x num_slices)
         slice_membership = np.ones((batch_size, self.num_slices), dtype=np.int32)
 
         # Uncache the batch to construct the skeleton for transformed batches
         skeleton_batches = [
-            Dataset.uncached_batch(batch) for _ in range(self.num_slices)
+            DataPanel.uncached_batch(dp) for _ in range(self.num_slices)
         ]
 
         # Set the index for the skeleton batches
         for j, skeleton_batch in enumerate(skeleton_batches):
+            # skeleton_batch.update(
+            #     lambda x: {'index': f"{x['index']}-{self.identifiers[j]}"}
+            # )
             skeleton_batch["index"] = [
-                f"{idx}-{self.identifiers[j]}" for idx in skeleton_batch["index"]
+                f"{idx}-{self.identifiers[j]}"
+                for idx in skeleton_batch["index"]
             ]
 
-        # Apply the SliceBuilder's core functionality
-        transformed_batches, slice_membership = self.apply(
-            skeleton_batches=skeleton_batches,
-            slice_membership=slice_membership,
-            batch=batch,
-            columns=columns,
-            *args,
-            **kwargs,
-        )
-
-        # # Store the transformed examples
-        # updates = self.construct_updates(
-        #     transformed_batches=transformed_batches,
-        #     slice_membership=slice_membership,
-        #     batch_size=batch_size,
-        #     columns=columns,
-        #     mask=mask,
-        #     compress=store_compressed,
-        # )
+        # Apply the SliceBuilder's core functionality: use positional args
+        try:
+            transformed_batches, slice_membership = self.apply(
+                dp, columns, skeleton_batches, slice_membership, *args, **kwargs,
+            )
+        except TypeError:
+            self.apply(dp, columns, *args, **kwargs)
 
         # Remove transformed examples where slice_membership[i, :] = 0 before returning
         transformed_batches = [
@@ -104,81 +98,25 @@ class Transformation(SliceBuilder):
             for j, transformed_batch in enumerate(transformed_batches)
         ]
 
-        # if store:
-        #     batch = self.store(
-        #         batch=batch,
-        #         updates=updates,
-        #     )
-
         return transformed_batches, slice_membership
-
-    def construct_updates(
-        self,
-        transformed_batches: List[Batch],
-        slice_membership: np.ndarray,
-        batch_size: int,
-        columns: List[str],
-        mask: List[int] = None,
-        compress: bool = True,
-    ):
-
-        if compress:
-            return [
-                {
-                    self.category: {
-                        self.__class__.__name__: {
-                            json.dumps(columns)
-                            if len(columns) > 1
-                            else columns[0]: [
-                                tz.valmap(lambda v: v[i], transformed_batch)
-                                for j, transformed_batch in enumerate(
-                                    transformed_batches
-                                )
-                                if slice_membership[i, j]
-                            ]
-                        }
-                    }
-                }
-                if np.any(slice_membership[i, :])
-                else {}
-                for i in range(batch_size)
-            ]
-
-        return [
-            {
-                self.category: {
-                    self.__class__.__name__: {
-                        str(self.identifiers[j]): {
-                            json.dumps(columns)
-                            if len(columns) > 1
-                            else columns[0]: tz.valmap(
-                                lambda v: v[i], transformed_batch
-                            )
-                        }
-                        for j, transformed_batch in enumerate(transformed_batches)
-                        if (not mask or not mask[j]) and (slice_membership[i, j])
-                    }
-                }
-            }
-            if np.any(slice_membership[i, :])
-            else {}
-            for i in range(batch_size)
-        ]
 
 
 class SingleColumnTransformation(Transformation):
+
     def single_column_apply(self, column_batch: List) -> List[List]:
-        raise NotImplementedError
+        return NotImplemented(
+            "Implement single_column_apply to use this transformation."
+        )
 
     def apply(
         self,
-        skeleton_batches: List[Batch],
-        slice_membership: np.ndarray,
-        batch: Batch,
+        batch: DataPanel,
         columns: List[str],
+        skeleton_batches: List[DataPanel],
+        slice_membership: np.ndarray,
         *args,
         **kwargs,
-    ) -> Tuple[List[Batch], np.ndarray]:
+    ) -> Tuple[List[DataPanel], np.ndarray]:
 
         # Independently apply the transformation over the columns
         for column in columns:

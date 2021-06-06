@@ -5,13 +5,13 @@ from typing import Callable, Dict, List, Tuple
 import cytoolz as tz
 import numpy as np
 
-from robustnessgym.cachedops.spacy import Spacy
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.core.decorators import prerequisites
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 
-@prerequisites(Spacy)
+@prerequisites(SpacyOp)
 class LengthSubpopulation(ScoreSubpopulation):
     """Class to compute subpopulations based on text length."""
 
@@ -45,14 +45,14 @@ class LengthSubpopulation(ScoreSubpopulation):
     ) -> np.ndarray:
         # Compute the length of each example under each key
         lengths = [
-            Spacy.retrieve(
+            SpacyOp.retrieve(
                 batch=batch,
                 columns=col,
                 proc_fns=tz.compose(
                     # Compute lengths (# of words) for each tokenized text in a batch
                     lambda l: np.array([len(t) for t in l]),
                     # Extract tokens using Spacy
-                    Spacy.tokens,
+                    SpacyOp.tokens,
                 ),
             )
             for col in columns

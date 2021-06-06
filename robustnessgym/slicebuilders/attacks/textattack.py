@@ -1,22 +1,20 @@
 from collections import OrderedDict
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 import cytoolz as tz
 import numpy as np
-
-try:
-    import textattack.attack_recipes as attack_recipes
-    from textattack.attack_recipes import AttackRecipe
-    from textattack.models.wrappers import HuggingFaceModelWrapper, ModelWrapper
-except ImportError:
-    _textattack_available = False
-    AttackRecipe, ModelWrapper = None, None
-else:
-    _textattack_available = True
+from mosaic.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.model import Model
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.slicebuilders.attack import Attack
+
+attack_recipes = LazyLoader(
+    'textattack.attack_recipes',
+    error="Install TextAttack with `pip install textattack`."
+)
+wrappers = LazyLoader('textattack.models.wrappers')
 
 
 class TextAttack(Attack):
@@ -24,11 +22,8 @@ class TextAttack(Attack):
 
     def __init__(
         self,
-        attack: AttackRecipe,
+        attack: attack_recipes.AttackRecipe,
     ):
-        if not _textattack_available:
-            raise ImportError("Textattack not found. Please `pip install textattack`.")
-
         super(TextAttack, self).__init__(
             identifiers=[
                 Identifier(
@@ -47,19 +42,20 @@ class TextAttack(Attack):
             possible_recipe = getattr(attack_recipes, possible_recipe_name)
             if hasattr(possible_recipe, "mro"):
                 for _cls in possible_recipe.mro():
-                    if _cls == AttackRecipe and possible_recipe != AttackRecipe:
+                    if _cls == attack_recipes.AttackRecipe and \
+                            possible_recipe != attack_recipes.AttackRecipe:
                         recipes.append(possible_recipe_name)
         return recipes
 
     def apply(
         self,
-        skeleton_batches: List[Dict[str, List]],
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        skeleton_batches: List[DataPanel],
+        slice_membership: np.ndarray,
         *args,
-        **kwargs
-    ) -> Tuple[List[Dict[str, List]], np.ndarray]:
+        **kwargs,
+    ) -> Tuple[List[DataPanel], np.ndarray]:
 
         # Group the batch into inputs and output
         batch_inputs = tz.keyfilter(lambda k: k in columns[:-1], batch)
@@ -97,9 +93,12 @@ class TextAttack(Attack):
         return skeleton_batches, slice_membership
 
     @classmethod
-    def from_recipe(cls, recipe: str, model: ModelWrapper):
+    def from_recipe(cls, recipe: str, model: wrappers.ModelWrapper):
         return cls(attack=getattr(attack_recipes, recipe).build(model=model))
 
     @classmethod
-    def wrap_huggingface_model(cls, model: Model) -> ModelWrapper:
-        return HuggingFaceModelWrapper(model=model.model, tokenizer=model.tokenizer)
+    def wrap_huggingface_model(cls, model: Model) -> wrappers.ModelWrapper:
+        return wrappers.HuggingFaceModelWrapper(
+            model=model.model,
+            tokenizer=model.tokenizer,
+        )

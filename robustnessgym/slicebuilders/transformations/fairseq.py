@@ -2,21 +2,18 @@ from typing import List
 
 import cytoolz as tz
 import torch
+from mosaic.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
 
-try:
-    import fastBPE  # noqa
-except ImportError:
-    _fastbpe_available = False
-else:
-    _fastbpe_available = True
+fastBPE = LazyLoader('fastBPE', error="Install fastBPE with `pip install fastBPE`.")
 
 
-# TODO(karan): spec requirements (fastBPE)
 class FairseqBacktranslation(SingleColumnTransformation):
-    """Class for performing backtranslation using torchhub fairseq models."""
+    """
+    Backtranslation using torchhub fairseq models.
+    """
 
     def __init__(
         self,
@@ -30,12 +27,6 @@ class FairseqBacktranslation(SingleColumnTransformation):
         tgt2src_topk: int = 1000,
         tgt2src_temp: float = 1.0,
     ):
-
-        if not _fastbpe_available:
-            raise ImportError(
-                "fastBPE not available for import. Please install fastBPE with pip "
-                "install fastBPE."
-            )
 
         super(FairseqBacktranslation, self).__init__(
             identifiers=Identifier.range(
@@ -116,8 +107,9 @@ class FairseqBacktranslation(SingleColumnTransformation):
         return src2tgt.to(device), tgt2src.to(device)
 
     def single_column_apply(self, column_batch: List) -> List[List]:
-        """Perform backtranslation using the fairseq pretrained translation
-        models."""
+        """
+        Perform backtranslation using the fairseq pretrained translation models.
+        """
         # Encode the source sentences
         src_sentences = column_batch
         src_sentences_bin = [self.src2tgt.encode(e)[:1024] for e in src_sentences]

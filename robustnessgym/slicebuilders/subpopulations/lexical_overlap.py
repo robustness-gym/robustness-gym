@@ -3,7 +3,7 @@ from typing import Dict, List
 import cytoolz as tz
 import numpy as np
 
-from robustnessgym.cachedops.spacy import Spacy
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 
@@ -15,7 +15,7 @@ class LexicalOverlapSubpopulation(ScoreSubpopulation):
         assert len(columns) == 2, "Must specify exactly 2 keys."
 
         # Retrieve the tokens after lower-casing and placing into a set
-        tokens = Spacy.retrieve(
+        tokens = SpacyOp.retrieve(
             batch=batch,
             columns=[[key] for key in columns],
             proc_fns=tz.compose(
@@ -25,7 +25,7 @@ class LexicalOverlapSubpopulation(ScoreSubpopulation):
                     [set([str(tok).lower() for tok in toks]) for toks in l]
                 ),
                 # Tokenize
-                Spacy.tokens,
+                SpacyOp.tokens,
             ),
         )
 

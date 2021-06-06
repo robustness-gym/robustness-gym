@@ -5,14 +5,14 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from robustnessgym.cachedops.spacy import Spacy
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
 # TODO(karan): Inherit from MultiScoreSubpopulation
-class EntityFrequency(Subpopulation, Spacy):
+class EntityFrequency(Subpopulation, SpacyOp):
     def __init__(self, entity_thresholds: List[Tuple[str, List[int]]], *args, **kwargs):
 
         identifiers = []
@@ -68,7 +68,7 @@ class EntityFrequency(Subpopulation, Spacy):
     def apply(
         self,
         slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        dp: Dict[str, List],
         columns: List[str],
         *args,
         **kwargs,
@@ -78,7 +78,7 @@ class EntityFrequency(Subpopulation, Spacy):
             raise ValueError("Only one key allowed")
         key = columns[0]
 
-        for i, cache_item in enumerate(batch["cache"]):
+        for i, cache_item in enumerate(dp["cache"]):
             entities = cache_item["Spacy"][key]["ents"]
             entity_types = [ent["label"] for ent in entities]
             counts = Counter(entity_types)

@@ -6,8 +6,9 @@ import cytoolz as tz
 import numpy as np
 from ahocorasick import Automaton
 
-from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
@@ -34,10 +35,8 @@ class AhoCorasick:
         return ahocorasick
 
 
-class HasPhrase(
-    Subpopulation,
-    # Spacy
-):
+class HasPhrase(Subpopulation):
+
     def __init__(
         self, phrases=None, identifiers: List[Identifier] = None, *args, **kwargs
     ):
@@ -88,15 +87,15 @@ class HasPhrase(
 
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
 
         # Use the spacy cache to grab the tokens in each example (for each key)
-        tokenized_batch = Spacy.retrieve(
+        tokenized_batch = SpacyOp.retrieve(
             batch=batch,
             columns=[[key] for key in columns],
             proc_fns="tokens",
@@ -131,29 +130,6 @@ class HasPhrase(
 
         return slice_membership
 
-
-# class HasAnyPhrase(Subpopulation):
-#
-#     def __init__(self,
-#                  phrases: List[str] = None,
-#                  identifier: Identifier = None,
-#                  *args,
-#                  **kwargs):
-#         # Take the union of the phrases
-#         subpopulation = Subpopulation.union(
-#             HasPhrase(phrases=phrases),
-#             identifier=Identifier(
-#                 _name=self.__class__.__name__,
-#                 phrases=set(phrases),
-#             ) if not identifier else identifier
-#         )
-#
-#         super(HasAnyPhrase, self).__init__(
-#             identifiers=subpopulation.identifiers,
-#             apply_fn=subpopulation.apply,
-#             *args,
-#             **kwargs
-#         )
 
 
 class HasAnyPhrase(Subpopulation):
@@ -201,11 +177,11 @@ class HasAnyPhrase(Subpopulation):
 
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
 
         # Run all the subpopulations in sequence to update the slice membership matrix
@@ -284,11 +260,11 @@ class HasAllPhrases(Subpopulation):
 
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
 
         # Run all the subpopulations in sequence to update the slice membership matrix
@@ -320,30 +296,6 @@ class HasAllPhrases(Subpopulation):
                 ],
             )
         ]
-
-
-# class HasAllPhrases(Subpopulation):
-#
-#     def __init__(self,
-#                  phrases=None,
-#                  identifier: Identifier = None,
-#                  *args,
-#                  **kwargs):
-#         # Take the intersection of the phrases
-#         subpopulation = Subpopulation.intersection(
-#             HasPhrase(phrases=phrases),
-#             identifier=Identifier(
-#                 _name=self.__class__.__name__,
-#                 phrases=set(phrases),
-#             ) if not identifier else identifier,
-#         )
-#
-#         super(HasAllPhrases, self).__init__(
-#             identifiers=subpopulation.identifiers,
-#             apply_fn=subpopulation.apply,
-#             *args,
-#             **kwargs
-#         )
 
 
 class HasIndefiniteArticle(HasAnyPhrase):

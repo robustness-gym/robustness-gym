@@ -20,7 +20,6 @@ from pyarrow import table
 from robustnessgym.core.dataformats.inmemory import InMemoryDataset
 from robustnessgym.core.dataformats.vision import VisionDataset
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tape import InteractionTapeHierarchyMixin
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +28,7 @@ Batch = Dict[str, List]
 BatchOrDataset = Union[Batch, "Dataset"]
 
 
-class Dataset(
-    InteractionTapeHierarchyMixin,
-):
+class Dataset:
     """RobustnessGym Dataset class."""
 
     # Path to a log directory

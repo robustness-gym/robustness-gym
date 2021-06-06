@@ -1,25 +1,9 @@
 import itertools
-import re
 from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
-
-try:
-    from ludwig.api import LudwigModel as ludwigmodel
-except ImportError:
-    _ludwig_available = False
-    ludwig = None
-else:
-    _ludwig_available = True
-
-try:
-    import nltk
-except ImportError:
-    _nltk_available = False
-    nltk = None
-else:
-    _nltk_available = True
 import torch
+from mosaic.tools.lazy_loader import LazyLoader
 from transformers import (
     AutoModel,
     AutoModelForSeq2SeqLM,
@@ -30,6 +14,9 @@ from transformers import (
 from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.metrics import compute_metric
 from robustnessgym.tasks.task import Task
+
+ludwig_api = LazyLoader('ludwig.api')
+nltk = LazyLoader('nltk')
 
 
 class Model:
@@ -377,18 +364,14 @@ class HuggingfaceModel(Model):
 
         return evaluation_dict
 
+
 class LudwigModel(Model):
-    def __init__(
-        self,
-    ):
-        if not _ludwig_available:
-            raise ImportError("Please `pip install ludwig`.")
 
     def load(
         self,
         model_dir: str,
     ):
-        self.ludwig_model = ludwigmodel.load(model_dir)
+        self.ludwig_model = ludwig_api.LudwigModel.load(model_dir)
 
     def evaluate(
         self,
@@ -405,10 +388,4 @@ class LudwigModel(Model):
                 collect_predictions=collect_predictions
         )
 
-        return (eval_stats, predictions)
-
-
-def format_summary(x: str) -> str:
-    """Format summary text for computing rouge."""
-    re.sub("<n>", "", x)  # remove pegasus newline char
-    return "\n".join(nltk.sent_tokenize(x))
+        return eval_stats, predictions

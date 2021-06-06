@@ -5,8 +5,6 @@ import ast
 import json
 from typing import Any, Callable, List, Union
 
-# from robustnessgym.core.tools import persistent_hash
-
 
 class Identifier:
     """Class for creating identifiers for objects in Robustness Gym."""

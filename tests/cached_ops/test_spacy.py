@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from robustnessgym.cachedops import Spacy
+from robustnessgym.ops import SpacyOp
 from tests.testbeds import MockTestBedv0
 
 
@@ -10,7 +10,7 @@ class TestSpacy(TestCase):
 
     def test_apply(self):
         # Create the Spacy cached operation
-        spacy = Spacy()
+        spacy = SpacyOp()
 
         # Apply it
         dataset = spacy(self.testbed.dataset, ["text"])

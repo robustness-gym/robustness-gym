@@ -50,32 +50,36 @@ dataset = Dataset.load_dataset('boolq', split='train[:10]')
 ```
 
 #### Cache information
+
 ```python
 # Get a dataset
 from robustnessgym import Dataset
+
 dataset = Dataset.load_dataset('boolq')
 
 # Run the Spacy pipeline
-from robustnessgym import Spacy
-spacy = Spacy()
-# .. on the 'question' column of the dataset
-dataset = spacy(batch_or_dataset=dataset, 
-                columns=['question'])
+from robustnessgym import SpacyOp
 
+spacy = SpacyOp()
+# .. on the 'question' column of the dataset
+dataset = spacy(batch_or_dataset=dataset,
+                columns=['question'])
 
 # Run the Stanza pipeline
 from robustnessgym import Stanza
+
 stanza = Stanza()
 # .. on both the question and passage columns of a batch
-dataset = stanza(batch_or_dataset=dataset[:32], 
+dataset = stanza(batch_or_dataset=dataset[:32],
                  columns=['question', 'passage'])
 
 # .. use any of the other built-in operations in Robustness Gym!
 
 
 # Or, create your own CachedOperation
-from robustnessgym import CachedOperation, Identifier
+from robustnessgym import NamedColumn, Identifier
 from robustnessgym.core.decorators import singlecolumn
+
 
 # Write a silly function that operates on a single column of a batch
 @singlecolumn
@@ -85,38 +89,40 @@ def silly_fn(batch, columns):
     """
     column_name = columns[0]
     assert type(batch[column_name]) == str, "Must apply to text column."
-    return [text.capitalize() for text in batch[column_name]] 
+    return [text.capitalize() for text in batch[column_name]]
+
 
 # Wrap the silly function in a CachedOperation
-silly_op = CachedOperation(apply_fn=silly_fn,
-                           identifier=Identifier(_name='SillyOp'))
+silly_op = NamedColumn(apply_fn=silly_fn,
+                       identifier=Identifier(_name='SillyOp'))
 
 # Apply it to a dataset
-dataset = silly_op(batch_or_dataset=dataset, 
+dataset = silly_op(batch_or_dataset=dataset,
                    columns=['question'])
 ```
 
 
 #### Retrieve cached information
+
 ```python
-from robustnessgym import Spacy, Stanza, CachedOperation
+from robustnessgym import SpacyOp, Stanza, NamedColumn
 
 # Take a batch of data
 batch = dataset[:32]
 
 # Retrieve the (cached) results of the Spacy CachedOperation 
-spacy_information = Spacy.retrieve(batch, columns=['question'])
+spacy_information = SpacyOp.retrieve(batch, columns=['question'])
 
 # Retrieve the tokens returned by the Spacy CachedOperation
-tokens = Spacy.retrieve(batch, columns=['question'], proc_fns=Spacy.tokens)
+tokens = SpacyOp.retrieve(batch, columns=['question'], proc_fns=SpacyOp.tokens)
 
 # Retrieve the entities found by the Stanza CachedOperation
 entities = Stanza.retrieve(batch, columns=['passage'], proc_fns=Stanza.entities)
 
 # Retrieve the capitalized output of the silly_op
-capitalizations = CachedOperation.retrieve(batch,
-                                           columns=['question'],
-                                           identifier=silly_op.identifier)
+capitalizations = NamedColumn.retrieve(batch,
+                                       columns=['question'],
+                                       identifier=silly_op.identifier)
 
 # Retrieve it directly using the silly_op
 capitalizations = silly_op.retrieve(batch, columns=['question'])
@@ -130,8 +136,10 @@ capitalizations = silly_op.retrieve(
 ```
 
 #### Create subpopulations
+
 ```python
-from robustnessgym import Spacy, ScoreSubpopulation
+from robustnessgym import SpacyOp, ScoreSubpopulation
+
 
 def length(batch, columns):
     """
@@ -139,8 +147,9 @@ def length(batch, columns):
     """
     column_name = columns[0]
     # Take advantage of previously cached Spacy informations
-    tokens = Spacy.retrieve(batch, columns, proc_fns=Spacy.tokens)[column_name]
+    tokens = SpacyOp.retrieve(batch, columns, proc_fns=SpacyOp.tokens)[column_name]
     return [len(tokens_) for tokens_ in tokens]
+
 
 # Create a subpopulation that buckets examples based on length
 length_subpopulation = ScoreSubpopulation(intervals=[(0, 10), (10, 20)],

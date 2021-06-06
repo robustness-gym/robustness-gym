@@ -3,8 +3,8 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
-from robustnessgym.cachedops.similarity import RougeMatrix
-from robustnessgym.cachedops.spacy import Spacy
+from robustnessgym.ops.similarity import RougeMatrix
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.core.dataset import Batch
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.tools import strings_as_json
@@ -46,10 +46,10 @@ class RougeMatrixSentenceTransformation(Transformation):
         ]
 
         # Fetch sentences for the first column
-        sentences = Spacy.retrieve(
+        sentences = SpacyOp.retrieve(
             batch=batch,
             columns=[columns[0]],
-            proc_fns=Spacy.sentences,
+            proc_fns=SpacyOp.sentences,
         )[columns[0]]
 
         # Delete sentences

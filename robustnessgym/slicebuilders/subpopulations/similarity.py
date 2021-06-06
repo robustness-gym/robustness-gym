@@ -6,7 +6,7 @@ from numpy.linalg import norm
 from scipy.linalg import svd
 from scipy.stats import spearmanr
 
-from robustnessgym.cachedops.similarity import RougeMatrix, RougeScore
+from robustnessgym.ops.similarity import RougeMatrix, RougeScore
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.tools import strings_as_json
 from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation

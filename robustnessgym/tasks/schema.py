@@ -5,7 +5,7 @@ from typing import Callable, Collection, Dict, List, Tuple
 
 from datasets.features import FeatureType
 
-from robustnessgym.core.dataset import Dataset
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.tools import get_all_paths
 
 
@@ -42,14 +42,14 @@ class Schema:
     @classmethod
     def for_dataset(
         cls,
-        dataset: Dataset,
+        dp: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
     ) -> Tuple[Schema, Schema]:
         """Create input and output schemas using features, input and output
         columns."""
         # Set the features
-        features = dataset.features
+        features = dp.features
 
         return Schema.from_columns(features, input_columns), Schema.from_columns(
             features, output_columns
@@ -59,7 +59,7 @@ class Schema:
         """
 
         Args:
-            features: given by Dataset.features
+            features: given by DataPanel.features
 
         Returns: (grounding, reversed_grounding)
 
@@ -71,7 +71,7 @@ class Schema:
             tuple(path) if len(path) > 1 else path[0] for path in flat_columns
         }
 
-        # Figure out the (reversed) grounding: map columns in the dataset to keys in
+        # Figure out the (reversed) grounding: map columns in the dp to keys in
         # the schema
         reversed_grounding = {}
         for k in self.reversed_grounding_candidates:
@@ -88,7 +88,7 @@ class Schema:
 
         # Assert that the grounded schema has the right types
         # FIXME(karan): Value == ClassLabel should be allowed: shouldn't break this
-        # TODO(karan): if not, add code to automatically rejig the dataset in map_fn
+        # TODO(karan): if not, add code to automatically rejig the dp in map_fn
         # for key in self.features:
         #     if isinstance(grounding[key], str):
         #         assert self.features[key] == features[grounding[key]]

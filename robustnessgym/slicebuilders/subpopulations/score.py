@@ -2,9 +2,9 @@ from typing import Callable, Dict, List, Tuple, Union
 
 import numpy as np
 
-from robustnessgym.core.cachedops import ScoreOperation
-from robustnessgym.core.dataset import Batch, Dataset
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.operation import Operation
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
@@ -55,7 +55,7 @@ class BinningMixin:
         self.right_limits = np.array([interval[1] for interval in self.intervals])
 
     def bin(self, scores: List[Union[int, float]]) -> np.ndarray:
-        # Convert to np.ndarry
+        # Convert to np.ndarray
         scores = np.array(scores)
 
         # Bin the scores
@@ -66,6 +66,7 @@ class BinningMixin:
 
 
 class ScoreSubpopulation(Subpopulation, BinningMixin):
+
     def __init__(
         self,
         intervals: List[Tuple[Union[int, float, str], Union[int, float, str]]],
@@ -111,7 +112,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
 
     def prepare_dataset(
         self,
-        dataset: Dataset,
+        dp: DataPanel,
         columns: List[str],
         batch_size: int = 32,
         *args,
@@ -123,7 +124,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
 
         # Prepare the dataset
         super(ScoreSubpopulation, self).prepare_dataset(
-            dataset=dataset,
+            dp=dp,
             columns=columns,
             batch_size=batch_size,
             *args,
@@ -133,10 +134,16 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         # Create the bins
         self.create_bins()
 
-    def prepare_batch(self, batch: Batch, columns: List[str], *args, **kwargs) -> None:
+    def prepare_batch(
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
+    ) -> None:
 
         # Compute the scores
-        if isinstance(self.score, ScoreOperation):
+        if isinstance(self.score, Operation):
             self.scores.extend(self.score.retrieve(batch=batch, columns=columns))
         elif isinstance(self.score, Callable):
             self.scores.extend(self.score(batch=batch, columns=columns))
@@ -150,14 +157,15 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
 
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
+
         # Keep track of the score of each example
-        if isinstance(self.score, ScoreOperation):
+        if isinstance(self.score, Operation):
             scores = self.score.retrieve(batch=batch, columns=columns)
         elif isinstance(self.score, Callable):
             scores = self.score(batch=batch, columns=columns)
@@ -217,11 +225,11 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
 
     def prepare_dataset(
         self,
-        dataset: Dataset,
+        dp: DataPanel,
         columns: List[str],
         batch_size: int = 32,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         # First reset the scores
@@ -229,7 +237,7 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
 
         # Prepare the dataset
         super(MultiScoreSubpopulation, self).prepare_dataset(
-            dataset=dataset,
+            dp=dp,
             columns=columns,
             batch_size=batch_size,
         )
@@ -237,10 +245,16 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
         # Create the bins
         self.create_bins()
 
-    def prepare_batch(self, batch: Batch, columns: List[str], *args, **kwargs) -> None:
+    def prepare_batch(
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
+    ) -> None:
 
         # Compute the scores
-        if isinstance(self.score, ScoreOperation):
+        if isinstance(self.score, Operation):
             self.scores.extend(self.score.retrieve(batch=batch, columns=columns))
         elif isinstance(self.score, Callable):
             self.scores.extend(self.score(batch=batch, columns=columns))

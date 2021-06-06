@@ -14,7 +14,9 @@ def initialize_logging(
     format: str = "[%(asctime)s][%(levelname)s][%(name)s:%(lineno)s] :: %(message)s",
     level: int = logging.WARNING,
 ) -> None:
-    """Initialize logging for Robustness Gym."""
+    """
+    Initialize logging for Robustness Gym.
+    """
 
     # Generate a new directory using the log_dir, if it doesn't exist
     date = datetime.now().strftime("%Y_%m_%d")

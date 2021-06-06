@@ -11,6 +11,6 @@
 # from .custom.strip_text import StripText
 # from .spacy.spacy import Spacy
 # from .textblob.textblob import TextBlob
-from .spacy import Spacy  # noqa
-from .stanza import Stanza  # noqa
-from .textblob import TextBlob  # noqa
+from .spacy import SpacyOp  # noqa
+from .stanza import StanzaOp  # noqa
+from .textblob import LazyTextBlobOp  # noqa

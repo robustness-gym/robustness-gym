@@ -3,7 +3,7 @@ from unittest import TestCase
 import torch
 import torch.nn as nn
 
-from robustnessgym.cachedops.activation import ActivationCachedOp
+from robustnessgym.ops.activation import ActivationCachedOp
 from tests.testbeds import MockVisionTestBed
 
 

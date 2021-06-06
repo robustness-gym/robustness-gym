@@ -57,7 +57,7 @@ class MockTestBedv0:
         # FIXME(karan): this shouldn't be happening: why is otherlabel disappearing here
         with self.assertRaises(AssertionError):
             # Create an additional integer column in the dataset
-            dataset = self.testbed.dataset.map(lambda x: {"otherlabel": x["label"] + 1})
+            dataset = self.testbed.datapanel.map(lambda x: {"otherlabel": x["label"] + 1})
             dataset_0_0 = self.cachedop(dataset, columns=["label"])
             self.assertTrue("otherlabel" in dataset_0_0.column_names)
 

@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from robustnessgym.cachedops.stanza import Stanza
+from robustnessgym.ops.stanza import Stanza
 from tests.testbeds import MockTestBedv0
 
 

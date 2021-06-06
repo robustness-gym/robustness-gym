@@ -9,33 +9,30 @@ from robustnessgym.logging.utils import (
 initialize_logging()
 
 from robustnessgym.active.mandoline import mandoline
-from robustnessgym.cachedops.allen.allen_predictor import AllenPredictor
-from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
-from robustnessgym.cachedops.allen.dependency_parser import AllenDependencyParser
-from robustnessgym.cachedops.allen.semantic_role_labeler import AllenSemanticRoleLabeler
-from robustnessgym.cachedops.bootleg import Bootleg
-from robustnessgym.cachedops.similarity import (
+from robustnessgym.ops.allen import (
+    AllenPredictionOp,
+    AllenDependencyParsingOp,
+    AllenConstituencyParsingOp,
+    AllenSemanticRoleLabelingOp,
+)
+from robustnessgym.ops.bootleg import BootlegAnnotatorOp
+from robustnessgym.ops.similarity import (
     RougeMatrix,
     RougeScore,
-    SentenceSimilarityMatrix,
+    SentenceSimilarityMatrixOp,
 )
-from robustnessgym.cachedops.spacy import Spacy
-from robustnessgym.cachedops.stanza import Stanza
-from robustnessgym.cachedops.strip_text import StripText
-from robustnessgym.cachedops.textblob import TextBlob
-from robustnessgym.core.cachedops import (
-    CachedOperation,
-    SingleColumnCachedOperation,
-    stow,
-)
-from robustnessgym.core.dataset import Dataset
+from robustnessgym.ops.spacy import SpacyOp
+from robustnessgym.ops.stanza import StanzaOp
+from robustnessgym.ops.strip_text import StripTextOp
+from robustnessgym.ops.textblob import LazyTextBlobOp
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.slice import Slice
-from robustnessgym.core.testbench import DevBench, TestBench
+# from robustnessgym.core.slice import Slice
+from robustnessgym.core.testbench import TestBench
+from robustnessgym.core.devbench import DevBench
 from robustnessgym.slicebuilders.attacks.textattack import TextAttack
 from robustnessgym.slicebuilders.slicebuilder import (
     SliceBuilder,
-    SliceBuilderCollection,
+    # SliceBuilderCollection,
 )
 from robustnessgym.slicebuilders.subpopulations.constituency_overlap import (
     ConstituencyOverlapSubpopulation,
@@ -125,5 +122,3 @@ from robustnessgym.tasks.task import (
 )
 
 from .slicebuilders.attack import Attack
-from .slicebuilders.curator import Curator
-from .slicebuilders.subpopulation import Subpopulation, SubpopulationCollection
