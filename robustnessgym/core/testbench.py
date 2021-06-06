@@ -353,8 +353,7 @@ class TestBench(SemanticVersionerMixin):
         num_classes=None,
         metrics: List[str] = None,
     ) -> Dict:
-        """
-        Compute and cache metrics for pre-computed model predictions.
+        """Compute and cache metrics for pre-computed model predictions.
 
         Args:
             model: Model or model id
@@ -427,8 +426,7 @@ class TestBench(SemanticVersionerMixin):
         return evaluation_dict
 
     def add_metrics(self, model: Union[Model, str], metrics: Dict[str, float]):
-        """
-        Cache pre-computed metrics for model
+        """Cache pre-computed metrics for model.
 
         Args:
             model: Model or model id.
@@ -443,8 +441,7 @@ class TestBench(SemanticVersionerMixin):
         model: Union[Model, str],
         metric_ids: List[str] = None,
     ) -> Report:
-        """
-        Generate report from cached metrics for a model
+        """Generate report from cached metrics for a model.
 
         Args:
             model: Model or model id. Metrics must have already been computed for
@@ -711,4 +708,3 @@ class TestBench(SemanticVersionerMixin):
             testbench._loads_version(f.read())
 
         return testbench
-

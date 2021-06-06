@@ -3,15 +3,14 @@ from typing import Dict, List, Tuple
 import numpy as np
 from mosaic.tools.lazy_loader import LazyLoader
 
-from robustnessgym.core.tools import transpose_batch
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import transpose_batch
 from robustnessgym.slicebuilders.attack import Attack
 
-morpheus = LazyLoader('morpheus')
+morpheus = LazyLoader("morpheus")
 
 
 class Morpheus(Attack):
-
     def __init__(
         self,
         dataset: str,
@@ -49,7 +48,7 @@ class Morpheus(Attack):
         batch: Dict[str, List],
         columns: List[str],
         *args,
-        **kwargs
+        **kwargs,
     ) -> Tuple[List[Dict[str, List]], np.ndarray]:
 
         for i, example in enumerate(transpose_batch(batch)):
@@ -104,11 +103,10 @@ class Morpheus(Attack):
             "answers": [
                 {"answer_start": i[0], "text": i[1]}
                 for i in zip(
-                    example["answers"]["answer_start"],
-                    example["answers"]["text"]
+                    example["answers"]["answer_start"], example["answers"]["text"]
                 )
             ],
-            "is_impossible": len(example["answers"]["text"]) == 0
+            "is_impossible": len(example["answers"]["text"]) == 0,
         }
 
     def get_NLI_text_label(self, label: int) -> str:

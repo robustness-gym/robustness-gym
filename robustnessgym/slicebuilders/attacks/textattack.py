@@ -11,10 +11,10 @@ from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.slicebuilders.attack import Attack
 
 attack_recipes = LazyLoader(
-    'textattack.attack_recipes',
-    error="Install TextAttack with `pip install textattack`."
+    "textattack.attack_recipes",
+    error="Install TextAttack with `pip install textattack`.",
 )
-wrappers = LazyLoader('textattack.models.wrappers')
+wrappers = LazyLoader("textattack.models.wrappers")
 
 
 class TextAttack(Attack):
@@ -42,8 +42,10 @@ class TextAttack(Attack):
             possible_recipe = getattr(attack_recipes, possible_recipe_name)
             if hasattr(possible_recipe, "mro"):
                 for _cls in possible_recipe.mro():
-                    if _cls == attack_recipes.AttackRecipe and \
-                            possible_recipe != attack_recipes.AttackRecipe:
+                    if (
+                        _cls == attack_recipes.AttackRecipe
+                        and possible_recipe != attack_recipes.AttackRecipe
+                    ):
                         recipes.append(possible_recipe_name)
         return recipes
 

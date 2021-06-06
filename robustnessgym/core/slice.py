@@ -34,9 +34,8 @@ class SliceMixin:
         self._lineage_to_identifier()
 
     def _lineage_to_identifier(self):
-        """
-        Synchronize to the current lineage by reassigning to `self._identifier`.
-        """
+        """Synchronize to the current lineage by reassigning to
+        `self._identifier`."""
         short_lineage = []
         for entry in self.lineage:
             if len(entry) == 3:
@@ -75,7 +74,6 @@ class SliceMixin:
 
 
 class SliceDataPanel(DataPanel, SliceMixin):
-
     def __init__(self, *args, **kwargs):
         super(SliceDataPanel, self).__init__(*args, **kwargs)
         SliceMixin.__init__(self)

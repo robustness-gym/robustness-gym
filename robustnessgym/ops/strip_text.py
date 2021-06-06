@@ -15,15 +15,15 @@ class StripTextOp(Operation):
         **kwargs,
     ) -> tuple:
         # Clean up each text with a simple function and return the stripped text
-        return list(
-            map(
-                lambda text:
-                text
-                    .lower()
+        return (
+            list(
+                map(
+                    lambda text: text.lower()
                     .replace(".", "")
                     .replace("?", "")
                     .replace("!", "")
                     .replace(",", ""),
-                dp[columns[0]],
-            )
-        ),
+                    dp[columns[0]],
+                )
+            ),
+        )

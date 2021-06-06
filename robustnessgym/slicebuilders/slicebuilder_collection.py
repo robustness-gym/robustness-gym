@@ -6,9 +6,9 @@ import cytoolz as tz
 import numpy as np
 import tqdm
 
-from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 from robustnessgym.core.constants import GENERIC
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
 class SliceBuilderCollection(SliceBuilder):
@@ -39,14 +39,14 @@ class SliceBuilderCollection(SliceBuilder):
         )
 
     def __call__(
-            self,
-            dp: DataPanel,
-            columns: List[str],
-            mask: List[int] = None,
-            store_compressed: bool = None,
-            store: bool = None,
-            *args,
-            **kwargs,
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        mask: List[int] = None,
+        store_compressed: bool = None,
+        store: bool = None,
+        *args,
+        **kwargs,
     ):
 
         if mask:

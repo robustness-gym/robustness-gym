@@ -10,22 +10,20 @@ from mosaic.tools.lazy_loader import LazyLoader
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
-spacy = LazyLoader('spacy', warning="Please `pip install spacy`.")
-spacy_tokens = LazyLoader('spacy.tokens')
+spacy = LazyLoader("spacy", warning="Please `pip install spacy`.")
+spacy_tokens = LazyLoader("spacy.tokens")
 nc = LazyLoader(
-    'neuralcoref',
+    "neuralcoref",
     error="Can't import neuralcoref. Please install neuralcoref using:\n"
-          "git clone https://github.com/huggingface/neuralcoref.git\n"
-          "cd neuralcoref\n"
-          "pip install -r requirements.txt\n"
-          "pip install -e ."
+    "git clone https://github.com/huggingface/neuralcoref.git\n"
+    "cd neuralcoref\n"
+    "pip install -r requirements.txt\n"
+    "pip install -e .",
 )
 
 
 class SpacyOp(Operation):
-    """
-    Operation that runs the Spacy pipeline.
-    """
+    """Operation that runs the Spacy pipeline."""
 
     def __init__(
         self,
@@ -79,8 +77,7 @@ class SpacyOp(Operation):
         columns: List[str],
         **kwargs,
     ) -> tuple:
-        """
-        Process text examples by running them through the Spacy pipeline.
+        """Process text examples by running them through the Spacy pipeline.
 
         Args:
             dp (DataPanel): DataPanel
@@ -101,7 +98,7 @@ class SpacyOp(Operation):
             # Reset the default Tensor type: this is instantaneous
             torch.set_default_tensor_type("torch.FloatTensor")
 
-        return cells,
+        return (cells,)
 
 
 """

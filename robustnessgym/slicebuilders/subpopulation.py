@@ -12,14 +12,7 @@ from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
 class Subpopulation(SliceBuilder):
-
-    def __init__(
-            self,
-            identifiers: List[Identifier],
-            apply_fn=None,
-            *args,
-            **kwargs
-    ):
+    def __init__(self, identifiers: List[Identifier], apply_fn=None, *args, **kwargs):
         super(Subpopulation, self).__init__(
             identifiers=identifiers,
             category=SUBPOPULATION,
@@ -55,17 +48,18 @@ class Subpopulation(SliceBuilder):
                 dp, columns, slice_membership, *args, **kwargs
             )
         except TypeError:
-            slice_membership = np.array(self.apply(
-                dp, columns, *args, **kwargs)
+            slice_membership = np.array(
+                self.apply(dp, columns, *args, **kwargs)
             ).reshape((-1, self.num_slices))
 
-        assert slice_membership.shape == (len(dp), self.num_slices), \
-            "Output of apply has the wrong shape. " \
+        assert slice_membership.shape == (len(dp), self.num_slices), (
+            "Output of apply has the wrong shape. "
             f"Expected: {(len(dp), self.num_slices)} and got: {slice_membership.shape}."
+        )
 
         return None, slice_membership
 
-    @capture_provenance(capture_args=['self', 'columns', 'batch_size'])
+    @capture_provenance(capture_args=["self", "columns", "batch_size"])
     def process_dataset(
         self,
         dp: DataPanel,
@@ -220,4 +214,3 @@ class Subpopulation(SliceBuilder):
             return slice_membership
 
         return Subpopulation(identifiers=[identifier], apply_fn=apply_fn)
-

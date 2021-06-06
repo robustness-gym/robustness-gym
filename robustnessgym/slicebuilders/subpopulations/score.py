@@ -15,7 +15,7 @@ class BinningMixin:
         bin_creation_fn: Callable = None,
         bin_fn: Callable = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super(BinningMixin, self).__init__(*args, **kwargs)
 
@@ -66,7 +66,6 @@ class BinningMixin:
 
 
 class ScoreSubpopulation(Subpopulation, BinningMixin):
-
     def __init__(
         self,
         intervals: List[Tuple[Union[int, float, str], Union[int, float, str]]],
@@ -75,7 +74,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         bin_creation_fn: Callable = None,
         bin_fn: Callable = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         if not identifiers:
@@ -111,12 +110,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
             self.score = score_fn
 
     def prepare_dataset(
-        self,
-        dp: DataPanel,
-        columns: List[str],
-        batch_size: int = 32,
-        *args,
-        **kwargs
+        self, dp: DataPanel, columns: List[str], batch_size: int = 32, *args, **kwargs
     ) -> None:
 
         # First reset the scores
@@ -188,7 +182,7 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
         bin_creation_fn: Callable = None,
         bin_fn: Callable = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         if not identifiers:

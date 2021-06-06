@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+
 # from functools import partial
 from itertools import compress
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -42,19 +43,19 @@ class SliceBuilder(StorageMixin):
     ]
 
     def __init__(
-            self,
-            identifiers: List[Identifier],
-            category: str = GENERIC,
-            apply_fn: Callable = None,
-            *args,
-            **kwargs,
+        self,
+        identifiers: List[Identifier],
+        category: str = GENERIC,
+        apply_fn: Callable = None,
+        *args,
+        **kwargs,
     ):
 
         super(SliceBuilder, self).__init__(*args, **kwargs)
 
         # The SliceBuilder belongs to a category
         assert (
-                category in self.CATEGORIES
+            category in self.CATEGORIES
         ), f"argument category must be one of {self.CATEGORIES}"
         self.category = category
 
@@ -91,13 +92,13 @@ class SliceBuilder(StorageMixin):
         yield from self.identifiers
 
     def __call__(
-            self,
-            dp: Optional[MosaicDataPanel],
-            columns: List[str],
-            batch_size: int = 100,
-            num_proc: int = None,
-            *args,
-            **kwargs,
+        self,
+        dp: Optional[MosaicDataPanel],
+        columns: List[str],
+        batch_size: int = 100,
+        num_proc: int = None,
+        *args,
+        **kwargs,
     ):
 
         # Check that prerequisites are satisfied
@@ -143,13 +144,11 @@ class SliceBuilder(StorageMixin):
             )
 
     def prerequisites_handler(
-            self,
-            dp: DataPanel,
+        self,
+        dp: DataPanel,
     ):
-        """
-        Check if the DataPanel satisfies necessary prerequisites in order to
-        run the SliceBuilder.
-        """
+        """Check if the DataPanel satisfies necessary prerequisites in order to
+        run the SliceBuilder."""
         # Check if prerequisites are satisfied
         # TODO(karan): move to a method
         pending = {
@@ -180,15 +179,14 @@ class SliceBuilder(StorageMixin):
     #     return batch
 
     def prepare_batch(
-            self,
-            batch: DataPanel,
-            columns: List[str],
-            *args,
-            **kwargs,
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> None:
-        """
-        Apply a preparation function to a batch.
-        Use this to update attributes of `self`.
+        """Apply a preparation function to a batch. Use this to update
+        attributes of `self`.
 
         Args:
             batch: batch of data
@@ -199,9 +197,9 @@ class SliceBuilder(StorageMixin):
         raise NotImplementedError("Implement `prepare_batch`.")
 
     def _filter_prerequisite_columns(
-            self,
-            columns: List[str],
-            all_columns: List[str],
+        self,
+        columns: List[str],
+        all_columns: List[str],
     ) -> List[str]:
         # Simple filtering that doesn't use columns
         # TODO(karan): improve this by using `columns` to filter further
@@ -219,16 +217,15 @@ class SliceBuilder(StorageMixin):
         ]
 
     def prepare_dataset(
-            self,
-            dp: MosaicDataPanel,
-            columns: List[str],
-            batch_size: int = 32,
-            *args,
-            **kwargs,
+        self,
+        dp: MosaicDataPanel,
+        columns: List[str],
+        batch_size: int = 32,
+        *args,
+        **kwargs,
     ) -> None:
-        """
-        Apply a preparation function to the data.
-        Use this to update attributes of `self`.
+        """Apply a preparation function to the data. Use this to update
+        attributes of `self`.
 
         Args:
             dp: DataPanel
@@ -239,7 +236,7 @@ class SliceBuilder(StorageMixin):
         """
         # Set the data format
         with dp.format(
-                columns + self._filter_prerequisite_columns(columns, dp.column_names)
+            columns + self._filter_prerequisite_columns(columns, dp.column_names)
         ):
             # Batch the dataset, and prepare each batch
             for batch in dp.batch(batch_size):
@@ -255,14 +252,13 @@ class SliceBuilder(StorageMixin):
                     break
 
     def process_batch(
-            self,
-            dp: DataPanel,
-            columns: List[str],
-            *args,
-            **kwargs,
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> Tuple[Optional[List[DataPanel]], Optional[np.ndarray]]:
-        """
-        Apply a SliceBuilder to a batch of data.
+        """Apply a SliceBuilder to a batch of data.
 
         Args:
             dp: a DataPanel of data
@@ -276,13 +272,13 @@ class SliceBuilder(StorageMixin):
         return [dp], None
 
     def process_dataset(
-            self,
-            dp: MosaicDataPanel,
-            columns: List[str],
-            batch_size: int = 32,
-            num_proc: int = None,
-            *args,
-            **kwargs,
+        self,
+        dp: MosaicDataPanel,
+        columns: List[str],
+        batch_size: int = 32,
+        num_proc: int = None,
+        *args,
+        **kwargs,
     ) -> Tuple[List[DataPanel], np.ndarray]:
         """Apply a SliceBuilder to a dataset.
 
@@ -353,11 +349,10 @@ class SliceBuilder(StorageMixin):
 
     @staticmethod
     def filter_batch_by_slice_membership(
-            batch: Dict[str, List],
-            slice_membership: np.ndarray,
+        batch: Dict[str, List],
+        slice_membership: np.ndarray,
     ) -> List[Dict[str, List]]:
-        """
-        Use a matrix of slice membership labels to select the subset of
+        """Use a matrix of slice membership labels to select the subset of
         examples in each slice.
 
         Returns a list. Each element in the list corresponds to a single
@@ -370,13 +365,13 @@ class SliceBuilder(StorageMixin):
 
     @classmethod
     def retrieve(
-            cls,
-            batch: DataPanel,
-            columns: Union[List[str], List[List[str]]],
-            proc_fns: Union[str, Callable, List[Union[str, Callable]]] = None,
-            identifier: Union[str, Identifier] = None,
-            reapply: bool = False,
-            **kwargs,
+        cls,
+        batch: DataPanel,
+        columns: Union[List[str], List[List[str]]],
+        proc_fns: Union[str, Callable, List[Union[str, Callable]]] = None,
+        identifier: Union[str, Identifier] = None,
+        reapply: bool = False,
+        **kwargs,
     ) -> Optional[Union[DataPanel, List[DataPanel]]]:
         if not reapply:
             if "slices" not in batch:
@@ -415,4 +410,3 @@ class SliceBuilder(StorageMixin):
             pass
         else:
             pass
-

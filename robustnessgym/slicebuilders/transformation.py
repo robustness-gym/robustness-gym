@@ -4,15 +4,14 @@ from typing import Callable, List, Optional, Tuple
 import cytoolz as tz
 import numpy as np
 from mosaic import DataPanel as MosaicDataPanel
-from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
 from robustnessgym.core.constants import TRANSFORMATION
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 
 
 class Transformation(SliceBuilder):
-
     def __init__(
         self,
         num_transformed: int = None,
@@ -77,14 +76,18 @@ class Transformation(SliceBuilder):
             #     lambda x: {'index': f"{x['index']}-{self.identifiers[j]}"}
             # )
             skeleton_batch["index"] = [
-                f"{idx}-{self.identifiers[j]}"
-                for idx in skeleton_batch["index"]
+                f"{idx}-{self.identifiers[j]}" for idx in skeleton_batch["index"]
             ]
 
         # Apply the SliceBuilder's core functionality: use positional args
         try:
             transformed_batches, slice_membership = self.apply(
-                dp, columns, skeleton_batches, slice_membership, *args, **kwargs,
+                dp,
+                columns,
+                skeleton_batches,
+                slice_membership,
+                *args,
+                **kwargs,
             )
         except TypeError:
             self.apply(dp, columns, *args, **kwargs)
@@ -102,7 +105,6 @@ class Transformation(SliceBuilder):
 
 
 class SingleColumnTransformation(Transformation):
-
     def single_column_apply(self, column_batch: List) -> List[List]:
         return NotImplemented(
             "Implement single_column_apply to use this transformation."

@@ -15,8 +15,8 @@ from robustnessgym.core.metrics import compute_metric
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.tasks.task import Task
 
-ludwig_api = LazyLoader('ludwig.api')
-nltk = LazyLoader('nltk')
+ludwig_api = LazyLoader("ludwig.api")
+nltk = LazyLoader("nltk")
 
 
 class Model:
@@ -366,7 +366,6 @@ class HuggingfaceModel(Model):
 
 
 class LudwigModel(Model):
-
     def load(
         self,
         model_dir: str,
@@ -376,16 +375,15 @@ class LudwigModel(Model):
     def evaluate(
         self,
         dataset: DataPanel,
-        batch_size: int=128,
-        collect_overall_stats: bool=True,
-        collect_predictions: bool=True,
-
+        batch_size: int = 128,
+        collect_overall_stats: bool = True,
+        collect_predictions: bool = True,
     ):
         eval_stats, predictions, _ = self.ludwig_model.evaluate(
-                dataset=dataset[:],
-                batch_size=batch_size,
-                collect_overall_stats=collect_overall_stats,
-                collect_predictions=collect_predictions
+            dataset=dataset[:],
+            batch_size=batch_size,
+            collect_overall_stats=collect_overall_stats,
+            collect_predictions=collect_predictions,
         )
 
         return eval_stats, predictions

@@ -36,7 +36,6 @@ class AhoCorasick:
 
 
 class HasPhrase(Subpopulation):
-
     def __init__(
         self, phrases=None, identifiers: List[Identifier] = None, *args, **kwargs
     ):
@@ -50,7 +49,7 @@ class HasPhrase(Subpopulation):
             if not identifiers
             else identifiers,
             *args,
-            **kwargs
+            **kwargs,
         )
 
         # This is the list of phrases that will be searched
@@ -131,14 +130,13 @@ class HasPhrase(Subpopulation):
         return slice_membership
 
 
-
 class HasAnyPhrase(Subpopulation):
     def __init__(
         self,
         phrase_groups: List[List[str]] = None,
         identifiers: List[Identifier] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         # Keep track of the phrase groups
@@ -172,7 +170,7 @@ class HasAnyPhrase(Subpopulation):
                 )
             ),
             *args,
-            **kwargs
+            **kwargs,
         )
 
     def apply(
@@ -191,7 +189,7 @@ class HasAnyPhrase(Subpopulation):
                 batch=batch,
                 columns=columns,
                 *args,
-                **kwargs
+                **kwargs,
             )
 
         return slice_membership
@@ -221,7 +219,7 @@ class HasAllPhrases(Subpopulation):
         phrase_groups: List[List[str]] = None,
         identifiers: List[Identifier] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         # Keep track of the phrase groups
@@ -255,7 +253,7 @@ class HasAllPhrases(Subpopulation):
                 )
             ),
             *args,
-            **kwargs
+            **kwargs,
         )
 
     def apply(
@@ -274,7 +272,7 @@ class HasAllPhrases(Subpopulation):
                 batch=batch,
                 columns=columns,
                 *args,
-                **kwargs
+                **kwargs,
             )
 
         return slice_membership

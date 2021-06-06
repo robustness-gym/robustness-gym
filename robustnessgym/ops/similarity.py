@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 from typing import List, Sequence
 
 import cytoolz as tz
 import numpy as np
 from datasets import load_metric
 
-from robustnessgym.core.tools import transpose_batch
 from robustnessgym.core.operation import Operation, lookup
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.core.tools import transpose_batch
 from robustnessgym.ops.spacy import SpacyOp
 
 

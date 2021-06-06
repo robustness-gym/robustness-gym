@@ -1,9 +1,9 @@
 from typing import Callable, List
 
-from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.decorators import singlecolumn
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.operation import Operation
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
 
 class NamedColumn(Operation):
@@ -54,5 +54,3 @@ class SingleColumnCachedOperation(NamedColumn):
 
     def single_column_apply(self, column_batch: List, **kwargs) -> List:
         raise NotImplementedError("Must implement single_column_apply.")
-
-

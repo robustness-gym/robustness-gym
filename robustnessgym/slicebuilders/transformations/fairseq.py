@@ -7,13 +7,11 @@ from mosaic.tools.lazy_loader import LazyLoader
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
 
-fastBPE = LazyLoader('fastBPE', error="Install fastBPE with `pip install fastBPE`.")
+fastBPE = LazyLoader("fastBPE", error="Install fastBPE with `pip install fastBPE`.")
 
 
 class FairseqBacktranslation(SingleColumnTransformation):
-    """
-    Backtranslation using torchhub fairseq models.
-    """
+    """Backtranslation using torchhub fairseq models."""
 
     def __init__(
         self,
@@ -107,9 +105,8 @@ class FairseqBacktranslation(SingleColumnTransformation):
         return src2tgt.to(device), tgt2src.to(device)
 
     def single_column_apply(self, column_batch: List) -> List[List]:
-        """
-        Perform backtranslation using the fairseq pretrained translation models.
-        """
+        """Perform backtranslation using the fairseq pretrained translation
+        models."""
         # Encode the source sentences
         src_sentences = column_batch
         src_sentences_bin = [self.src2tgt.encode(e)[:1024] for e in src_sentences]

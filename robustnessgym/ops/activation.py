@@ -31,16 +31,14 @@ class ActivationExtractor:
 
 # TODO: test on an NLP model
 class ActivationOp(Operation):
-
     def __init__(
-            self,
-            model: nn.Module,
-            target_module: str,
-            device: int = None,
+        self,
+        model: nn.Module,
+        target_module: str,
+        device: int = None,
     ):
-        """
-        An Operation that runs a forward pass over each example in the dataset and
-        stores model activations in a new column.
+        """An Operation that runs a forward pass over each example in the
+        dataset and stores model activations in a new column.
 
         Args:
             model (nn.Module): the torch model from which activations are extracted
@@ -73,8 +71,7 @@ class ActivationOp(Operation):
         columns: List[str],
         **kwargs,
     ) -> tuple:
-        """
-        Compute example activations for a torch Model.
+        """Compute example activations for a torch Model.
 
         Args:
             dp (DataPanel): DataPanel
@@ -89,4 +86,4 @@ class ActivationOp(Operation):
         if self.device is not None:
             inputs = inputs.to(self.device)
         self.model(inputs)
-        return self.extractor.activation.cpu().detach(),
+        return (self.extractor.activation.cpu().detach(),)

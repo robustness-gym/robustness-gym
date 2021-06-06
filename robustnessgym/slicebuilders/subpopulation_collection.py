@@ -5,9 +5,9 @@ import numpy as np
 from multiprocess.pool import Pool
 from tqdm import tqdm
 
-from robustnessgym.slicebuilders.subpopulation import Subpopulation
 from robustnessgym.core.constants import SLICEBUILDERS
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
 class SubpopulationCollection(Subpopulation):

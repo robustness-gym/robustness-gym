@@ -6,8 +6,8 @@ from copy import deepcopy
 import torch
 from mosaic import ImageColumn, ImagePath
 
-from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.tools import save_image
 
 
@@ -90,7 +90,6 @@ class MockTestBedv1:
 
 
 class MockVisionTestBed:
-
     def __init__(self):
         cache_dir = os.path.join(tempfile.gettempdir(), "RGVisionTests")
         if not os.path.exists(cache_dir):
@@ -112,6 +111,3 @@ class MockVisionTestBed:
         }
 
         self.dataset = DataPanel(self.batch)
-
-
-

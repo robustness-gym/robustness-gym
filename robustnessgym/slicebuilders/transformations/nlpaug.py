@@ -6,7 +6,7 @@ from mosaic.tools.lazy_loader import LazyLoader
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
 
-nlpaug_flow = LazyLoader('nlpaug.flow', error="Please `pip install nlpaug`.")
+nlpaug_flow = LazyLoader("nlpaug.flow", error="Please `pip install nlpaug`.")
 
 
 class NlpAugTransformation(SingleColumnTransformation):

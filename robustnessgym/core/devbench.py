@@ -19,11 +19,7 @@ from robustnessgym.core.constants import (
     SUBPOPULATION,
 )
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.report import (
-    NumericColumn,
-    Report,
-    ScoreColumn,
-)
+from robustnessgym.core.report import NumericColumn, Report, ScoreColumn
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.tools import persistent_hash
 from robustnessgym.core.version import SemanticVersionerMixin

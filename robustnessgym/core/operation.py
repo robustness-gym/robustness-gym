@@ -5,11 +5,12 @@ import pathlib
 from abc import ABC
 from collections import defaultdict
 from functools import partial
-from typing import Callable, List, Optional, Union, Dict
+from typing import Callable, Dict, List, Optional, Union
 
 from mosaic import AbstractColumn
 from mosaic.mixins.identifier import IdentifierMixin
 from mosaic.tools.identifier import Identifier
+
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
 
@@ -22,7 +23,9 @@ def tuple_to_dict(keys: List[str]):
             if not isinstance(output, tuple):
                 output = (output,)
             return dict(zip(keys, output))
+
         return _wrapper
+
     return _tuple_to_dict
 
 
@@ -30,8 +33,7 @@ def stow(
     dp: DataPanel,
     ops: Dict[Operation, List[List[str]]],
 ):
-    """
-    Apply Operations in sequence.
+    """Apply Operations in sequence.
 
     Args:
         dp (DataPanel): DataPanel
@@ -71,8 +73,7 @@ def lookup(
     op: Union[type, Operation],
     columns: List[str],
 ) -> AbstractColumn:
-    """
-    Retrieve the outputs of an Operation from a DataPanel.
+    """Retrieve the outputs of an Operation from a DataPanel.
 
     Args:
         dp (DataPanel): DataPanel
@@ -103,8 +104,8 @@ def lookup(
 
         # Pick the key that best matches the cls name or instance identifier
         if (
-                prefix.startswith(op_name)
-                and len(prefix.replace(op_name, "")) < best_distance
+            prefix.startswith(op_name)
+            and len(prefix.replace(op_name, "")) < best_distance
         ):
             best_match = identifier
             best_distance = len(prefix.replace(op_name, ""))
@@ -133,7 +134,8 @@ class Operation(ABC, IdentifierMixin):
         **kwargs,
     ):
         super(Operation, self).__init__(
-            identifier=identifier if identifier
+            identifier=identifier
+            if identifier
             else Identifier(_name=self.__class__.__name__, **kwargs),
         )
 
@@ -176,8 +178,7 @@ class Operation(ABC, IdentifierMixin):
 
     @classmethod
     def exists(cls, dp: DataPanel) -> bool:
-        """
-        Check if the outputs of the Operation are in `dp`.
+        """Check if the outputs of the Operation are in `dp`.
 
         Args:
             dp: DataPanel
@@ -196,8 +197,7 @@ class Operation(ABC, IdentifierMixin):
         *args,
         **kwargs,
     ) -> None:
-        """
-        Preparation applied to the DataPanel `dp`.
+        """Preparation applied to the DataPanel `dp`.
 
         This is provided as a convenience function that can be called by
         `self.prepare`.
@@ -218,8 +218,7 @@ class Operation(ABC, IdentifierMixin):
         *args,
         **kwargs,
     ) -> None:
-        """
-        Preparation that is applied before the Operation is applied.
+        """Preparation that is applied before the Operation is applied.
 
         Many Operations require a full pass over the DataPanel to precompute some
         variables before the core operation can actually be applied e.g. to create a
@@ -252,8 +251,7 @@ class Operation(ABC, IdentifierMixin):
         columns: List[str],
         **kwargs,
     ) -> tuple:
-        """
-        The core functionality of the Operation.
+        """The core functionality of the Operation.
 
         This is provided as a convenience function that can be called by
         `self.process`.
@@ -278,8 +276,7 @@ class Operation(ABC, IdentifierMixin):
         *args,
         **kwargs,
     ) -> DataPanel:
-        """
-        Apply the Operation to a DataPanel.
+        """Apply the Operation to a DataPanel.
 
         Args:
             dp (DataPanel): DataPanel
@@ -290,9 +287,9 @@ class Operation(ABC, IdentifierMixin):
         """
 
         return dp.update(
-            tuple_to_dict(keys=[
-                str(ident(columns=columns)) for ident in self.output_identifiers
-            ])(partial(self.process_batch, columns=columns, *args, **kwargs)),
+            tuple_to_dict(
+                keys=[str(ident(columns=columns)) for ident in self.output_identifiers]
+            )(partial(self.process_batch, columns=columns, *args, **kwargs)),
             batch_size=batch_size,
             is_batched_fn=True,
             *args,
@@ -306,8 +303,7 @@ class Operation(ABC, IdentifierMixin):
         batch_size: int = 32,
         **kwargs,
     ) -> DataPanel:
-        """
-        Apply the Operation to a DataPanel.
+        """Apply the Operation to a DataPanel.
 
         Args:
             dp (DataPanel): DataPanel

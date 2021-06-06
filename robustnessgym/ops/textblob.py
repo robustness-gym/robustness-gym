@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import subprocess
-from typing import List, Collection
+from typing import Collection, List
 
 from mosaic import AbstractCell
 from mosaic.tools.lazy_loader import LazyLoader
@@ -10,14 +10,13 @@ from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
 textblob = LazyLoader(
-    'textblob',
+    "textblob",
     error="TextBlob not available for import. Install using "
-          "\npip install textblob\npython -m textblob.download_corpora"
+    "\npip install textblob\npython -m textblob.download_corpora",
 )
 
 
 class LazyTextBlobCell(AbstractCell):
-
     def __init__(self, text: str):
         super(LazyTextBlobCell, self).__init__()
         self.text = text
@@ -31,7 +30,7 @@ class LazyTextBlobCell(AbstractCell):
 
     @classmethod
     def _state_keys(cls) -> Collection:
-        return {'text'}
+        return {"text"}
 
     def __repr__(self):
         snippet = f"{self.text[:15]}..." if len(self.text) > 20 else self.text
@@ -39,14 +38,13 @@ class LazyTextBlobCell(AbstractCell):
 
 
 class LazyTextBlobOp(Operation):
-
     def __init__(self):
         self._download()
         super(LazyTextBlobOp, self).__init__()
 
     @staticmethod
     def _download():
-        subprocess.call(['python', '-m', 'textblob.download_corpora'])
+        subprocess.call(["python", "-m", "textblob.download_corpora"])
 
     def process_batch(
         self,
@@ -54,4 +52,4 @@ class LazyTextBlobOp(Operation):
         columns: List[str],
         **kwargs,
     ) -> tuple:
-        return [LazyTextBlobCell(text) for text in dp[columns[0]]],
+        return ([LazyTextBlobCell(text) for text in dp[columns[0]]],)

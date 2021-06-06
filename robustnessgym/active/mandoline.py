@@ -4,9 +4,9 @@ from types import SimpleNamespace
 import numpy as np
 from mosaic.tools.lazy_loader import LazyLoader
 
-scipy_optimize = LazyLoader('scipy.optimize')
-scipy_special = LazyLoader('scipy.special')
-skmetrics = LazyLoader('sklearn.metrics.pairwise')
+scipy_optimize = LazyLoader("scipy.optimize")
+scipy_special = LazyLoader("scipy.special")
+skmetrics = LazyLoader("sklearn.metrics.pairwise")
 
 
 def Phi(D, edge_list: list = None):
@@ -17,8 +17,8 @@ def Phi(D, edge_list: list = None):
     """
     if edge_list is not None:
         pairwise_terms = (
-                D[np.arange(len(D)), edge_list[:, 0][:, np.newaxis]].T
-                * D[np.arange(len(D)), edge_list[:, 1][:, np.newaxis]].T
+            D[np.arange(len(D)), edge_list[:, 0][:, np.newaxis]].T
+            * D[np.arange(len(D)), edge_list[:, 1][:, np.newaxis]].T
         )
         return np.concatenate([D, pairwise_terms], axis=1)
     else:
@@ -31,10 +31,10 @@ def log_partition_ratio(x, Phi_D_src, n_src):
 
 
 def mandoline(
-        D_src,
-        D_tgt,
-        edge_list,
-        sigma=None,
+    D_src,
+    D_tgt,
+    edge_list,
+    sigma=None,
 ):
     """
     Mandoline solver.
@@ -78,9 +78,9 @@ def mandoline(
     kernel = partial(skmetrics.rbf_kernel, gamma=sigma)
 
     def llkliep_f(x):
-        obj = kernel(Phi_D_tgt, x[:, np.newaxis]).sum() - n_tgt * scipy_special.logsumexp(
-            kernel(Phi_D_src, x[:, np.newaxis])
-        )
+        obj = kernel(
+            Phi_D_tgt, x[:, np.newaxis]
+        ).sum() - n_tgt * scipy_special.logsumexp(kernel(Phi_D_src, x[:, np.newaxis]))
         return -obj
 
     # Solve
@@ -134,10 +134,10 @@ def weighted_estimator(weights, empirical_mat):
 
 
 def estimate_performance(
-        D_src,
-        D_tgt,
-        edge_list,
-        empirical_mat_list_src,
+    D_src,
+    D_tgt,
+    edge_list,
+    empirical_mat_list_src,
 ):
     """Estimate performance on a target distribution using slices from the
     source and target data."""

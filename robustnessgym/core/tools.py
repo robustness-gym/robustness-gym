@@ -13,7 +13,7 @@ import yaml
 from mosaic import ImagePath
 from mosaic.tools.lazy_loader import LazyLoader
 
-PIL = LazyLoader('PIL')
+PIL = LazyLoader("PIL")
 
 
 def save_image(image, filename):
@@ -267,8 +267,7 @@ class class_or_instancemethod(classmethod):
 
 
 def transpose_batch(batch: Dict[str, List]):
-    """
-    Transpose a batch of data from a dict of lists to a list of dicts.
+    """Transpose a batch of data from a dict of lists to a list of dicts.
 
     Args:
         batch (Dict[str, List]): batch of data which is a dictionary

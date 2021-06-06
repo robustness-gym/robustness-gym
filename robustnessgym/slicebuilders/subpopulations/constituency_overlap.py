@@ -9,7 +9,7 @@ from robustnessgym.core.identifier import Identifier
 from robustnessgym.ops.allen import AllenConstituencyParsingOp
 from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
-nltk = LazyLoader('nltk')
+nltk = LazyLoader("nltk")
 
 
 @prerequisites(AllenConstituencyParsingOp)

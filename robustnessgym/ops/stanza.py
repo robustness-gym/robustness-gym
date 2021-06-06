@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Dict
+from typing import Dict, List
 
 from mosaic import AbstractCell
 from mosaic.tools.lazy_loader import LazyLoader
@@ -8,13 +8,11 @@ from mosaic.tools.lazy_loader import LazyLoader
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
-stanza = LazyLoader('stanza', error="Please `pip install stanza`.")
+stanza = LazyLoader("stanza", error="Please `pip install stanza`.")
 
 
 class StanzaCell(AbstractCell):
-    """
-    Cell that stores a Stanza Document.
-    """
+    """Cell that stores a Stanza Document."""
 
     def __init__(self, doc: stanza.Document, *args, **kwargs):
         super(StanzaCell, self).__init__(*args, **kwargs)
@@ -32,11 +30,11 @@ class StanzaCell(AbstractCell):
         return cls(pipeline(text))
 
     def get_state(self) -> Dict:
-        return {'doc': self.doc.to_serialized()}
+        return {"doc": self.doc.to_serialized()}
 
     @classmethod
     def from_state(cls, state, **kwargs) -> StanzaCell:
-        return cls(stanza.Document.from_serialized(state['doc']))
+        return cls(stanza.Document.from_serialized(state["doc"]))
 
     def __repr__(self):
         snippet = f"{self.text[:15]}..." if len(self.text) > 20 else self.text
@@ -45,8 +43,16 @@ class StanzaCell(AbstractCell):
     def __getattr__(self, item):
         try:
             if item in {
-                'lemma', 'text', 'upos', 'xpos', 'feats', 'head', 'deprel', 'feats',
-                'misc', 'id',
+                "lemma",
+                "text",
+                "upos",
+                "xpos",
+                "feats",
+                "head",
+                "deprel",
+                "feats",
+                "misc",
+                "id",
             }:
                 return self.doc.get(item)
         except AttributeError:
@@ -54,8 +60,7 @@ class StanzaCell(AbstractCell):
 
 
 class StanzaOp(Operation):
-    """
-    Operation that runs the Stanza pipeline.
+    """Operation that runs the Stanza pipeline.
 
     Stanza: https://stanfordnlp.github.io/stanza/
     """
@@ -76,8 +81,7 @@ class StanzaOp(Operation):
         columns: List[str],
         **kwargs,
     ) -> tuple:
-        """
-        Process text examples by running them through the Stanza pipeline.
+        """Process text examples by running them through the Stanza pipeline.
 
         Args:
             dp (DataPanel): DataPanel
@@ -88,10 +92,12 @@ class StanzaOp(Operation):
             Tuple with single output, a list of StanzaCell objects.
         """
 
-        return tuple([
-            [StanzaCell.from_text(text, self.nlp) for text in dp[col]]
-            for col in columns
-        ])
+        return tuple(
+            [
+                [StanzaCell.from_text(text, self.nlp) for text in dp[col]]
+                for col in columns
+            ]
+        )
 
 
 # def input_columns(self):
@@ -102,4 +108,3 @@ class StanzaOp(Operation):
 # op = StanzaOp()
 # op(dp, 'passage') --> 1 output column
 # op(dp, ['passage', 'question']) --> 2 output columns
-

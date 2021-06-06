@@ -5,9 +5,9 @@ from typing import Callable, Dict, List, Tuple
 import cytoolz as tz
 import numpy as np
 
-from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.core.decorators import prerequisites
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 

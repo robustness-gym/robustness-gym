@@ -2,8 +2,8 @@
 
 from unittest import TestCase
 
-from robustnessgym.core.operation import Operation
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.operation import Operation
 from tests.testbeds import MockTestBedv0
 
 
@@ -20,7 +20,6 @@ def a_multi_column_apply_fn(batch, columns):
 
 
 class TestOperation(TestCase):
-
     def setUp(self):
         self.op = Operation(
             apply_fn=a_single_column_apply_fn,

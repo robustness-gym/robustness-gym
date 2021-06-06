@@ -3,11 +3,11 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
+from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.core.tools import strings_as_json
 from robustnessgym.ops.similarity import RougeMatrix
 from robustnessgym.ops.spacy import SpacyOp
-from robustnessgym.core.slice import SliceDataPanel as DataPanel
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tools import strings_as_json
 from robustnessgym.slicebuilders.transformation import Transformation
 
 

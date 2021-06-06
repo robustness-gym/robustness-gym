@@ -3,8 +3,8 @@ from typing import List, Union
 
 from datasets.features import ClassLabel, Sequence, Value
 
-from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.tasks.schema import Schema
 
 

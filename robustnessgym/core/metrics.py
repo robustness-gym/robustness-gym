@@ -7,8 +7,8 @@ import torch
 from mosaic.tools.lazy_loader import LazyLoader
 from sklearn.metrics import accuracy_score, f1_score
 
-nltk = LazyLoader('nltk')
-rouge_score = LazyLoader('rouge_score')
+nltk = LazyLoader("nltk")
+rouge_score = LazyLoader("rouge_score")
 
 
 def get_metric(name: str) -> Callable:
@@ -93,8 +93,7 @@ def compute_metric(
     labels: Union[Sequence, torch.Tensor],
     num_classes: int,
 ) -> Union[float, np.ndarray, torch.Tensor]:
-    """
-    Compute metric given predictions and target labels
+    """Compute metric given predictions and target labels.
 
     Args:
         metric (str): name of metric

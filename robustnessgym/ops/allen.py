@@ -6,11 +6,10 @@ from mosaic.tools.lazy_loader import LazyLoader
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
-predictors = LazyLoader('allennlp.predictors')
+predictors = LazyLoader("allennlp.predictors")
 
 
 class AllenPredictionOp(Operation, DeviceMixin):
-
     def __init__(
         self,
         path: str,
@@ -32,9 +31,11 @@ class AllenPredictionOp(Operation, DeviceMixin):
         columns: List[str],
         **kwargs,
     ) -> tuple:
-        return self.predictor.predict_batch_json(
-            [{"sentence": text} for text in dp[columns[0]]]
-        ),
+        return (
+            self.predictor.predict_batch_json(
+                [{"sentence": text} for text in dp[columns[0]]]
+            ),
+        )
 
 
 class AllenConstituencyParsingOp(AllenPredictionOp):
@@ -51,9 +52,14 @@ class AllenConstituencyParsingOp(AllenPredictionOp):
         columns: List[str],
         **kwargs,
     ) -> tuple:
-        return [p['trees'] for p in self.predictor.predict_batch_json(
-            [{"sentence": text} for text in dp[columns[0]]]
-        )],
+        return (
+            [
+                p["trees"]
+                for p in self.predictor.predict_batch_json(
+                    [{"sentence": text} for text in dp[columns[0]]]
+                )
+            ],
+        )
 
 
 class AllenDependencyParsingOp(AllenPredictionOp):
