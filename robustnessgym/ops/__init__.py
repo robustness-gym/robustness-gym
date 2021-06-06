@@ -4,7 +4,7 @@
 # from .allen.semantic_role_labeler.semantic_role_labeler import
 # AllenSemanticRoleLabeler
 # from .bootleg.bootleg import Bootleg
-# from .cached_ops import (
+# from .ops import (
 #     CachedOperation,
 #     stow
 # )

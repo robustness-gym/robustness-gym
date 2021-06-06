@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
 
-from robustnessgym.ops.spacy import SpacyOp
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
@@ -58,18 +58,11 @@ class EntityFrequency(Subpopulation, SpacyOp):
         # associated frequency thresholds
         self.entity_thresholds = entity_thresholds
 
-    @classmethod
-    def from_dataset(
-        cls, dataset: Dataset, entity_percentiles: List[Tuple[str, List[float]]]
-    ) -> EntityFrequency:
-        """Determine thresholds from dataset and specific percentiles."""
-        raise NotImplementedError
-
     def apply(
         self,
-        slice_membership: np.ndarray,
-        dp: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
         **kwargs,
     ) -> np.ndarray:
@@ -78,7 +71,7 @@ class EntityFrequency(Subpopulation, SpacyOp):
             raise ValueError("Only one key allowed")
         key = columns[0]
 
-        for i, cache_item in enumerate(dp["cache"]):
+        for i, cache_item in enumerate(batch["cache"]):
             entities = cache_item["Spacy"][key]["ents"]
             entity_types = [ent["label"] for ent in entities]
             counts = Counter(entity_types)

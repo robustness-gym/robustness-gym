@@ -6,8 +6,27 @@ from functools import partial
 from typing import Callable, Dict, List, Mapping, Optional, Sequence
 
 import cytoolz as tz
+import numpy as np
 import progressbar
+import torch
 import yaml
+from mosaic import ImagePath
+from mosaic.tools.lazy_loader import LazyLoader
+
+PIL = LazyLoader('PIL')
+
+
+def save_image(image, filename):
+    """Save 'image' to file 'filename' and return an RGImage object."""
+    if isinstance(image, torch.Tensor):
+        image = image.numpy()
+
+    image = PIL.Image.fromarray(image.astype(np.uint8))
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+    image.save(filename)
+
+    return ImagePath(filename)
 
 
 def convert_to_batch_fn(function: Callable, with_indices: bool):
@@ -245,3 +264,17 @@ class class_or_instancemethod(classmethod):
     def __get__(self, instance, type_):
         descr_get = super().__get__ if instance is None else self.__func__.__get__
         return descr_get(instance, type_)
+
+
+def transpose_batch(batch: Dict[str, List]):
+    """
+    Transpose a batch of data from a dict of lists to a list of dicts.
+
+    Args:
+        batch (Dict[str, List]): batch of data which is a dictionary
+            mapping columns to lists
+
+    Returns:
+        list of dicts, each dict corresponding to a single example
+    """
+    return [dict(zip(batch, t)) for t in zip(*batch.values())]

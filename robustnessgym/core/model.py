@@ -11,8 +11,8 @@ from transformers import (
     AutoTokenizer,
 )
 
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.metrics import compute_metric
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.tasks.task import Task
 
 ludwig_api = LazyLoader('ludwig.api')
@@ -73,7 +73,7 @@ class Model:
 
     def __call__(
         self,
-        dataset: Dataset,
+        dataset: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
         batch_size: int = 32,
@@ -132,7 +132,7 @@ class Model:
 
     def evaluate(
         self,
-        dataset: Dataset,
+        dataset: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
         batch_size: int = 32,
@@ -268,7 +268,7 @@ class HuggingfaceModel(Model):
 
     def evaluate(
         self,
-        dataset: Dataset,
+        dataset: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
         batch_size: int = 32,
@@ -282,7 +282,7 @@ class HuggingfaceModel(Model):
         dataset.reset_format()
         dataset.set_format(columns=input_columns + output_columns)
 
-        # TODO(karan): check that the Dataset conforms to the task definition
+        # TODO(karan): check that the DataPanel conforms to the task definition
         # TODO(karan): figure out how the output_columns will be used by the metrics
         pass
 
@@ -375,7 +375,7 @@ class LudwigModel(Model):
 
     def evaluate(
         self,
-        dataset: Dataset,
+        dataset: DataPanel,
         batch_size: int=128,
         collect_overall_stats: bool=True,
         collect_predictions: bool=True,

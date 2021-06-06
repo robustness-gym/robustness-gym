@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 from mosaic.tools.lazy_loader import LazyLoader
 
-from robustnessgym.core.dataset import transpose_batch
+from robustnessgym.core.tools import transpose_batch
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.attack import Attack
 
