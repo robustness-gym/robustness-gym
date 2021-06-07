@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 class ReportableMixin:
     def _shared_aggregators(self, models: List[str]):
-        """Find aggregators that are shared by multiple models in the
-        DevBench."""
+        """Find aggregators that are shared by multiple models in the Bench."""
 
         common_aggregators = []
         # Iterate over all the models
@@ -219,6 +218,11 @@ class DevBench(SemanticVersionerMixin):
         """Models in the devbench."""
         return list(self.aggregators.keys())
 
+    @property
+    def summary(self):
+        """Summary of the devbench."""
+        return DataPanel(self.slices)
+
     def __repr__(self):
         return f"{self.__class__.__name__}(slices={len(self.slices)})"
 
@@ -257,10 +261,8 @@ class DevBench(SemanticVersionerMixin):
             if overwrite or (
                 sl.identifier not in self._slice_identifiers
                 and len(sl) > 0
-                and sl.lineage[0][1] == self.datapanel.identifier
             ):
-                # Add slices that aren't present, have non-zero length and
-                # originate from the dataset
+                # Add slices that aren't present and have non-zero length
                 self._slices.add(sl)
                 self._slice_identifiers.add(sl.identifier)
                 self._slice_table[sl.identifier] = sl
