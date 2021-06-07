@@ -405,19 +405,25 @@ class DevBench(SemanticVersionerMixin):
                 The devbenches available inside this directory will be returned.
 
         Returns:
-            list of available devbenches
+            names of available devbenches in a list.
         """
 
         # Path to the save directory
         savedir = pathlib.Path(path)
 
-        # Loop over the folders
-        devbench_identifiers = []
+        devbenches = []
         for maybe_devbench in savedir.glob("*"):
-            if maybe_devbench.is_dir() and (maybe_devbench / "metadata.dill").exists():
-                devbench_identifiers.append(maybe_devbench.name)
 
-        return devbench_identifiers
+            # DevBench is saved to a directory
+            if maybe_devbench.is_dir():
+                if (maybe_devbench / "metadata.dill").exists():  # TODO: deprecate
+                    devbenches.append(maybe_devbench.name)
+                elif maybe_devbench.suffix == '.devbench':
+                    devbenches.append(maybe_devbench.name)
+                else:
+                    continue
+
+        return devbenches
 
     @classmethod
     def load(cls, path: str) -> DevBench:
