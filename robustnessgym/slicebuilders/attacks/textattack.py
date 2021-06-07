@@ -22,7 +22,7 @@ class TextAttack(Attack):
 
     def __init__(
         self,
-        attack: attack_recipes.AttackRecipe,
+        attack: "attack_recipes.AttackRecipe",
     ):
         super(TextAttack, self).__init__(
             identifiers=[
@@ -95,11 +95,11 @@ class TextAttack(Attack):
         return skeleton_batches, slice_membership
 
     @classmethod
-    def from_recipe(cls, recipe: str, model: wrappers.ModelWrapper):
+    def from_recipe(cls, recipe: str, model: "wrappers.ModelWrapper"):
         return cls(attack=getattr(attack_recipes, recipe).build(model=model))
 
     @classmethod
-    def wrap_huggingface_model(cls, model: Model) -> wrappers.ModelWrapper:
+    def wrap_huggingface_model(cls, model: Model) -> "wrappers.ModelWrapper":
         return wrappers.HuggingFaceModelWrapper(
             model=model.model,
             tokenizer=model.tokenizer,

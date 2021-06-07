@@ -8,8 +8,13 @@ from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 
 class LexicalOverlapSubpopulation(ScoreSubpopulation):
+
     def score(
-        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
+        self,
+        batch: Dict[str, List],
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
         # Require that the number of keys is exactly 2
         assert len(columns) == 2, "Must specify exactly 2 keys."

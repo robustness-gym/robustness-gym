@@ -14,7 +14,7 @@ class NlpAugTransformation(SingleColumnTransformation):
 
     def __init__(
         self,
-        pipeline: nlpaug_flow.Pipeline,
+        pipeline: "nlpaug_flow.Pipeline",
         num_transformed: int = 1,
         identifiers: List[Identifier] = None,
         *args,

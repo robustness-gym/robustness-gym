@@ -72,6 +72,7 @@ def lookup(
     dp: DataPanel,
     op: Union[type, Operation],
     columns: List[str],
+    output_name: str = None
 ) -> AbstractColumn:
     """Retrieve the outputs of an Operation from a DataPanel.
 
@@ -79,6 +80,8 @@ def lookup(
         dp (DataPanel): DataPanel
         op (Union[type, Operation]): subclass of Operation, or Operation object
         columns (List[str]): list of input columns that Operation was applied to
+        output_name (Optional[str]): for an Operation with `num_outputs` > 1,
+            the name of the output column to lookup
 
     Returns:
         Output columns of the Operation from the DataPanel.
@@ -104,14 +107,23 @@ def lookup(
 
         # Pick the key that best matches the cls name or instance identifier
         if (
-            prefix.startswith(op_name)
-            and len(prefix.replace(op_name, "")) < best_distance
+            prefix.startswith(op_name) and
+                len(
+                    prefix.replace(op_name, "").replace(
+                        "" if output_name is None else output_name, "")
+                ) < best_distance
         ):
             best_match = identifier
-            best_distance = len(prefix.replace(op_name, ""))
+            best_distance = len(
+                prefix.replace(op_name, "").replace(
+                    "" if output_name is None else output_name, "")
+            )
 
     # Get the best matched column group
     identifier = best_match
+
+    if identifier is None:
+        raise AttributeError("Lookup failed.")
 
     return dp[str(identifier(columns=columns))]
 
@@ -139,7 +151,6 @@ class Operation(ABC, IdentifierMixin):
             else Identifier(_name=self.__class__.__name__, **kwargs),
         )
 
-        # Identifier.range(n=num_outputs, _name=self.__class__.__name__, **kwargs)
         self._output_names = output_names
 
         if process_batch_fn:

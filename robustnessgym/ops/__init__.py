@@ -1,16 +1,14 @@
-# from .allen.allen_predictor import AllenPredictor
-# from .allen.constituency_parser.constituency_parser import AllenConstituencyParser
-# from .allen.dependency_parser.dependency_parser import AllenDependencyParser
-# from .allen.semantic_role_labeler.semantic_role_labeler import
-# AllenSemanticRoleLabeler
-# from .bootleg.bootleg import Bootleg
-# from .ops import (
-#     CachedOperation,
-#     stow
-# )
-# from .custom.strip_text import StripText
-# from .spacy.spacy import Spacy
-# from .textblob.textblob import TextBlob
-from .spacy import SpacyOp  # noqa
-from .stanza import StanzaOp  # noqa
-from .textblob import LazyTextBlobOp  # noqa
+# flake8: noqa
+from .activation import ActivationOp
+from .allen import (
+    AllenPredictionOp,
+    AllenSemanticRoleLabelingOp,
+    AllenConstituencyParsingOp,
+    AllenDependencyParsingOp,
+)
+from .bootleg import BootlegAnnotatorOp
+from .similarity import SentenceSimilarityMatrixOp
+from .spacy import SpacyOp
+from .stanza import StanzaOp
+from .strip_text import StripTextOp
+from .textblob import LazyTextBlobOp

@@ -1,162 +1,178 @@
+<div align="center">
+    <img src="docs/logo.png" height=100 alt="RG logo"/>
+</div>
 
+-----
 
-<img src="docs/logo.png" width="50" height="50" alt="Robustness Gym logo"/> Robustness Gym
-================================
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/robustness-gym/robustness-gym/CI)
 ![GitHub](https://img.shields.io/github/license/robustness-gym/robustness-gym)
-[![codecov](https://codecov.io/gh/robustness-gym/robustness-gym/branch/main/graph/badge.svg?token=MOLQYUSYQU)](https://codecov.io/gh/robustness-gym/robustness-gym)
+
+[comment]: <> ([![codecov]&#40;https://codecov.io/gh/robustness-gym/robustness-gym/branch/main/graph/badge.svg?token=MOLQYUSYQU&#41;]&#40;https://codecov.io/gh/robustness-gym/robustness-gym&#41;)
 [![Documentation Status](https://readthedocs.org/projects/robustnessgym/badge/?version=latest)](https://robustnessgym.readthedocs.io/en/latest/?badge=latest)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![website](https://img.shields.io/badge/website-live-brightgreen)](https://robustnessgym.com)
 
-Robustness Gym is a Python evaluation toolkit for natural language processing. 
+Robustness Gym is a Python evaluation toolkit for machine learning models. 
 
-#### Coming Soon
-- Examples & tutorials
-- More documentation
-- Contributing guidelines
+[**Getting Started**](#getting-started)
+| [**What is Robustness Gym?**](#what-is-mosaic)
+| [**Docs**](https://robustnessgym.readthedocs.io/en/latest/index.html)
+| [**Contributing**](CONTRIBUTING.md)
+| [**About**](#about)
 
 
-### About
-Robustness Gym is being developed to address challenges in evaluating machine
- learning models today. You can read more about the ideas underlying Robustness Gym
-  in our paper on [arXiv](https://arxiv.org/pdf/2101.04840.pdf). We also have a
-   [website](https://robustnessgym.com).
-
-The Robustness Gym project is an ongoing collaboration between [Stanford Hazy
- Research](https://hazyresearch.stanford.edu), [Salesforce Research](https://einstein.ai
- ) and [UNC Chapel-Hill](http://murgelab.cs.unc.edu/). 
-
-_Note: Robustness Gym is in alpha, so expect frequent updates in the coming weeks and 
-months. Reach out to kgoel [at] cs [dot] stanford [dot] edu if you'd like to become an active contributor, 
-or if you work on an interesting NLP task that you'd like to see supported. 
-Feel free to raise issues on GitHub for bugs/feature requests._
-
-### Installation
+### Getting started
 ```
 pip install robustnessgym
 ```
+> Note: some parts of Mosaic rely on optional dependencies. 
+> If you know which optional dependencies you'd like to install, 
+> you can do so using something like `pip install robustnessgym[dev,text]` instead. 
+> See `setup.py` for a full list of optional dependencies.
 
-### Robustness Gym in 5 minutes
+### What is Robustness Gym?
+Robustness Gym is being developed to address challenges in evaluating machine 
+learning models today, with tools to evaluate and visualize the quality of machine 
+learning models. 
 
-#### Datasets that extend Huggingface `datasets`
+Along with [Mosaic](https://github.com/robustness-gym/mosaic), 
+we make it easy for you to load in any kind of data 
+(text, images, videos, time-series) and quickly evaluate how well your models are 
+performing.
+
+#### Load data into a Mosaic `DataPanel`
 ```python
-# robustnessgym.Dataset wraps datasets.Dataset
-from robustnessgym import Dataset
+from robustnessgym import DataPanel
 
-# Use Dataset.load_dataset(..) exactly like datasets.load_dataset(..) 
-dataset = Dataset.load_dataset('boolq')
-dataset = Dataset.load_dataset('boolq', split='train[:10]')
+# Any Huggingface dataset
+dp = DataPanel.load_huggingface('boolq')
+
+# Custom datasets
+dp = DataPanel.from_csv(...)
+dp = DataPanel.from_pandas(...)
+dp = DataPanel.from_jsonl(...)
+dp = DataPanel.from_feather(...)
+
+# Coming soon: any WILDS dataset
+# from mosaic.contrib.wilds import get_wilds_datapane
+# dp = get_wilds_datapane("fmow", root_dir="/datasets/", split="test")
 ```
 
-#### Cache information
+### Run common workflows
 
+#### Spacy
 ```python
-# Get a dataset
-from robustnessgym import Dataset
+from robustnessgym import DataPanel, lookup
+from robustnessgym.ops import SpacyOp
+dp = DataPanel.load_huggingface('boolq')
 
-dataset = Dataset.load_dataset('boolq')
-
-# Run the Spacy pipeline
-from robustnessgym import SpacyOp
-
+# Run the Spacy pipeline on the 'question' column of the dataset
 spacy = SpacyOp()
-# .. on the 'question' column of the dataset
-dataset = spacy(batch_or_dataset=dataset,
-                columns=['question'])
+dp = spacy(dp=dp, columns=['question'])
+# adds a new column that is auto-named
+# "SpacyOp(lang=en_core_web_sm, neuralcoref=False, columns=['passage'])"
 
-# Run the Stanza pipeline
-from robustnessgym import Stanza
-
-stanza = Stanza()
-# .. on both the question and passage columns of a batch
-dataset = stanza(batch_or_dataset=dataset[:32],
-                 columns=['question', 'passage'])
-
-# .. use any of the other built-in operations in Robustness Gym!
-
-
-# Or, create your own CachedOperation
-from robustnessgym import NamedColumn, Identifier
-from robustnessgym.core.decorators import singlecolumn
-
-
-# Write a silly function that operates on a single column of a batch
-@singlecolumn
-def silly_fn(batch, columns):
-    """
-    Capitalize text in the specified column of the batch.
-    """
-    column_name = columns[0]
-    assert type(batch[column_name]) == str, "Must apply to text column."
-    return [text.capitalize() for text in batch[column_name]]
-
-
-# Wrap the silly function in a CachedOperation
-silly_op = NamedColumn(apply_fn=silly_fn,
-                       identifier=Identifier(_name='SillyOp'))
-
-# Apply it to a dataset
-dataset = silly_op(batch_or_dataset=dataset,
-                   columns=['question'])
+# Grab the Spacy column from the DataPanel using the lookup
+spacy_column = lookup(dp, spacy, ['question'])
 ```
 
-
-#### Retrieve cached information
-
+#### Stanza
 ```python
-from robustnessgym import SpacyOp, Stanza, NamedColumn
+from robustnessgym import DataPanel, lookup
+from robustnessgym.ops import StanzaOp
+dp = DataPanel.load_huggingface('boolq')
 
-# Take a batch of data
-batch = dataset[:32]
+# Run the Stanza pipeline on the 'question' column of the dataset
+stanza = StanzaOp()
+dp = stanza(dp=dp, columns=['question'])
+# adds a new column that is auto-named "StanzaOp(columns=['question'])"
 
-# Retrieve the (cached) results of the Spacy CachedOperation 
-spacy_information = SpacyOp.retrieve(batch, columns=['question'])
+# Grab the Stanza column from the DataPanel using the lookup
+stanza_column = lookup(dp, stanza, ['question'])
+```
 
-# Retrieve the tokens returned by the Spacy CachedOperation
-tokens = SpacyOp.retrieve(batch, columns=['question'], proc_fns=SpacyOp.tokens)
+#### Custom Operation (Single Output)
+```python
+# Or, create your own Operation
+from robustnessgym import DataPanel, Operation, Id, lookup
+dp = DataPanel.load_huggingface('boolq')
 
-# Retrieve the entities found by the Stanza CachedOperation
-entities = Stanza.retrieve(batch, columns=['passage'], proc_fns=Stanza.entities)
+# A function that capitalizes text
+def capitalize(batch: DataPanel, columns: list):
+    return [text.capitalize() for text in batch[columns[0]]]
 
-# Retrieve the capitalized output of the silly_op
-capitalizations = NamedColumn.retrieve(batch,
-                                       columns=['question'],
-                                       identifier=silly_op.identifier)
-
-# Retrieve it directly using the silly_op
-capitalizations = silly_op.retrieve(batch, columns=['question'])
-
-# Retrieve the capitalized output and lower-case it during retrieval
-capitalizations = silly_op.retrieve(
-    batch,
-    columns=['question'],
-    proc_fns=lambda decoded_batch: [x.lower() for x in decoded_batch]
+# Wrap in an Operation: `process_batch_fn` accepts functions that have
+# exactly 2 arguments: batch and columns, and returns a tuple of outputs
+op = Operation(
+    identifier=Id('CapitalizeOp'),
+    process_batch_fn=capitalize,
 )
+
+# Apply to a DataPanel
+dp = op(dp=dp, columns=['question'])
+
+# Look it up when you need it
+capitalized_text = lookup(dp, op, ['question'])
 ```
 
-#### Create subpopulations
-
+#### Custom Operation (Multiple Outputs)
 ```python
-from robustnessgym import SpacyOp, ScoreSubpopulation
+from robustnessgym import DataPanel, Operation, Id, lookup
+dp = DataPanel.load_huggingface('boolq')
 
+# A function that capitalizes and upper-cases text: this will
+# be used to add two columns to the DataPanel
+def capitalize_and_upper(batch: DataPanel, columns: list):
+    return [text.capitalize() for text in batch[columns[0]]], \
+           [text.upper() for text in batch[columns[0]]]
 
-def length(batch, columns):
-    """
-    Length using cached Spacy tokenization.
-    """
-    column_name = columns[0]
-    # Take advantage of previously cached Spacy informations
-    tokens = SpacyOp.retrieve(batch, columns, proc_fns=SpacyOp.tokens)[column_name]
-    return [len(tokens_) for tokens_ in tokens]
+# Wrap in an Operation: `process_batch_fn` accepts functions that have
+# exactly 2 arguments: batch and columns, and returns a tuple of outputs
+op = Operation(
+    identifier=Id('ProcessingOp'),
+    output_names=['capitalize', 'upper'],  # tell the Operation the name of the two outputs
+    process_batch_fn=capitalize_and_upper,
+)
 
+# Apply to a DataPanel
+dp = op(dp=dp, columns=['question'])
 
-# Create a subpopulation that buckets examples based on length
-length_subpopulation = ScoreSubpopulation(intervals=[(0, 10), (10, 20)],
-                                          score_fn=length)
-
-dataset, slices, membership = length_subpopulation(dataset, columns=['question'])
-# dataset is updated with slice information
-# slices is a list of 2 Slice objects
-# membership is a matrix of shape (n x 2)
+# Look them up when you need them
+capitalized_text = lookup(dp, op, ['question'], 'capitalize')
+upper_text = lookup(dp, op, ['question'], 'upper')
 ```
+
+
+### Create Evaluations
+
+
+#### Subpopulations
+```python
+from robustnessgym import DataPanel, ScoreSubpopulation, lookup
+from robustnessgym.ops import SpacyOp
+
+def length(batch: DataPanel, columns: list):
+    try:
+        # Take advantage of previously stored Spacy information
+        return [len(doc) for doc in lookup(batch, SpacyOp, columns)] 
+    except AttributeError:
+        # If unavailable, fall back to splitting text
+        return [len(text.split()) for text in batch[columns[0]]]
+    
+# Create a subpopulation that buckets examples based on length
+length_sp = ScoreSubpopulation(intervals=[(0, 10), (10, 20)], score_fn=length)
+
+slices, membership = length_sp(dp=dp, columns=['question'])
+# `slices` is a list of 2 Slice objects
+# `membership` is a matrix of shape (n x 2)
+```
+
+
+### About
+ You can read more about the ideas underlying Robustness Gym in our 
+paper on [arXiv](https://arxiv.org/pdf/2101.04840.pdf).
+
+The Robustness Gym project began as a collaboration between [Stanford Hazy
+ Research](https://hazyresearch.stanford.edu), [Salesforce Research](https://einstein.ai
+ ) and [UNC Chapel-Hill](http://murgelab.cs.unc.edu/). We also have a
+   [website](https://robustnessgym.com).

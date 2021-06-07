@@ -19,7 +19,7 @@ class StanzaCell(AbstractCell):
         self.doc = doc
 
     def get(self, *args, **kwargs):
-        return self
+        return self.doc
 
     @property
     def data(self) -> stanza.Document:
@@ -37,8 +37,12 @@ class StanzaCell(AbstractCell):
         return cls(stanza.Document.from_serialized(state["doc"]))
 
     def __repr__(self):
-        snippet = f"{self.text[:15]}..." if len(self.text) > 20 else self.text
+        snippet = f"{self.doc.text[:15]}..." if len(self.doc.text) > 20 \
+            else self.doc.text
         return f"{self.__class__.__name__}({snippet})"
+
+    def _repr_html_(self):
+        return self.__repr__()
 
     def __getattr__(self, item):
         try:

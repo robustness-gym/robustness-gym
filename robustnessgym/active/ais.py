@@ -26,6 +26,7 @@ def sample_iso(
 ):
     """
     Weighted sampling of rows to label
+
     Args:
         y_pred: predicted labels (k,)
         prob_pos: model scores (k,)
@@ -38,6 +39,7 @@ def sample_iso(
             alpha = 0.5 -> F1
         d_set: indicators of whether each datapoint has already been labeled (k,)
             set this to np.zeros((k)) if no datapoints have been labeled
+
     Returns:
         sampled rows (samples,)
         weights of sample d rows (samples,)
