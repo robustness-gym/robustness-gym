@@ -72,7 +72,7 @@ def lookup(
     dp: DataPanel,
     op: Union[type, Operation],
     columns: List[str],
-    output_name: str = None
+    output_name: str = None,
 ) -> AbstractColumn:
     """Retrieve the outputs of an Operation from a DataPanel.
 
@@ -107,16 +107,19 @@ def lookup(
 
         # Pick the key that best matches the cls name or instance identifier
         if (
-            prefix.startswith(op_name) and
-                len(
-                    prefix.replace(op_name, "").replace(
-                        "" if output_name is None else output_name, "")
-                ) < best_distance
+            prefix.startswith(op_name)
+            and len(
+                prefix.replace(op_name, "").replace(
+                    "" if output_name is None else output_name, ""
+                )
+            )
+            < best_distance
         ):
             best_match = identifier
             best_distance = len(
                 prefix.replace(op_name, "").replace(
-                    "" if output_name is None else output_name, "")
+                    "" if output_name is None else output_name, ""
+                )
             )
 
     # Get the best matched column group

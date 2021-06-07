@@ -18,158 +18,131 @@ from robustnessgym.core.constants import (
     GENERIC,
     SUBPOPULATION,
 )
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.report import NumericColumn, Report, ScoreColumn
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.tools import persistent_hash
 from robustnessgym.core.version import SemanticVersionerMixin
+from robustnessgym.report.report import NumericColumn, Report, ReportColumn, ScoreColumn
 
 logger = logging.getLogger(__name__)
 
 
-class DevBench(SemanticVersionerMixin):
-    def __init__(
+class ReportableMixin:
+    def _shared_aggregators(self, models: List[str]):
+        """Find aggregators that are shared by multiple models in the
+        DevBench."""
+
+        common_aggregators = []
+        # Iterate over all the models
+        for model in models:
+            assert model in self.metrics, f"Model {model} does not exist."
+            common_aggregators.append(set([agg for agg in self.aggregators[model]]))
+
+        # Find the common aggregators by taking an intersection
+        return set.intersection(*[set(e) for e in common_aggregators])
+
+    def create_report(
         self,
-        dp: DataPanel,
-    ):
-        super(DevBench, self).__init__()
-
-        # An identifier for the DevBench
-        self.identifier = Identifier("DevBench", dataset=str(dp.identifier))
-
-        # DataPanel that the devbench operates on
-        self._dp = dp
-
-        # The collection of slices
-        self._slices = set()
-        self._slice_identifiers = set()
-        self._slice_table = {}
-
-        # The devbench has aggregators
-        self.aggregators = {}
-
-        # The devbench internally tracks metrics
-        self.metrics = {}
-
-        # Add slices if any
-        self.add_slices(dp)
-
-    @property
-    def datapanel(self):
-        """DataPanel for the devbench."""
-        return self._dp
-
-    @property
-    def slices(self):
-        """Slices in the devbench."""
-        return self._slices
-
-    @property
-    def models(self):
-        """Models in the devbench."""
-        return list(self.aggregators.keys())
-
-    def __repr__(self):
-        return f"{self.identifier}(slices={len(self.slices)})"
-
-    def _digest(self) -> str:
-        return json.dumps([str(sl) for sl in self.slices])
-
-    def add_slices(
-        self,
-        slices: Union[DataPanel, DataPanel, Collection[Union[DataPanel, DataPanel]]],
-    ) -> None:
-        """Add slices to the development bench.
+        models: List[str] = None,
+        aggregator_columns: Dict[str, ReportColumn] = None,
+    ) -> Report:
+        """Generate a report for models in the bench.
 
         Args:
-            slices: collection of DataPanel objects
+            models (List[str]): names of one or more models that are in the devbench.
+            aggregator_columns (Dict[str, (ReportColumn, dict)]):
+                dict mapping aggregator names to a tuple.
+
+                The first entry of the tuple is the ReportColumn that should be
+                used for visualization. The second entry is a dict of kwargs that
+                will be passed to the ReportColumn using
+                `ReportColumn.__init__(..., **kwargs)`.
+
+                For instance,
+                >>> devbench.create_report(
+                >>>     models=['BERT'],
+                >>>     aggregator_columns={
+                >>>         'accuracy': (ScoreColumn, {'min_val': 0.3})
+                >>>     }
+                >>> )
+
+                By default, aggregators will be displayed as a ScoreColumn
+                with `min_val=0`, `max_val=1` and `is_0_to_1=True`.
+
+        Returns:
+            a Report, summarizing the performance of the models.
         """
-        if isinstance(slices, DataPanel) or isinstance(slices, DataPanel):
-            slices = [slices]
 
-        # Add slices
-        for sl in slices:
-            if not isinstance(sl, DataPanel) and isinstance(sl, DataPanel):
-                # Convert `DataPanel` to `DataPanel`
-                sl = DataPanel(sl)
+        if len(self.slices) == 0:
+            raise ValueError("No slices found in Bench. Cannot create report.")
 
-            if isinstance(sl, DataPanel):
-                if (
-                    sl.identifier not in self._slice_identifiers
-                    and len(sl) > 0
-                    and sl.lineage[0][1] == self.datapanel.identifier
-                ):
-                    # Add slices that aren't present, have non-zero length and
-                    # originate from the dataset
-                    self._slices.add(sl)
-                    self._slice_identifiers.add(sl.identifier)
-                    self._slice_table[sl.identifier] = sl
+        if models is not None:
+            for model in models:
+                assert model in self.metrics, f"Model {model} not found."
+        else:
+            # Use all the models that are available
+            models = list(self.metrics.keys())
 
-        # Calculate all metrics
-        self.calculate()
+        # Set identifiers to be human readable
+        self._human_readable_identifiers()
 
-    def add_aggregators(
-        self,
-        aggregators: Dict[str, Dict[str, Callable]],
-    ) -> None:
-        """Add functions for aggregation, with a dictionary that maps a model
-        name to aggregation functions."""
+        # Get the list of aggregators that are shared by `models`
+        shared_aggregators = list(self._shared_aggregators(models))
 
-        # For each model
-        for model, aggs in aggregators.items():
-            # Iterate over the aggregation functions
-            for agg_name, agg in aggs.items():
-                assert isinstance(agg, Callable), "Aggregators must be functions."
-                arguments = inspect.getfullargspec(agg).args
-                assert len(arguments) == 1, "Aggregators must be single argument."
-                assert arguments[0] == "dataset", (
-                    "Aggregator argument name must be `dataset`, "
-                    f"not `{arguments[0]}`."
-                )
+        # Populate columns
+        columns = []
+        for model in models:
+            for aggregator in shared_aggregators:
+                if aggregator in aggregator_columns:
+                    column_type, column_kwargs = aggregator_columns[aggregator]
+                else:
+                    column_type = ScoreColumn
+                    column_kwargs = dict(min_val=0, max_val=1, is_0_to_1=True)
+                columns.append(column_type(f"{model}-{aggregator}", **column_kwargs))
+        columns.append(NumericColumn("Size"))
 
-                # Store the aggregator
-                if model not in self.aggregators:
-                    self.aggregators[model] = {}
-                self.aggregators[model][agg_name] = agg
+        category_names = {
+            GENERIC: "Slice",
+            SUBPOPULATION: "SubPop",
+            ATTACK: "Attack",
+            AUGMENTATION: "Augment",
+            CURATION: "Eval",
+        }
 
-        # Calculate all metrics
-        self.calculate()
+        # Populate data
+        data = []
+        for sl in self.slices:
+            slice_name = self.ident_mapping[sl.identifier]
+            slice_size = len(sl)
+            slice_category = category_names.get(sl.category, sl.category.capitalize())
 
-    def calculate(self):
-        """Calculate all metrics that haven't been calculated yet."""
-        # Iterate over all models
-        for model in self.aggregators:
+            row = [slice_category, slice_name]
 
-            # Add the model to the metrics dict
-            if model not in self.metrics:
-                self.metrics[model] = {}
+            for model in models:
+                model_metrics = self.metrics[model]
+                if sl.identifier not in model_metrics:
+                    continue
+                slice_metrics = model_metrics[sl.identifier]
+                for agg in shared_aggregators:
+                    row.append(slice_metrics[agg])
 
-            # Iterate over all slices
-            for sl in self.slices:
-                # Add the slice to the model's metrics dict
-                if str(sl.identifier) not in self.metrics[model]:
-                    self.metrics[model][str(sl.identifier)] = {}
+            row.append(slice_size)
+            data.append(row)
 
-                # Iterate over all aggregation functions
-                for agg_name, aggregator in self.aggregators[model].items():
-                    if agg_name not in self.metrics[model][str(sl.identifier)]:
-                        # Aggregate
-                        self.metrics[model][str(sl.identifier)][agg_name] = aggregator(
-                            sl
-                        )
+        df = pd.DataFrame(data)
 
-    @classmethod
-    def from_dataset(
-        cls,
-        dataset: DataPanel,
-    ) -> DevBench:
-        """Create a DevBench from a dataset."""
-        # Create the devbench
-        devbench = DevBench(
-            dp=dataset,
+        report = Report(
+            data=df,
+            columns=columns,
         )
-
-        return devbench
+        report.sort(
+            category_order=dict(
+                (cat, i)
+                for i, cat in enumerate(
+                    [SUBPOPULATION, AUGMENTATION, CURATION, ATTACK, GENERIC]
+                )
+            )
+        )
+        return report
 
     def _human_readable_identifiers(self):
         # Temporary function to generate human readable names
@@ -220,135 +193,198 @@ class DevBench(SemanticVersionerMixin):
 
         self.ident_mapping = ident_mapping
 
-    def _common_aggregators(self, models: List[str]):
 
-        common_aggregators = []
-        # Iterate over all the models
-        for model in models:
-            assert model in self.metrics, f"Model {model} does not exist."
-            common_aggregators.append(set([agg for agg in self.aggregators[model]]))
+class DevBench(SemanticVersionerMixin):
+    def __init__(self):
+        super(DevBench, self).__init__()
 
-        # Find the common aggregators by taking an intersection
-        return set.intersection(*[set(e) for e in common_aggregators])
+        # The collection of slices
+        self._slices = set()
+        self._slice_identifiers = set()
+        self._slice_table = {}
 
-    def create_report(
+        # The devbench has aggregators
+        self.aggregators = {}
+
+        # The devbench internally tracks metrics
+        self.metrics = {}
+
+    @property
+    def slices(self):
+        """Slices in the devbench."""
+        return self._slices
+
+    @property
+    def models(self):
+        """Models in the devbench."""
+        return list(self.aggregators.keys())
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(slices={len(self.slices)})"
+
+    def _digest(self) -> str:
+        return json.dumps([str(sl) for sl in self.slices])
+
+    def add_slices(
         self,
-        models: List[str] = None,
-    ) -> Report:
-        """Generate report from cached metrics for a model
+        slices: Union[DataPanel, Collection[DataPanel]],
+        overwrite: bool = False,
+    ) -> None:
+        """Add slices to the DevBench.
+
         Args:
-            models: List of models.
-        Returns:
-            report
+            slices (Union[DataPanel, Collection[DataPanel]]): a single DataPanel or
+                a collection of DataPanels
+            overwrite (bool): overwrite any slice in `slices` if it already exists
+                in the DevBench
+        """
+        if isinstance(slices, DataPanel):
+            slices = [slices]
+
+        assert all(
+            [isinstance(sl, DataPanel) for sl in slices]
+        ), "All slices must be DataPanels."
+
+        if not overwrite and any(
+            [sl.identifier in self._slice_identifiers for sl in slices]
+        ):
+            logger.warning(
+                "Some slices in `slices` already exist in the DevBench, "
+                "pass `overwrite=True` to overwrite them."
+            )
+
+        for sl in slices:
+            if overwrite or (
+                sl.identifier not in self._slice_identifiers
+                and len(sl) > 0
+                and sl.lineage[0][1] == self.datapanel.identifier
+            ):
+                # Add slices that aren't present, have non-zero length and
+                # originate from the dataset
+                self._slices.add(sl)
+                self._slice_identifiers.add(sl.identifier)
+                self._slice_table[sl.identifier] = sl
+
+        # Calculate all metrics
+        self.calculate()
+
+    def add_aggregators(
+        self,
+        aggregators: Dict[str, Dict[str, Callable]],
+    ) -> None:
+        """Add functions for aggregation, with a dictionary that maps a model
+        name to aggregation functions.
+
+        Args:
+            aggregators (Dict[str, Dict[str, Callable]]): a dict with keys that
+                are model names (str), and values that are also dicts.
+
+                The value dicts map aggregator names (str) to
+                aggregation functions that produce a value. Typically, the aggregator
+                name will be a metric (e.g. "accuracy") of some kind.
+
+                The aggregation function must be a single argument Callable that takes
+                as input a DataPanel, and outputs a metric value. As an example,
+
+                >>> def accuracy(dp: DataPanel) -> float:
+                >>>    return (dp['pred'] == dp['label']).mean()
+
+                The output type of the aggregation function can be arbitrary,
+                e.g. metrics that are np.ndarray or strings are also supported.
         """
 
-        if len(self.slices) == 0:
-            raise ValueError("Cannot create report for empty testbench")
+        # `aggregators`: model_name -> dict
+        for model, aggs in aggregators.items():
+            # `aggs`: aggregator_name -> Callable
+            for agg_name, agg in aggs.items():
+                assert isinstance(
+                    agg, Callable
+                ), f"Aggregators must be functions, but {agg} is not."
+                arguments = inspect.getfullargspec(agg).args
+                assert (
+                    len(arguments) == 1
+                ), f"Aggregators must be single argument but {agg} is not."
 
-        if models is not None:
-            for model in models:
-                assert model in self.metrics, f"Model {model} does not exist."
-        else:
-            # Use all the models that are available
-            models = list(self.metrics.keys())
+                # Store the aggregator
+                if model not in self.aggregators:
+                    self.aggregators[model] = {}
+                self.aggregators[model][agg_name] = agg
 
-        # Set identifiers to be human readable
-        self._human_readable_identifiers()
+        # Calculate all metrics
+        self.calculate()
 
-        # Get a list of aggregators that are common to `models`
-        common_aggregators = list(self._common_aggregators(models))
+    def calculate(self) -> None:
+        """Calculate all metrics that haven't been calculated yet.
 
-        # Populate columns
-        columns = []
-        for model in models:
-            for aggregator in common_aggregators:
-                columns.append(
-                    ScoreColumn(
-                        f"{model}-{aggregator}",
-                        min_val=0,
-                        max_val=1,
-                        is_0_to_1=True,
-                    )
-                )
-        columns.append(NumericColumn("Size"))
+        The DevBench internally tracks metrics for all models and aggregators that
+        were previously added, across all added slices.
 
-        category_names = {
-            GENERIC: "Slice",
-            SUBPOPULATION: "SubPop",
-            ATTACK: "Attack",
-            AUGMENTATION: "Augment",
-            CURATION: "Eval",
-        }
+        This `calculate` method is triggered automatically when a new slice
+        or a new model and aggregator are added to the DevBench.
+        """
 
-        # Populate data
-        data = []
-        for sl in self.slices:
-            slice_name = self.ident_mapping[sl.identifier]
-            slice_size = len(sl)
-            slice_category = category_names.get(sl.category, sl.category.capitalize())
+        # `self.aggregators`: model_name -> aggregator_name
+        for model in self.aggregators:
 
-            row = [slice_category, slice_name]
+            # Add the model to the metrics dict
+            if model not in self.metrics:
+                self.metrics[model] = {}
 
-            for model in models:
-                model_metrics = self.metrics[model]
-                if sl.identifier not in model_metrics:
-                    continue
-                slice_metrics = model_metrics[sl.identifier]
-                for agg in common_aggregators:
-                    row.append(slice_metrics[agg])
+            for sl in self.slices:
+                # Add the slice to the model's metrics dict
+                if str(sl.identifier) not in self.metrics[model]:
+                    self.metrics[model][str(sl.identifier)] = {}
 
-            row.append(slice_size)
-            data.append(row)
+                for agg_name, aggregator in self.aggregators[model].items():
+                    if agg_name not in self.metrics[model][str(sl.identifier)]:
+                        # Calculate the aggregated value
+                        self.metrics[model][str(sl.identifier)][agg_name] = aggregator(
+                            sl
+                        )
 
-        df = pd.DataFrame(data)
+    def search(self, keyword: str, limit: int = 3) -> List[DataPanel]:
+        """Fuzzy search to find a slice in the devbench. Returns slices that
+        have identifiers that best match the searched keyword.
 
-        report = Report(
-            data=df,
-            columns=columns,
-            dataset_name=str(self.datapanel.identifier),
-        )
-        report.sort(
-            category_order=dict(
-                (cat, i)
-                for i, cat in enumerate(
-                    [SUBPOPULATION, AUGMENTATION, CURATION, ATTACK, GENERIC]
-                )
-            )
-        )
-        return report
+        Args:
+            keyword (str): search phrase. The keyword will be used to match slice
+                identifiers in the devbench.
+            limit (int): number of results to return. Defaults to 3.
 
-    def search(self, keyword: str, limit: int = 3):
-        """Fuzzy search over the slices in the DevBench."""
+        Returns:
+            A list of slice DataPanels.
+        """
         return [
             self._slice_table[t[0]]
             for t in process.extract(keyword, self._slice_identifiers, limit=limit)
         ]
 
     def save(self, path: str) -> None:
-        """Save the current devbench to disk. This will save all slices in the
-        devbench to disk, as well as metrics and other metadata associated with
-        this devbench.
+        """Save the devbench to disk.
+
+        This will save all slices in the devbench to disk, as well as
+        metrics and aggregators associated with this devbench.
 
         Args:
-            path: string path to the save directory
+            path: string path to the save directory e.g. "./my_analysis".
+                A `.devbench` extension is added, so the devbench will be stored at
+                "./my_analysis.devbench".
 
-        Returns: None
+                To load the devbench back in, use `DevBench.load("./my_analysis")` or
+                `DevBench.load("./my_analysis.devbench")`.
         """
-
         # Path to the save directory
-        savedir = pathlib.Path(path) / f"{self.identifier}"
+        savedir = pathlib.Path(path)
+        savedir = savedir.with_suffix(".devbench")
 
         # Create a directory inside savedir for the slices
         (savedir / "slices").mkdir(parents=True, exist_ok=True)
 
         # Save all the slices
-        self._dp.save_to_disk(str(savedir / "dataset"))
         pbar = tqdm(self.slices)
         for sl in pbar:
             pbar.set_description(f"Saving slice {str(sl.identifier)[:100]}...")
-            sl.save_to_disk(
-                str(savedir / "slices" / str(persistent_hash(str(sl.identifier))))
-            )
+            sl.write(str(savedir / "slices" / str(persistent_hash(str(sl.identifier)))))
 
         # Save metrics
         dill.dump(self.metrics, open(str(savedir / "metrics.dill"), "wb"))
@@ -356,25 +392,20 @@ class DevBench(SemanticVersionerMixin):
         # Save aggregators
         dill.dump(self.aggregators, open(str(savedir / "aggregators.dill"), "wb"))
 
-        # Save metadata
-        dill.dump(
-            {"identifier": self.identifier},
-            open(str(savedir / "metadata.dill"), "wb"),
-        )
-
         # Save version info
         with open(str(savedir / "version.dill"), "wb") as f:
             f.write(self._dumps_version())
 
     @classmethod
     def available(cls, path: str) -> List[str]:
-        """Check the list of available devbenches in a directory.
+        """Check what devbenches are available in a directory.
 
         Args:
-            path: string path to a directory. The devbenches available inside this
-            directory will be returned.
+            path (str): directory path.
+                The devbenches available inside this directory will be returned.
 
-        Returns: list of available devbenches
+        Returns:
+            list of available devbenches
         """
 
         # Path to the save directory
@@ -393,14 +424,15 @@ class DevBench(SemanticVersionerMixin):
         """Load a devbench from disk.
 
         Args:
-            path: string path to the devbench directory
+            path (str): path to the devbench directory. The devbench directory must
+                have the `.devbench` extension.
 
         Returns:
+            a DevBench
         """
 
         # Path to the save directory
         savedir = pathlib.Path(path)
-        # TODO: fix DataPanel load from disk
 
         # Load all the slices
         slices = []
@@ -410,22 +442,14 @@ class DevBench(SemanticVersionerMixin):
             except FileNotFoundError:
                 continue
 
-        # Load dataset
-        dp = DataPanel.read(str(savedir / "dataset"))
-
         # Load metrics
         metrics = dill.load(open(str(savedir / "metrics.dill"), "rb"))
 
         # Load metrics
         aggregators = dill.load(open(str(savedir / "aggregators.dill"), "rb"))
 
-        # Load metadata
-        _ = dill.load(open(str(savedir / "metadata.dill"), "rb"))
-
         # Create the devbench
-        devbench = cls(
-            dp=dp,
-        )
+        devbench = cls()
 
         # Set previously stored metrics
         devbench.metrics = metrics

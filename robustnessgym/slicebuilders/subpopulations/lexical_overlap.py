@@ -8,7 +8,6 @@ from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
 
 class LexicalOverlapSubpopulation(ScoreSubpopulation):
-
     def score(
         self,
         batch: Dict[str, List],

@@ -21,15 +21,15 @@ from robustnessgym.core.constants import (
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.metrics import compute_metric, get_metric
 from robustnessgym.core.model import Model
-from robustnessgym.core.report import (
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.core.tools import persistent_hash
+from robustnessgym.core.version import SemanticVersionerMixin
+from robustnessgym.report.report import (
     ClassDistributionColumn,
     NumericColumn,
     Report,
     ScoreColumn,
 )
-from robustnessgym.core.slice import SliceDataPanel as DataPanel
-from robustnessgym.core.tools import persistent_hash
-from robustnessgym.core.version import SemanticVersionerMixin
 from robustnessgym.tasks.schema import Schema
 from robustnessgym.tasks.task import Task
 

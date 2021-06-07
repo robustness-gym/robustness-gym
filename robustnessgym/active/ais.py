@@ -24,8 +24,7 @@ def sample_iso(
     alpha,
     d_set,
 ):
-    """
-    Weighted sampling of rows to label
+    """Weighted sampling of rows to label.
 
     Args:
         y_pred: predicted labels (k,)

@@ -3,7 +3,7 @@ from unittest import TestCase, skip
 
 import pandas as pd
 
-from robustnessgym.core.report import (
+from robustnessgym.report.report import (
     ClassDistributionColumn,
     NumericColumn,
     Report,

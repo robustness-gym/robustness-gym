@@ -1,10 +1,10 @@
 # flake8: noqa
 from .activation import ActivationOp
 from .allen import (
-    AllenPredictionOp,
-    AllenSemanticRoleLabelingOp,
     AllenConstituencyParsingOp,
     AllenDependencyParsingOp,
+    AllenPredictionOp,
+    AllenSemanticRoleLabelingOp,
 )
 from .bootleg import BootlegAnnotatorOp
 from .similarity import SentenceSimilarityMatrixOp

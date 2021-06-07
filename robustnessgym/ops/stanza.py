@@ -37,8 +37,9 @@ class StanzaCell(AbstractCell):
         return cls(stanza.Document.from_serialized(state["doc"]))
 
     def __repr__(self):
-        snippet = f"{self.doc.text[:15]}..." if len(self.doc.text) > 20 \
-            else self.doc.text
+        snippet = (
+            f"{self.doc.text[:15]}..." if len(self.doc.text) > 20 else self.doc.text
+        )
         return f"{self.__class__.__name__}({snippet})"
 
     def _repr_html_(self):
