@@ -169,9 +169,6 @@ Set up a development environment by running the following command in
    too! So everyone can see the changes in the Pull request, work in your local
    branch and push the changes to your fork. They will automatically appear in
    the pull request.
-   
-8. We follow a one-commit-per-PR policy. Before your PR can be merged, you will have to
- `git rebase` to squash your changes into a single commit.
 
 ### Checklist
 
