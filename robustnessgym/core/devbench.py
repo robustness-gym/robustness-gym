@@ -4,6 +4,7 @@ import inspect
 import json
 import logging
 import pathlib
+from types import LambdaType
 from typing import Callable, Collection, Dict, List, Union
 
 import dill

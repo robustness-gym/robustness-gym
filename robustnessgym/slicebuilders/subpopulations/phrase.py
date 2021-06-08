@@ -8,6 +8,7 @@ from ahocorasick import Automaton
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.core.operation import lookup
 from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
@@ -94,30 +95,51 @@ class HasPhrase(Subpopulation):
     ) -> np.ndarray:
 
         # Use the spacy cache to grab the tokens in each example (for each key)
-        tokenized_batch = SpacyOp.retrieve(
-            batch=batch,
-            columns=[[key] for key in columns],
-            proc_fns="tokens",
-        )
+        # tokenized_batch = [
+        #     [list(doc) for doc in lookup(batch, SpacyOp, [col])]
+        #     for col in columns
+        # ]
+
+        # tokenized_batch = SpacyOp.retrieve(
+        #     batch=batch,
+        #     columns=[[key] for key in columns],
+        #     proc_fns="tokens",
+        # )
 
         # Search for words
         if len(self.word_ahocorasick.automaton) > 0:
-            for key, tokens_batch in tokenized_batch.items():
-                for i, tokens in enumerate(tokens_batch):
+            for col in columns:
+                try:
+                    docs = lookup(batch, SpacyOp, [col])
+                except AttributeError:
+                    docs = [text.split() for text in batch[col]]
+                for i, doc in enumerate(docs):
                     # Get the values (indices) of all the matched tokens
                     matched_indices = [
-                        self.word_ahocorasick.automaton.get(token)
-                        for token in tokens
-                        if self.word_ahocorasick.automaton.exists(token)
+                        self.word_ahocorasick.automaton.get(str(token))
+                        for token in doc
+                        if self.word_ahocorasick.automaton.exists(str(token))
                     ]
 
                     # Fill in the slice labels for slices that are present
                     slice_membership[i, matched_indices] = 1
 
+            # for key, tokens_batch in tokenized_batch.items():
+            #     for i, tokens in enumerate(tokens_batch):
+            #         # Get the values (indices) of all the matched tokens
+            #         matched_indices = [
+            #             self.word_ahocorasick.automaton.get(token)
+            #             for token in tokens
+            #             if self.word_ahocorasick.automaton.exists(token)
+            #         ]
+            #
+            #         # Fill in the slice labels for slices that are present
+            #         slice_membership[i, matched_indices] = 1
+
         # Search for phrases
         if len(self.phrase_ahocorasick.automaton) > 0:
-            for key in columns:
-                for i, example in enumerate(batch[key]):
+            for col in columns:
+                for i, example in enumerate(batch[col]):
                     # Get the values (indices) of all the matched phrases
                     matched_indices = [
                         index
