@@ -6,6 +6,7 @@ import torch
 from mosaic.tools.lazy_loader import LazyLoader
 from transformers import (
     AutoModel,
+    AutoModelForQuestionAnswering,
     AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -195,6 +196,10 @@ class HuggingfaceModel(Model):
                 is_classifier = self.task.classification()
             if is_classifier:
                 self.model = AutoModelForSequenceClassification.from_pretrained(
+                    self.identifier
+                )
+            elif self.task.identifier == "ExtractiveQuestionAnswering":
+                self.model = AutoModelForQuestionAnswering.from_pretrained(
                     self.identifier
                 )
             else:
