@@ -92,7 +92,8 @@ def run_nli(
 
     model_name = model_name.replace("/", "-")
     if output_dir:
-        dirname = f"{output_dir}/nli-preds/{'_'.join(dataset_name)}-{model_name}"
+        dirname = f"{output_dir}/nli-preds/" \
+                  f"{'_'.join(dataset_name)}-{split}-{model_name}"
         out.write(dirname)
 
     # TO LOAD:
