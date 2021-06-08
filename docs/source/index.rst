@@ -30,10 +30,10 @@ You can get started by going to the installation_ page.
 
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
     :caption: API Docs
 
-    apidocs/robustnessgym
+   apidocs/robustnessgym
 
 
 ..

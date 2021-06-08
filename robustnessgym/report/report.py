@@ -63,16 +63,8 @@ class NumericColumn(ReportColumn):
 
 
 class Report:
-    """Class for Robustness Gym Report.
-    Args:
-        data: Pandas dataframe in the following format:
-            column 1: category name
-            column 2: slice name
-            columns 3-N: data corresponding to passed columns parameter
-        columns: ReportColumn objects specifying format of columns 3-N in data
-        model_name (optional): model name to show in report
-        dataset_name (optional): dataset name to show in report
-        **kwargs (optional): any additional config paramters
+    """
+    Class for Robustness Gym Report.
     """
 
     def __init__(
@@ -83,6 +75,17 @@ class Report:
         dataset_name: str = None,
         **kwargs,
     ):
+        """
+        Args:
+            data: Pandas dataframe in the following format:
+                column 1: category name
+                column 2: slice name
+                columns 3-N: data corresponding to passed columns parameter
+            columns: ReportColumn objects specifying format of columns 3-N in data
+            model_name (optional): model name to show in report
+            dataset_name (optional): dataset name to show in report
+            **kwargs: any additional config paramters
+        """
 
         # Make a copy of data since may be modified by methods below
         self.data = data.copy()
