@@ -196,3 +196,23 @@ The Robustness Gym project began as a collaboration between [Stanford Hazy
  Research](https://hazyresearch.stanford.edu), [Salesforce Research](https://einstein.ai
  ) and [UNC Chapel-Hill](http://murgelab.cs.unc.edu/). We also have a
    [website](https://robustnessgym.com).
+
+If you use Robustness Gym in your work, please use the following BibTeX entry,
+```
+@inproceedings{goel-etal-2021-robustness,
+    title = "Robustness Gym: Unifying the {NLP} Evaluation Landscape",
+    author = "Goel, Karan  and
+      Rajani, Nazneen Fatema  and
+      Vig, Jesse  and
+      Taschdjian, Zachary  and
+      Bansal, Mohit  and
+      R{\'e}, Christopher",
+    booktitle = "Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies: Demonstrations",
+    month = jun,
+    year = "2021",
+    address = "Online",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/2021.naacl-demos.6",
+    pages = "42--55",
+}
+```
