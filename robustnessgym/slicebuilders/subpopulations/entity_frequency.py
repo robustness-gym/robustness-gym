@@ -11,8 +11,7 @@ from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
-# TODO(karan): Inherit from MultiScoreSubpopulation
-class EntityFrequency(Subpopulation, SpacyOp):
+class EntityFrequency(Subpopulation):
     def __init__(self, entity_thresholds: List[Tuple[str, List[int]]], *args, **kwargs):
 
         identifiers = []

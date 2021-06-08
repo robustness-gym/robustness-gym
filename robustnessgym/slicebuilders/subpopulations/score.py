@@ -3,7 +3,7 @@ from typing import Callable, Dict, List, Tuple, Union
 import numpy as np
 
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.operation import Operation
+from robustnessgym.core.operation import Operation, lookup
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
@@ -91,7 +91,9 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
             else:
                 identifiers = [
                     Identifier(
-                        _name=self.__class__.__name__, gte=interval[0], lte=interval[1]
+                        _name=self.__class__.__name__,
+                        gte=interval[0],
+                        lte=interval[1],
                     )
                     for interval in intervals
                 ]
@@ -138,14 +140,18 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
 
         # Compute the scores
         if isinstance(self.score, Operation):
-            self.scores.extend(self.score.retrieve(batch=batch, columns=columns))
+            self.scores.extend(lookup(batch, self.score, columns))
         elif isinstance(self.score, Callable):
             self.scores.extend(self.score(batch=batch, columns=columns))
         else:
             raise RuntimeError("score function invalid.")
 
     def score(
-        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
         raise NotImplementedError("Return a vector of float scores for each example.")
 
@@ -160,7 +166,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
 
         # Keep track of the score of each example
         if isinstance(self.score, Operation):
-            scores = self.score.retrieve(batch=batch, columns=columns)
+            scores = lookup(batch, self.score, columns)
         elif isinstance(self.score, Callable):
             scores = self.score(batch=batch, columns=columns)
         else:
@@ -249,7 +255,7 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
 
         # Compute the scores
         if isinstance(self.score, Operation):
-            self.scores.extend(self.score.retrieve(batch=batch, columns=columns))
+            self.scores.extend(lookup(batch, self.score, columns))
         elif isinstance(self.score, Callable):
             self.scores.extend(self.score(batch=batch, columns=columns))
         else:

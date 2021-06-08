@@ -46,7 +46,7 @@ class SubpopulationCollection(Subpopulation):
             for i, slicebuilder in tqdm(enumerate(self.subpopulations)):
                 # Apply the slicebuilder
                 slices_i, slice_membership_i = slicebuilder(
-                    batch_or_dataset=dp,
+                    dp=dp,
                     columns=columns,
                     *args,
                     **kwargs,
@@ -62,7 +62,7 @@ class SubpopulationCollection(Subpopulation):
                 slices, slice_membership = zip(
                     *pool.map(
                         lambda sb: sb(
-                            batch_or_dataset=dp,
+                            dp=dp,
                             columns=columns,
                             *args,
                             **kwargs,
@@ -112,12 +112,13 @@ class SubpopulationCollection(Subpopulation):
 
     def apply(
         self,
-        slice_membership: np.ndarray,
         batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
         **kwargs,
     ) -> np.ndarray:
+
         # Each Subpopulation will generate slices
         for subpopulation, end_idx in zip(
             self.subpopulations, np.cumsum([s.num_slices for s in self.subpopulations])

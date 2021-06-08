@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from robustnessgym.ops.spacy import SpacyOp
-from robustnessgym.slicebuilders.subpopulations.length import LengthSubpopulation
+from robustnessgym.slicebuilders.subpopulations.length import NumTokensSubpopulation
 from tests.testbeds import MockTestBedv0
 
 
@@ -14,7 +14,7 @@ class TestLengthSubpopulation(TestCase):
 
     def test_score(self):
         # Create the length subpopulation
-        length = LengthSubpopulation(intervals=[(1, 3), (4, 5)])
+        length = NumTokensSubpopulation(intervals=[(1, 3), (4, 5)])
 
         # Compute scores
         scores = length.score(self.testbed.dataset[:], columns=["text"])

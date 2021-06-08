@@ -111,12 +111,14 @@ boolq_slice = Slice(Dataset.load_dataset('boolq'))
 ```
 
 #### 3.2 Subpopulations
+
 ```python
-from robustnessgym import LengthSubpopulation
+from robustnessgym import NumTokensSubpopulation
+
 # A simple subpopulation that splits the dataset into 3 slices
 # The intervals act as buckets: the first slice will bucket based on text with
 # length between 0 and 4 
-length_sp = LengthSubpopulation(intervals=[(0, 4), (8, 12), ("80%", "100%")])
+length_sp = NumTokensSubpopulation(intervals=[(0, 4), (8, 12), ("80%", "100%")])
 
 # Apply it
 dataset, slices, membership = length_sp(batch_or_dataset=dataset, columns=['text'])

@@ -4,7 +4,6 @@ import inspect
 import json
 import logging
 import pathlib
-from types import LambdaType
 from typing import Callable, Collection, Dict, List, Union
 
 import dill
@@ -23,7 +22,7 @@ from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.tools import persistent_hash
 from robustnessgym.core.version import SemanticVersionerMixin
 from robustnessgym.report.report import NumericColumn, Report, ReportColumn, ScoreColumn
-
+from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
 logger = logging.getLogger(__name__)
 
 
@@ -228,10 +227,13 @@ class DevBench(SemanticVersionerMixin, ReportableMixin):
     @property
     def summary(self):
         """Summary of the devbench."""
-        return DataPanel(self.slices)
+        return pd.DataFrame(self.metrics)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(slices={len(self.slices)})"
+
+    def __call__(self, slicebuilder: SliceBuilder, dp: DataPanel, columns: List[str]):
+        return self.add_slices(slicebuilder(dp, columns)[0])
 
     def _digest(self) -> str:
         return json.dumps([str(sl) for sl in self.slices])

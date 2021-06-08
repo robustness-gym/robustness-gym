@@ -94,18 +94,6 @@ class HasPhrase(Subpopulation):
         **kwargs,
     ) -> np.ndarray:
 
-        # Use the spacy cache to grab the tokens in each example (for each key)
-        # tokenized_batch = [
-        #     [list(doc) for doc in lookup(batch, SpacyOp, [col])]
-        #     for col in columns
-        # ]
-
-        # tokenized_batch = SpacyOp.retrieve(
-        #     batch=batch,
-        #     columns=[[key] for key in columns],
-        #     proc_fns="tokens",
-        # )
-
         # Search for words
         if len(self.word_ahocorasick.automaton) > 0:
             for col in columns:
@@ -123,18 +111,6 @@ class HasPhrase(Subpopulation):
 
                     # Fill in the slice labels for slices that are present
                     slice_membership[i, matched_indices] = 1
-
-            # for key, tokens_batch in tokenized_batch.items():
-            #     for i, tokens in enumerate(tokens_batch):
-            #         # Get the values (indices) of all the matched tokens
-            #         matched_indices = [
-            #             self.word_ahocorasick.automaton.get(token)
-            #             for token in tokens
-            #             if self.word_ahocorasick.automaton.exists(token)
-            #         ]
-            #
-            #         # Fill in the slice labels for slices that are present
-            #         slice_membership[i, matched_indices] = 1
 
         # Search for phrases
         if len(self.phrase_ahocorasick.automaton) > 0:
