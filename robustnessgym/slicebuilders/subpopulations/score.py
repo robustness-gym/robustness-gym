@@ -112,7 +112,12 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
             self.score = score_fn
 
     def prepare_dataset(
-        self, dp: DataPanel, columns: List[str], batch_size: int = 32, *args, **kwargs
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        batch_size: int = 32,
+        *args,
+        **kwargs,
     ) -> None:
 
         # First reset the scores
