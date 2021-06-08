@@ -14,7 +14,7 @@
 Robustness Gym is a Python evaluation toolkit for machine learning models. 
 
 [**Getting Started**](#getting-started)
-| [**What is Robustness Gym?**](#what-is-mosaic)
+| [**What is Robustness Gym?**](#what-is-robustness-gym)
 | [**Docs**](https://robustnessgym.readthedocs.io/en/latest/index.html)
 | [**Contributing**](CONTRIBUTING.md)
 | [**About**](#about)
