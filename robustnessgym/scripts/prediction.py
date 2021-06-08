@@ -36,8 +36,14 @@ EXAMPLE_MODELS = [
 ]
 
 
-def run_nli(dataset_info, model_name, debug: bool = False, output_dir: str = None):
-    """Compute and save logits for natural language inference tasks.
+def run_nli(
+        dataset_info,
+        model_name,
+        debug: bool = False,
+        output_dir: str = None,
+):
+    """
+    Compute and save logits for natural language inference tasks.
 
     Args:
         dataset_info (Tuple[Union[str, Tuple[str]]]): Dataset name and split.
