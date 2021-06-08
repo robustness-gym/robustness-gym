@@ -63,6 +63,7 @@ dp = DataPanel.from_feather(...)
 ```python
 from robustnessgym import DataPanel, lookup
 from robustnessgym.ops import SpacyOp
+
 dp = DataPanel.load_huggingface('boolq')
 
 # Run the Spacy pipeline on the 'question' column of the dataset
@@ -79,6 +80,7 @@ spacy_column = lookup(dp, spacy, ['question'])
 ```python
 from robustnessgym import DataPanel, lookup
 from robustnessgym.ops import StanzaOp
+
 dp = DataPanel.load_huggingface('boolq')
 
 # Run the Stanza pipeline on the 'question' column of the dataset
@@ -94,6 +96,7 @@ stanza_column = lookup(dp, stanza, ['question'])
 ```python
 # Or, create your own Operation
 from robustnessgym import DataPanel, Operation, Id, lookup
+
 dp = DataPanel.load_huggingface('boolq')
 
 # A function that capitalizes text
@@ -117,6 +120,7 @@ capitalized_text = lookup(dp, op, ['question'])
 #### Custom Operation (Multiple Outputs)
 ```python
 from robustnessgym import DataPanel, Operation, Id, lookup
+
 dp = DataPanel.load_huggingface('boolq')
 
 # A function that capitalizes and upper-cases text: this will
@@ -145,10 +149,27 @@ upper_text = lookup(dp, op, ['question'], 'upper')
 ### Create Evaluations
 
 
-#### Subpopulations
+#### Out-of-the-box Subpopulations
+```python
+from robustnessgym import DataPanel
+from robustnessgym import LexicalOverlapSubpopulation
+
+dp = DataPanel.load_huggingface('boolq')
+
+# Create a subpopulation that buckets examples based on length
+lexo_sp = LexicalOverlapSubpopulation(intervals=[(0., 0.1), (0.1, 0.2)])
+
+slices, membership = lexo_sp(dp=dp, columns=['question'])
+# `slices` is a list of 2 DataPanel objects
+# `membership` is a matrix of shape (n x 2)
+```
+
+#### Custom Subpopulation
 ```python
 from robustnessgym import DataPanel, ScoreSubpopulation, lookup
 from robustnessgym.ops import SpacyOp
+
+dp = DataPanel.load_huggingface('boolq')
 
 def length(batch: DataPanel, columns: list):
     try:
@@ -162,7 +183,7 @@ def length(batch: DataPanel, columns: list):
 length_sp = ScoreSubpopulation(intervals=[(0, 10), (10, 20)], score_fn=length)
 
 slices, membership = length_sp(dp=dp, columns=['question'])
-# `slices` is a list of 2 Slice objects
+# `slices` is a list of 2 DataPanel objects
 # `membership` is a matrix of shape (n x 2)
 ```
 
