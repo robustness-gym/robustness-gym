@@ -154,7 +154,6 @@ def parse_args():
     )
     parser.add_argument(
         "--model", nargs="+", type=str, choices=EXAMPLE_MODELS, help="Model(s) to use",
-        required=True,
     )
     parser.add_argument(
         "--output-dir",
@@ -173,6 +172,9 @@ def main():
     all_models = args.model
     output_dir = args.output_dir
     debug = args.debug
+
+    if all_models is None:
+        all_models = EXAMPLE_MODELS
 
     configs = list(itertools.product(datasets, all_models))
     outs = []
