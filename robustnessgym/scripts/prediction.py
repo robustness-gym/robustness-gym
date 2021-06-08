@@ -25,16 +25,15 @@ from robustnessgym.tasks.task import BinaryNaturalLanguageInference
 # ]
 
 EXAMPLE_DATASETS = [
-    ("hans", ["train", "validation"]),
-    ("snli", ["train", "validation", "test"]),
+    ("hans", ["validation"]),
+    ("snli", ["validation", "test"]),
     ("anli",
-     ["train_r1", "dev_r1", "test_r1",
-      "train_r2", "dev_r2", "test_r2",
-      "train_r3", "dev_r3", "test_r3"
+     ["dev_r1", "test_r1",
+      "dev_r2", "test_r2",
+      "dev_r3", "test_r3"
       ]),
     (("glue", "mnli"),
-     ["train",
-      "validation_matched", "validation_mismatched",
+     ["validation_matched", "validation_mismatched",
       "test_matched", "test_mismatched"
       ]),
 ]
