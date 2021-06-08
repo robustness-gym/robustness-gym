@@ -2,12 +2,17 @@ import inspect
 
 import numpy as np
 import pyarrow
+import streamlit as st
+
 from robustnessgym import DataPanel
 
 
 @st.cache(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
 def load_boolq():
-    return DataPanel.load_huggingface('boolq', split='validation', )
+    return DataPanel.load_huggingface(
+        "boolq",
+        split="validation",
+    )
 
 
 @st.cache(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
@@ -22,7 +27,8 @@ def load_datapanel(dataset="boolq", size="small"):
         else:
             return load_boolq()
 
-def format_code(code=None, output=None, outputs=None, columns=(0.45, 0.1, 0.45)):        
+
+def format_code(code=None, output=None, outputs=None, columns=(0.45, 0.1, 0.45)):
     with st.beta_container():
         code_col, _, stdout_col = st.beta_columns(columns)
         with code_col:
@@ -227,10 +233,10 @@ and other capabilities.
 
         # Run the Spacy pipeline on the 'question' column of the dataset
         spacy = SpacyOp()
-        dp = spacy(dp=dp, columns=['passage'])
+        dp = spacy(dp=dp, columns=["passage"])
         # adds a new column that is auto-named
         # "SpacyOp(lang=en_core_web_sm, neuralcoref=False, columns=['passage'])"
-        
+
         format_code(
             """
 from robustnessgym import lookup
@@ -242,34 +248,32 @@ dp = spacy(dp=dp, columns=['passage'])
 # adds a new column that is auto-named
 # "SpacyOp(lang=en_core_web_sm, neuralcoref=False, columns=['passage'])"
             """,
-            dp.streamlit(), 
-            columns=columns
+            dp.streamlit(),
+            columns=columns,
         )
-
-
 
     st.write("------")
 
     with st.beta_container():
-        spacy_column = lookup(dp, spacy, ['passage'])
+        spacy_column = lookup(dp, spacy, ["passage"])
         format_code(
             """
 lookup(dp, spacy, ['passage'])
             """,
             spacy_column._repr_pandas_(),
-            columns=columns
+            columns=columns,
         )
 
     with st.beta_container():
-        st.subheader('Columns contain Cells')
+        st.subheader("Columns contain Cells")
         cell = spacy_column[1]
-        format_code( 
+        format_code(
             """
 cell = spacy_column[1]
 cell
             """,
             cell,
-            columns=columns
+            columns=columns,
         )
 
         format_code(
@@ -277,29 +281,30 @@ cell
 list(cell)
             """,
             list(cell),
-            columns=columns
+            columns=columns,
         )
         format_code(
             """
 cell.ents
             """,
             cell.ents,
-            columns=columns
+            columns=columns,
         )
+
 
 def stanza_example(dp):
     columns = [0.45, 0.05, 0.50]
-    st.header('Run Stanza Workflow')
+    st.header("Run Stanza Workflow")
     from robustnessgym import lookup
     from robustnessgym.ops import StanzaOp
 
     # Run the Stanza pipeline on the 'question' column of the dataset
     stanza = StanzaOp()
-    dp = stanza(dp=dp, columns=['question'])
+    dp = stanza(dp=dp, columns=["question"])
     # adds a new column that is auto-named "StanzaOp(columns=['question'])"
 
     # Grab the Stanza column from the DataPanel using the lookup
-    stanza_column = lookup(dp, stanza, ['question'])
+    stanza_column = lookup(dp, stanza, ["question"])
     format_code(
         """
 from robustnessgym import lookup
@@ -314,25 +319,25 @@ dp = stanza(dp=dp, columns=['question'])
 stanza_column = lookup(dp, stanza, ['question'])
         """,
         stanza_column._repr_pandas_(),
-        columns=columns
+        columns=columns,
     )
-    st.subheader('Columns contain Cells')
+    st.subheader("Columns contain Cells")
     format_code(
         """ 
 cell = stanza_column[0]
 cell
         """,
         stanza_column[0],
-        columns=columns
+        columns=columns,
     )
-    st.subheader('Cells can be treated like stanza objects')
+    st.subheader("Cells can be treated like stanza objects")
     format_code(
         """ 
 cell = stanza_column[0]
 cell.text
         """,
         stanza_column[0].text,
-        columns=columns
+        columns=columns,
     )
     format_code(
         """ 
@@ -340,13 +345,13 @@ cell = stanza_column[0]
 cell.entities
         """,
         stanza_column[0].entities,
-        columns=columns
+        columns=columns,
     )
 
 
 def lazy_textblob_example(dp):
     columns = [0.45, 0.05, 0.50]
-    st.header('Run TextBlob Workflow Lazily')
+    st.header("Run TextBlob Workflow Lazily")
 
     def fn():
         nonlocal dp
@@ -355,42 +360,43 @@ def lazy_textblob_example(dp):
 
         # Run the TextBlob pipeline on the 'passage' column of the dataset
         textblob = LazyTextBlobOp()
-        dp = textblob(dp=dp, columns=['question'])
+        dp = textblob(dp=dp, columns=["question"])
         # adds a new column that is auto-named "LazyTextBlobOp(columns=['question'])"
 
         # Grab the TextBlob column from the DataPanel using the lookup
-        textblob_column = lookup(dp, textblob, ['question'])
-        return textblob_column  
+        textblob_column = lookup(dp, textblob, ["question"])
+        return textblob_column
+
     fn_source = inspect.getsource(fn)
     fn_source = "\n".join([line[4:] for line in fn_source.split("\n")[2:]])
     textblob_column = fn()
     format_code(fn_source, textblob_column._repr_pandas_(), columns=columns)
 
-    st.subheader('Columns contain cells')
+    st.subheader("Columns contain cells")
     cell = textblob_column[1]
     format_code(
         """
 cell = textblob_column[1]
 cell
-        """, 
-        textblob_column[1], 
-        columns=columns
+        """,
+        textblob_column[1],
+        columns=columns,
     )
     format_code(
         """
 cell.sentences
-        """, 
-        cell.sentences, 
-        columns=columns
+        """,
+        cell.sentences,
+        columns=columns,
     )
 
 
 def custom_operation_example_1(dp):
     columns = [0.45, 0.05, 0.50]
-    st.header('Run Custom Operation')
+    st.header("Run Custom Operation")
 
     def fn():
-        from robustnessgym import Operation, Id
+        from robustnessgym import Id, Operation
 
         # A function that capitalizes text
         def capitalize(batch, columns):
@@ -399,10 +405,11 @@ def custom_operation_example_1(dp):
         # Wrap in an Operation: `process_batch_fn` accepts functions that have
         # exactly 2 arguments: batch and columns, and returns a tuple of outputs
         op = Operation(
-            identifier=Id('CapitalizeOp'),
+            identifier=Id("CapitalizeOp"),
             process_batch_fn=capitalize,
         )
         return op
+
     fn_source = inspect.getsource(fn)
     fn_source = "\n".join([line[4:] for line in fn_source.split("\n")[1:]])
     op = fn()
@@ -411,10 +418,11 @@ def custom_operation_example_1(dp):
     def fn():
         nonlocal dp
         from robustnessgym import lookup
-        dp = op(dp=dp, columns=['question'])
+
+        dp = op(dp=dp, columns=["question"])
 
         # Look it up when you need it
-        capitalized_text = lookup(dp, op, ['question'])
+        capitalized_text = lookup(dp, op, ["question"])
         return capitalized_text
 
     fn_source = inspect.getsource(fn)
@@ -425,28 +433,29 @@ def custom_operation_example_1(dp):
     format_code("capitalized_text[0]", capitalized_text[0], columns=columns)
 
 
-
 def custom_operation_example_2(dp):
     columns = [0.45, 0.05, 0.50]
-    st.header('Run Custom Operation')
+    st.header("Run Custom Operation")
 
     def fn():
-        from robustnessgym import Operation, Id
+        from robustnessgym import Id, Operation
 
         # A function that capitalizes and upper-cases text: this will
         # be used to add two columns to the DataPanel
         def capitalize_and_upper(batch, columns):
-            return [text.capitalize() for text in batch[columns[0]]], \
-                    [text.upper() for text in batch[columns[0]]]
+            return [text.capitalize() for text in batch[columns[0]]], [
+                text.upper() for text in batch[columns[0]]
+            ]
 
         # Wrap in an Operation: `process_batch_fn` accepts functions that have
         # exactly 2 arguments: batch and columns, and returns a tuple of outputs
         op = Operation(
-            identifier=Id('ProcessingOp'),
-            output_names=['capitalize', 'upper'],
+            identifier=Id("ProcessingOp"),
+            output_names=["capitalize", "upper"],
             process_batch_fn=capitalize_and_upper,
         )
         return op
+
     fn_source = inspect.getsource(fn)
     fn_source = "\n".join([line[4:] for line in fn_source.split("\n")[1:]])
     op = fn()
@@ -455,7 +464,7 @@ def custom_operation_example_2(dp):
     def fn():
         nonlocal dp
         # Apply to a DataPanel
-        dp = op(dp=dp, columns=['question'])
+        dp = op(dp=dp, columns=["question"])
         return dp
 
     fn_source = inspect.getsource(fn)
@@ -466,7 +475,8 @@ def custom_operation_example_2(dp):
     def fn():
         nonlocal dp, op
         from robustnessgym import lookup
-        capitalized_text = lookup(dp, op, ['question'], 'capitalize')
+
+        capitalized_text = lookup(dp, op, ["question"], "capitalize")
         return capitalized_text
 
     fn_source = inspect.getsource(fn)
@@ -477,7 +487,8 @@ def custom_operation_example_2(dp):
     def fn():
         nonlocal dp, op
         from robustnessgym import lookup
-        upper_text = lookup(dp, op, ['question'], 'upper')
+
+        upper_text = lookup(dp, op, ["question"], "upper")
         return upper_text
 
     fn_source = inspect.getsource(fn)

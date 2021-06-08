@@ -63,9 +63,7 @@ class NumericColumn(ReportColumn):
 
 
 class Report:
-    """
-    Class for Robustness Gym Report.
-    """
+    """Class for Robustness Gym Report."""
 
     def __init__(
         self,

@@ -128,8 +128,7 @@ def get_fscore(y_pred, y_test, rows, weights):
 def ais_singleiter(
     y_pred, y_test, prob_pos, sample_budget, g, alpha, known_rows, filter_rows
 ):
-    """
-    Perform a single AIS iteration of calibration + sampling.
+    """Perform a single AIS iteration of calibration + sampling.
 
     Args:
         y_pred: model predictions (k,)
