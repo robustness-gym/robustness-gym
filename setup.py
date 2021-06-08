@@ -107,6 +107,7 @@ EXTRAS = {
         "mosaic[vision]",
     ],
 }
+EXTRAS["all"] = [e for l in EXTRAS.values() for e in l]
 
 # The rest you shouldn't have to touch too much :)
 # ------------------------------------------------

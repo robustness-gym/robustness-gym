@@ -1,21 +1,20 @@
 <div align="center">
     <img src="docs/logo.png" height=100 alt="RG logo"/>
+    <h1 style="font-family: 'IBM Plex Sans'">Robustness Gym</h1>
 </div>
-
------
 
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/robustness-gym/robustness-gym/CI)
 ![GitHub](https://img.shields.io/github/license/robustness-gym/robustness-gym)
-
-[comment]: <> ([![codecov]&#40;https://codecov.io/gh/robustness-gym/robustness-gym/branch/main/graph/badge.svg?token=MOLQYUSYQU&#41;]&#40;https://codecov.io/gh/robustness-gym/robustness-gym&#41;)
 [![Documentation Status](https://readthedocs.org/projects/robustnessgym/badge/?version=latest)](https://robustnessgym.readthedocs.io/en/latest/?badge=latest)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![website](https://img.shields.io/badge/website-live-brightgreen)](https://robustnessgym.com)
 
+[comment]: <> ([![codecov]&#40;https://codecov.io/gh/robustness-gym/robustness-gym/branch/main/graph/badge.svg?token=MOLQYUSYQU&#41;]&#40;https://codecov.io/gh/robustness-gym/robustness-gym&#41;)
+
 Robustness Gym is a Python evaluation toolkit for machine learning models. 
 
 [**Getting Started**](#getting-started)
-| [**What is Robustness Gym?**](#what-is-mosaic)
+| [**What is Robustness Gym?**](#what-is-robustness-gym)
 | [**Docs**](https://robustnessgym.readthedocs.io/en/latest/index.html)
 | [**Contributing**](CONTRIBUTING.md)
 | [**About**](#about)
@@ -64,6 +63,7 @@ dp = DataPanel.from_feather(...)
 ```python
 from robustnessgym import DataPanel, lookup
 from robustnessgym.ops import SpacyOp
+
 dp = DataPanel.load_huggingface('boolq')
 
 # Run the Spacy pipeline on the 'question' column of the dataset
@@ -80,6 +80,7 @@ spacy_column = lookup(dp, spacy, ['question'])
 ```python
 from robustnessgym import DataPanel, lookup
 from robustnessgym.ops import StanzaOp
+
 dp = DataPanel.load_huggingface('boolq')
 
 # Run the Stanza pipeline on the 'question' column of the dataset
@@ -95,6 +96,7 @@ stanza_column = lookup(dp, stanza, ['question'])
 ```python
 # Or, create your own Operation
 from robustnessgym import DataPanel, Operation, Id, lookup
+
 dp = DataPanel.load_huggingface('boolq')
 
 # A function that capitalizes text
@@ -118,6 +120,7 @@ capitalized_text = lookup(dp, op, ['question'])
 #### Custom Operation (Multiple Outputs)
 ```python
 from robustnessgym import DataPanel, Operation, Id, lookup
+
 dp = DataPanel.load_huggingface('boolq')
 
 # A function that capitalizes and upper-cases text: this will
@@ -146,10 +149,27 @@ upper_text = lookup(dp, op, ['question'], 'upper')
 ### Create Evaluations
 
 
-#### Subpopulations
+#### Out-of-the-box Subpopulations
+```python
+from robustnessgym import DataPanel
+from robustnessgym import LexicalOverlapSubpopulation
+
+dp = DataPanel.load_huggingface('boolq')
+
+# Create a subpopulation that buckets examples based on length
+lexo_sp = LexicalOverlapSubpopulation(intervals=[(0., 0.1), (0.1, 0.2)])
+
+slices, membership = lexo_sp(dp=dp, columns=['question'])
+# `slices` is a list of 2 DataPanel objects
+# `membership` is a matrix of shape (n x 2)
+```
+
+#### Custom Subpopulation
 ```python
 from robustnessgym import DataPanel, ScoreSubpopulation, lookup
 from robustnessgym.ops import SpacyOp
+
+dp = DataPanel.load_huggingface('boolq')
 
 def length(batch: DataPanel, columns: list):
     try:
@@ -163,7 +183,7 @@ def length(batch: DataPanel, columns: list):
 length_sp = ScoreSubpopulation(intervals=[(0, 10), (10, 20)], score_fn=length)
 
 slices, membership = length_sp(dp=dp, columns=['question'])
-# `slices` is a list of 2 Slice objects
+# `slices` is a list of 2 DataPanel objects
 # `membership` is a matrix of shape (n x 2)
 ```
 
@@ -176,3 +196,23 @@ The Robustness Gym project began as a collaboration between [Stanford Hazy
  Research](https://hazyresearch.stanford.edu), [Salesforce Research](https://einstein.ai
  ) and [UNC Chapel-Hill](http://murgelab.cs.unc.edu/). We also have a
    [website](https://robustnessgym.com).
+
+If you use Robustness Gym in your work, please use the following BibTeX entry,
+```
+@inproceedings{goel-etal-2021-robustness,
+    title = "Robustness Gym: Unifying the {NLP} Evaluation Landscape",
+    author = "Goel, Karan  and
+      Rajani, Nazneen Fatema  and
+      Vig, Jesse  and
+      Taschdjian, Zachary  and
+      Bansal, Mohit  and
+      R{\'e}, Christopher",
+    booktitle = "Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies: Demonstrations",
+    month = jun,
+    year = "2021",
+    address = "Online",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/2021.naacl-demos.6",
+    pages = "42--55",
+}
+```

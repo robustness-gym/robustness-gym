@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 from json import JSONDecodeError
+from typing import Callable, Dict, List, Optional, Union
 
-from mosaic import DataPanel
+from mosaic import AbstractColumn, DataPanel
 
-from robustnessgym.core.constants import CURATION
-from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.constants import CURATION, GENERIC, SUBPOPULATION
+from robustnessgym.core.identifier import Id, Identifier
 
 
 class SliceMixin:
@@ -32,6 +33,24 @@ class SliceMixin:
 
         # Update the identifier
         self._lineage_to_identifier()
+
+    def _add_op_to_lineage(self):
+        if self.node.last_parent is not None:
+            opnode, indices = self.node.last_parent
+            fn = opnode.captured_args["function"]
+
+            if opnode.ref().__name__ == "filter":
+                self.add_to_lineage(
+                    SUBPOPULATION,
+                    Id("Function", name=fn.__name__, mem=hex(id(fn))),
+                    [],
+                )
+            else:
+                self.add_to_lineage(
+                    GENERIC,
+                    Id("Function", name=fn.__name__, mem=hex(id(fn))),
+                    [],
+                )
 
     def _lineage_to_identifier(self):
         """Synchronize to the current lineage by reassigning to
@@ -83,3 +102,95 @@ class SliceDataPanel(DataPanel, SliceMixin):
         state_keys = super(SliceDataPanel, cls)._state_keys()
         state_keys.union(cls._add_state_keys())
         return state_keys
+
+    def update(
+        self,
+        function: Optional[Callable] = None,
+        with_indices: bool = False,
+        input_columns: Optional[Union[str, List[str]]] = None,
+        is_batched_fn: bool = False,
+        batch_size: Optional[int] = 1,
+        remove_columns: Optional[List[str]] = None,
+        num_workers: int = 0,
+        materialize: bool = True,
+        pbar: bool = False,
+        **kwargs,
+    ) -> SliceDataPanel:
+        dp = super(SliceDataPanel, self).update(
+            function=function,
+            with_indices=with_indices,
+            input_columns=input_columns,
+            is_batched_fn=is_batched_fn,
+            batch_size=batch_size,
+            remove_columns=remove_columns,
+            num_workers=num_workers,
+            materialize=materialize,
+            pbar=pbar,
+            **kwargs,
+        )
+        if isinstance(dp, SliceDataPanel):
+            dp._add_op_to_lineage()
+
+        return dp
+
+    def filter(
+        self,
+        function: Optional[Callable] = None,
+        with_indices=False,
+        input_columns: Optional[Union[str, List[str]]] = None,
+        is_batched_fn: bool = False,
+        batch_size: Optional[int] = 1,
+        drop_last_batch: bool = False,
+        num_workers: int = 0,
+        materialize: bool = True,
+        pbar: bool = False,
+        **kwargs,
+    ) -> Optional[SliceDataPanel]:
+        dp = super(SliceDataPanel, self).filter(
+            function=function,
+            with_indices=with_indices,
+            input_columns=input_columns,
+            is_batched_fn=is_batched_fn,
+            batch_size=batch_size,
+            drop_last_batch=drop_last_batch,
+            num_workers=num_workers,
+            materialize=materialize,
+            pbar=pbar,
+            **kwargs,
+        )
+        if isinstance(dp, SliceDataPanel):
+            dp._add_op_to_lineage()
+        return dp
+
+    def map(
+        self,
+        function: Optional[Callable] = None,
+        with_indices: bool = False,
+        input_columns: Optional[Union[str, List[str]]] = None,
+        is_batched_fn: bool = False,
+        batch_size: Optional[int] = 1,
+        drop_last_batch: bool = False,
+        num_workers: int = 0,
+        output_type: type = None,
+        mmap: bool = False,
+        materialize: bool = True,
+        pbar: bool = False,
+        **kwargs,
+    ) -> Optional[Union[Dict, List, AbstractColumn]]:
+        dp = super(SliceDataPanel, self).map(
+            function=function,
+            with_indices=with_indices,
+            input_columns=input_columns,
+            is_batched_fn=is_batched_fn,
+            batch_size=batch_size,
+            drop_last_batch=drop_last_batch,
+            num_workers=num_workers,
+            output_type=output_type,
+            mmap=mmap,
+            materialize=materialize,
+            pbar=pbar,
+            **kwargs,
+        )
+        if isinstance(dp, SliceDataPanel):
+            dp._add_op_to_lineage()
+        return dp

@@ -1,5 +1,7 @@
 """Import common classes."""
 # flake8: noqa
+from mosaic.provenance import set_provenance
+
 from robustnessgym.logging.utils import (
     initialize_logging,
     set_logging_level,
@@ -7,6 +9,7 @@ from robustnessgym.logging.utils import (
 )
 
 initialize_logging()
+set_provenance()
 
 
 from robustnessgym.core.devbench import DevBench

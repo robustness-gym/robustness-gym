@@ -4,6 +4,7 @@ import inspect
 import json
 import logging
 import pathlib
+from types import LambdaType
 from typing import Callable, Collection, Dict, List, Union
 
 import dill
@@ -259,8 +260,7 @@ class DevBench(SemanticVersionerMixin):
 
         for sl in slices:
             if overwrite or (
-                sl.identifier not in self._slice_identifiers
-                and len(sl) > 0
+                sl.identifier not in self._slice_identifiers and len(sl) > 0
             ):
                 # Add slices that aren't present and have non-zero length
                 self._slices.add(sl)
@@ -420,7 +420,7 @@ class DevBench(SemanticVersionerMixin):
             if maybe_devbench.is_dir():
                 if (maybe_devbench / "metadata.dill").exists():  # TODO: deprecate
                     devbenches.append(maybe_devbench.name)
-                elif maybe_devbench.suffix == '.devbench':
+                elif maybe_devbench.suffix == ".devbench":
                     devbenches.append(maybe_devbench.name)
                 else:
                     continue

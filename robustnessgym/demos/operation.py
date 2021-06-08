@@ -1,6 +1,5 @@
 import inspect
 
-import streamlit as st
 import numpy as np
 import pyarrow
 from robustnessgym import DataPanel
@@ -13,12 +12,12 @@ def load_boolq():
 
 @st.cache(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
 def load_boolq_small():
-    return DataPanel.load_huggingface('boolq', split='validation[:2]')
+    return DataPanel.load_huggingface("boolq", split="validation[:2]")
 
 
-def load_datapanel(dataset='boolq', size='small'):
-    if dataset == 'boolq':
-        if size == 'small':
+def load_datapanel(dataset="boolq", size="small"):
+    if dataset == "boolq":
+        if size == "small":
             return load_boolq_small()
         else:
             return load_boolq()
@@ -37,8 +36,8 @@ def format_code(code=None, output=None, outputs=None, columns=(0.45, 0.1, 0.45))
     st.write("<br>", unsafe_allow_html=True)
 
 
-def datapanel_page(dataset='boolq', size='small'):
-    st.write('# DataPanels: Get your data into Robustness Gym')
+def datapanel_page(dataset="boolq", size="small"):
+    st.write("# DataPanels: Get your data into Robustness Gym")
     st.write(
         """
 Load data into Robustness Gym using the `DataPanel`. For detailed info about 
@@ -73,16 +72,16 @@ def datapanel_sheet(dp):
 dp['passage']
 type(dp['passage'])
         """,
-        outputs=(dp['passage'].streamlit(), str(type(dp['passage']))),
-        columns=[0.30, 0.05, 0.65]
+        outputs=(dp["passage"].streamlit(), str(type(dp["passage"]))),
+        columns=[0.30, 0.05, 0.65],
     )
     format_code(
         """
 dp['answer']
 type(dp['answer'])
         """,
-        outputs=(dp['answer'].streamlit(), str(type(dp['answer']))),
-        columns=[0.30, 0.05, 0.65]
+        outputs=(dp["answer"].streamlit(), str(type(dp["answer"]))),
+        columns=[0.30, 0.05, 0.65],
     )
     format_code(
         """
@@ -91,8 +90,8 @@ dp['answer'].mean()
 dp['answer'].reshape(-1, 1, 1)
         """
         "",
-        outputs=(dp['answer'].mean(), dp['answer'].reshape(-1, 1, 1).streamlit()),
-        columns=[0.30, 0.05, 0.65]
+        outputs=(dp["answer"].mean(), dp["answer"].reshape(-1, 1, 1).streamlit()),
+        columns=[0.30, 0.05, 0.65],
     )
     format_code("dp[0]", dp[0], columns=[0.30, 0.05, 0.65])
     format_code("dp[:1]", dp[:1].streamlit(), columns=[0.30, 0.05, 0.65])
@@ -100,7 +99,7 @@ dp['answer'].reshape(-1, 1, 1)
     format_code("dp.columns", dp.columns, columns=[0.30, 0.05, 0.65])
     format_code(
         "dp.map(lambda x: len(x['passage']))",
-        dp.map(lambda x: len(x['passage'])).streamlit(),
+        dp.map(lambda x: len(x["passage"])).streamlit(),
         columns=[0.30, 0.05, 0.65],
     )
     format_code(
@@ -110,20 +109,22 @@ dp.map(lambda x: {
     'question_len': len(x['question']),
 })
         """,
-        dp.map(lambda x: {
-            'passage_len': len(x['passage']),
-            'question_len': len(x['question']),
-        }).streamlit(),
+        dp.map(
+            lambda x: {
+                "passage_len": len(x["passage"]),
+                "question_len": len(x["question"]),
+            }
+        ).streamlit(),
         columns=[0.30, 0.05, 0.65],
     )
     format_code(
         "dp.filter(lambda x: len(x['passage']) > 600)",
-        dp.filter(lambda x: len(x['passage']) > 600).streamlit(),
+        dp.filter(lambda x: len(x["passage"]) > 600).streamlit(),
         columns=[0.30, 0.05, 0.65],
     )
     format_code(
         "dp.update(lambda x: {'passage_len': len(x['passage'])})",
-        dp.update(lambda x: {'passage_len': len(x['passage'])}).streamlit(),
+        dp.update(lambda x: {"passage_len": len(x["passage"])}).streamlit(),
         columns=[0.30, 0.05, 0.65],
     )
     format_code(
@@ -133,23 +134,25 @@ dp.update(lambda x: {
     'question_len': len(x['question']),
 })
         """,
-        dp.update(lambda x: {
-            'passage_len': len(x['passage']),
-            'question_len': len(x['question']),
-        }).streamlit(),
+        dp.update(
+            lambda x: {
+                "passage_len": len(x["passage"]),
+                "question_len": len(x["question"]),
+            }
+        ).streamlit(),
         columns=[0.30, 0.05, 0.65],
     )
     format_code("dp.to_pandas()", dp.to_pandas(), columns=[0.30, 0.05, 0.65])
 
-    st.write('------')
+    st.write("------")
 
 
-def display_dp(dataset='boolq', size='small'):
-    st.subheader('Load Data')
+def display_dp(dataset="boolq", size="small"):
+    st.subheader("Load Data")
     code_col, stdout_col = st.beta_columns(2)
     with code_col:
-        if dataset == 'boolq':
-            if size == 'small':
+        if dataset == "boolq":
+            if size == "small":
                 dp = load_boolq_small()
                 st.code(
                     """
@@ -174,7 +177,7 @@ dp = DataPanel.load_huggingface('boolq', split='validation')
 
 
 def operation_page():
-    st.write('# Operations: Run common processing workflows in Robustness Gym')
+    st.write("# Operations: Run common processing workflows in Robustness Gym")
     st.write(
         """
 An `Operation` in Robustness Gym is used to write and run common workflows 
@@ -188,20 +191,22 @@ The main thing to remember: an `Operation` adds new columns to your `DataPanel`.
 
     dp = display_dp()
 
-    with st.beta_expander('Run the spaCy pipeline with `SpacyOp`'):
+    with st.beta_expander("Run the spaCy pipeline with `SpacyOp`"):
         spacy_example(dp)
 
-    with st.beta_expander('Run the Stanza pipeline with `StanzaOp`'):
+    with st.beta_expander("Run the Stanza pipeline with `StanzaOp`"):
         stanza_example(dp)
 
-    with st.beta_expander('Lazily run the TextBlob pipeline with `LazyTextBlobOp`'):
+    with st.beta_expander("Lazily run the TextBlob pipeline with `LazyTextBlobOp`"):
         lazy_textblob_example(dp)
 
-    with st.beta_expander('Write a simple `Operation` to capitalize text'):
+    with st.beta_expander("Write a simple `Operation` to capitalize text"):
         custom_operation_example_1(dp)
 
-    with st.beta_expander('Write an `Operation` that adds '
-                          'multiple columns to capitalize and upper-case text'):
+    with st.beta_expander(
+        "Write an `Operation` that adds "
+        "multiple columns to capitalize and upper-case text"
+    ):
         custom_operation_example_2(dp)
 
 
@@ -209,7 +214,7 @@ def spacy_example(dp):
     columns = [0.45, 0.05, 0.50]
 
     with st.beta_container():
-        st.header('Run Operation: `SpacyOp`')
+        st.header("Run Operation: `SpacyOp`")
         st.write(
             """
 spaCy is a popular text processing library that provides tokenization, tagging 
@@ -243,7 +248,7 @@ dp = spacy(dp=dp, columns=['passage'])
 
 
 
-    st.write('------')
+    st.write("------")
 
     with st.beta_container():
         spacy_column = lookup(dp, spacy, ['passage'])
@@ -483,7 +488,7 @@ def custom_operation_example_2(dp):
 
 def subpopulation_example_1():
     col1, col2 = st.beta_columns(2)
-    dp = display_dp(col1, size='all')
+    dp = display_dp(col1, size="all")
 
     with col2:
         with st.echo():
@@ -504,33 +509,33 @@ def subpopulation_example_1():
                 score_fn=length,
             )
 
-            slices, membership = length_sp(dp=dp, columns=['passage'])
+            slices, membership = length_sp(dp=dp, columns=["passage"])
             # `slices` is a list of 2 DataPanels
             # `membership` is an np.ndarray of shape (n x 2)
-            st.markdown('`slices`')
+            st.markdown("`slices`")
             st.write(slices)
-            st.markdown('`membership`')
+            st.markdown("`membership`")
             st.write(membership)
 
         with st.echo():
             # Create a subpopulation that buckets examples based on length
             length_sp = ScoreSubpopulation(
                 # mixture of percentile intervals and raw intervals
-                intervals=[('0%', '10%'), ('10%', '20%'), (10, 20)],
+                intervals=[("0%", "10%"), ("10%", "20%"), (10, 20)],
                 score_fn=length,
             )
 
-            slices, membership = length_sp(dp=dp, columns=['passage'])
-            st.write('`slices` sizes:', [len(sl) for sl in slices])
-            st.write('`membership` shape:', membership.shape)
+            slices, membership = length_sp(dp=dp, columns=["passage"])
+            st.write("`slices` sizes:", [len(sl) for sl in slices])
+            st.write("`membership` shape:", membership.shape)
 
-        st.write('### Updated intervals')
+        st.write("### Updated intervals")
         with st.echo():
             # The percentile intervals are updated to
             # raw values after running the subpopulation
             st.write(length_sp.intervals)
 
-        st.write('### Examples and average passage length for each slice')
+        st.write("### Examples and average passage length for each slice")
         with st.echo():
             for sl in slices:
                 # The slice identifier
@@ -538,10 +543,9 @@ def subpopulation_example_1():
                 # Look at the first 3 examples from the slice
                 st.write(sl.head(3)._repr_pandas_())
                 # Calculate the average length of the passages in the slice
-                st.write(sl.map(
-                    lambda x: length(x, ['passage']),
-                    is_batched_fn=True
-                ).mean())
+                st.write(
+                    sl.map(lambda x: length(x, ["passage"]), is_batched_fn=True).mean()
+                )
 
 
 def transformation_example_1():
@@ -549,53 +553,44 @@ def transformation_example_1():
     dp = display_dp(col1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     st.set_page_config(layout="wide")
 
     # st.title("RG Ops Demo")
 
-    st.sidebar.title(
-        ':rocket: Robustness Gym\n '
-        '## Cheat Sheet'
-    )
+    st.sidebar.title(":rocket: Robustness Gym\n " "## Cheat Sheet")
 
-    st.sidebar.write('#### Installation')
+    st.sidebar.write("#### Installation")
     st.sidebar.code(
         """
 $ pip install robustnessgym
 # see setup.py for a list of optional packages
 $ pip install robustnessgym[text]
         """,
-        language="bash"
+        language="bash",
     )
 
-    st.sidebar.write('#### Import convention')
-    st.sidebar.code('import robustnessgym as rg')
+    st.sidebar.write("#### Import convention")
+    st.sidebar.code("import robustnessgym as rg")
 
-    st.sidebar.write('### Selection')
+    st.sidebar.write("### Selection")
     section = st.sidebar.radio(
-        'Section',
-        ['DataPanel', 'Operation', 'Subpopulation'],
+        "Section",
+        ["DataPanel", "Operation", "Subpopulation"],
     )
 
-    if section == 'DataPanel':
-        datapanel_page(size='all')
+    if section == "DataPanel":
+        datapanel_page(size="all")
 
-    elif section == 'Operation':
+    elif section == "Operation":
         operation_page()
 
-    elif section == 'Subpopulation':
-        selection = st.sidebar.radio(
-            'Subpopulation Example',
-            ['Subpopulation-1']
-        )
-        if selection == 'Subpopulation-1':
+    elif section == "Subpopulation":
+        selection = st.sidebar.radio("Subpopulation Example", ["Subpopulation-1"])
+        if selection == "Subpopulation-1":
             subpopulation_example_1()
 
-    elif section == 'Transformation':
-        selection = st.sidebar.selectbox(
-            'Transformation Example',
-            ['Transformation-1']
-        )
-        if selection == 'Transformation-1':
+    elif section == "Transformation":
+        selection = st.sidebar.selectbox("Transformation Example", ["Transformation-1"])
+        if selection == "Transformation-1":
             transformation_example_1()
