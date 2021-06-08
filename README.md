@@ -24,7 +24,7 @@ Robustness Gym is a Python evaluation toolkit for machine learning models.
 ```
 pip install robustnessgym
 ```
-> Note: some parts of Mosaic rely on optional dependencies. 
+> Note: some parts of Robustness Gym rely on optional dependencies. 
 > If you know which optional dependencies you'd like to install, 
 > you can do so using something like `pip install robustnessgym[dev,text]` instead. 
 > See `setup.py` for a full list of optional dependencies.

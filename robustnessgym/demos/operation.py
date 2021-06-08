@@ -7,7 +7,7 @@ import streamlit as st
 from robustnessgym import DataPanel
 
 
-@st.cache(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
+@st.cache#(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
 def load_boolq():
     return DataPanel.load_huggingface(
         "boolq",
@@ -15,7 +15,7 @@ def load_boolq():
     )
 
 
-@st.cache(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
+# @st.cache#(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
 def load_boolq_small():
     return DataPanel.load_huggingface("boolq", split="validation[:2]")
 
@@ -498,8 +498,10 @@ def custom_operation_example_2(dp):
 
 
 def subpopulation_example_1():
+
+    dp = display_dp(size="small")
+
     col1, col2 = st.beta_columns(2)
-    dp = display_dp(col1, size="all")
 
     with col2:
         with st.echo():

@@ -41,13 +41,14 @@ class SliceMixin:
 
             if opnode.ref().__name__ == "filter":
                 self.add_to_lineage(
-                    SUBPOPULATION,
+                    SUBPOPULATION.capitalize(),
                     Id("Function", name=fn.__name__, mem=hex(id(fn))),
                     [],
                 )
+                self.category = SUBPOPULATION
             else:
                 self.add_to_lineage(
-                    GENERIC,
+                    GENERIC.capitalize(),
                     Id("Function", name=fn.__name__, mem=hex(id(fn))),
                     [],
                 )

@@ -92,7 +92,7 @@ class ReportableMixin:
         columns = []
         for model in models:
             for aggregator in shared_aggregators:
-                if aggregator in aggregator_columns:
+                if aggregator_columns and aggregator in aggregator_columns:
                     column_type, column_kwargs = aggregator_columns[aggregator]
                 else:
                     column_type = ScoreColumn
@@ -150,7 +150,10 @@ class ReportableMixin:
         for ident in self._slice_identifiers:
             if "->" in str(ident):
                 builder_ident = str(ident).split(" -> ")[-1]
-                builder_ident, cols = builder_ident.split(" @ ")
+                try:
+                    builder_ident, cols = builder_ident.split(" @ ")
+                except ValueError:
+                    cols = ""
                 name = builder_ident.split("(")[0]
                 if name not in groups:
                     groups[name] = set()
@@ -171,7 +174,10 @@ class ReportableMixin:
         for ident in self._slice_identifiers:
             if "->" in str(ident):
                 builder_ident = str(ident).split(" -> ")[-1]
-                builder_ident, cols = builder_ident.split(" @ ")
+                try:
+                    builder_ident, cols = builder_ident.split(" @ ")
+                except ValueError:
+                    cols = ""
                 name = builder_ident.split("(")[0]
 
                 if group_info[name] == "name":
@@ -194,7 +200,7 @@ class ReportableMixin:
         self.ident_mapping = ident_mapping
 
 
-class DevBench(SemanticVersionerMixin):
+class DevBench(SemanticVersionerMixin, ReportableMixin):
     def __init__(self):
         super(DevBench, self).__init__()
 
