@@ -98,7 +98,12 @@ from robustnessgym.slicebuilders.subpopulations.phrase import (
     HasQuantifier,
     HasTemporalPreposition,
 )
-from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
+from robustnessgym.slicebuilders.subpopulations.score import (
+    ScoreSubpopulation,
+    BinarySubpopulation,
+    IntervalSubpopulation,
+    PercentileSubpopulation,
+)
 from robustnessgym.slicebuilders.subpopulations.similarity import (
     Abstractiveness,
     Dispersion,

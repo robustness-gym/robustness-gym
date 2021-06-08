@@ -147,7 +147,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         if isinstance(self.score, Operation):
             self.scores.extend(lookup(batch, self.score, columns))
         elif isinstance(self.score, Callable):
-            self.scores.extend(self.score(batch=batch, columns=columns))
+            self.scores.extend(self.score(batch, columns))
         else:
             raise RuntimeError("score function invalid.")
 
@@ -173,7 +173,7 @@ class ScoreSubpopulation(Subpopulation, BinningMixin):
         if isinstance(self.score, Operation):
             scores = lookup(batch, self.score, columns)
         elif isinstance(self.score, Callable):
-            scores = self.score(batch=batch, columns=columns)
+            scores = self.score(batch, columns)
         else:
             raise RuntimeError("score function invalid.")
 
@@ -262,7 +262,7 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
         if isinstance(self.score, Operation):
             self.scores.extend(lookup(batch, self.score, columns))
         elif isinstance(self.score, Callable):
-            self.scores.extend(self.score(batch=batch, columns=columns))
+            self.scores.extend(self.score(batch, columns))
         else:
             raise RuntimeError("score function invalid.")
 
