@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 from json import JSONDecodeError
-from typing import Optional, Callable, Union, List, Dict
+from typing import Callable, Dict, List, Optional, Union
 
-from mosaic import DataPanel, AbstractColumn
-from robustnessgym.core.constants import CURATION, SUBPOPULATION, GENERIC
-from robustnessgym.core.identifier import Identifier, Id
+from mosaic import AbstractColumn, DataPanel
+
+from robustnessgym.core.constants import CURATION, GENERIC, SUBPOPULATION
+from robustnessgym.core.identifier import Id, Identifier
 
 
 class SliceMixin:
@@ -36,18 +37,18 @@ class SliceMixin:
     def _add_op_to_lineage(self):
         if self.node.last_parent is not None:
             opnode, indices = self.node.last_parent
-            fn = opnode.captured_args['function']
+            fn = opnode.captured_args["function"]
 
-            if opnode.ref().__name__ == 'filter':
+            if opnode.ref().__name__ == "filter":
                 self.add_to_lineage(
                     SUBPOPULATION,
-                    Id('Function', name=fn.__name__, mem=hex(id(fn))),
+                    Id("Function", name=fn.__name__, mem=hex(id(fn))),
                     [],
                 )
             else:
                 self.add_to_lineage(
                     GENERIC,
-                    Id('Function', name=fn.__name__, mem=hex(id(fn))),
+                    Id("Function", name=fn.__name__, mem=hex(id(fn))),
                     [],
                 )
 

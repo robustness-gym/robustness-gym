@@ -7,8 +7,8 @@ import numpy as np
 from ahocorasick import Automaton
 
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.operation import lookup
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 

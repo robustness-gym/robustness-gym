@@ -36,7 +36,7 @@ def run(dataset_info, model_name, debug=False):
         batch_size=5,
         is_batched_fn=True,
         output_type=ClassificationOutputColumn,
-        pbar=True
+        pbar=True,
     )
 
     out = ClassificationOutputColumn(logits=out)
@@ -55,7 +55,7 @@ def run(dataset_info, model_name, debug=False):
 DATASETS = [
     ("boolq", "validation"),
     ("snli", "validation"),
-    (('glue', 'mnli'), "validation_matched"),
+    (("glue", "mnli"), "validation_matched"),
 ]
 
 MODELS = [
@@ -77,22 +77,12 @@ for ds, model in itertools.product(DATASETS, MODELS):
     try:
         run(ds, model, debug=True)
         outs.append(
-            {
-                "dataset": str(ds),
-                "model": model,
-                "status": "Success",
-                "Reason": None
-            }
+            {"dataset": str(ds), "model": model, "status": "Success", "Reason": None}
         )
     except Exception as e:
         print(e)
         outs.append(
-            {
-                "dataset": str(ds),
-                "model": model,
-                "status": "Failed",
-                "Reason": str(e)
-            }
+            {"dataset": str(ds), "model": model, "status": "Failed", "Reason": str(e)}
         )
 
 success = pd.DataFrame(outs)

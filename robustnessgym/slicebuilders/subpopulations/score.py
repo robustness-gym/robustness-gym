@@ -257,25 +257,44 @@ class MultiScoreSubpopulation(Subpopulation, BinningMixin):
 
 
 BinarySubpopulation = lambda name, score_fn: ScoreSubpopulation(
-    identifiers=[Identifier(f'No{name}'), Identifier(f'{name}')],
+    identifiers=[Identifier(f"No{name}"), Identifier(f"{name}")],
     intervals=[(0, 0), (1, 1)],
     score_fn=score_fn,
 )
 
 PercentileSubpopulation = lambda name, score_fn: ScoreSubpopulation(
-    identifiers=[Identifier(f'{name}', gte=f'{gte}%', lte=f'{lte}%')
-                 for (gte, lte) in
-                 [(0, 5), (0, 10), (0, 20), (20, 40), (40, 60), (60, 80), (80, 100),
-                  (90, 100), (95, 100)]],
-    intervals=[('0%', '5%'), ('0%', '10%'), ('0%', '20%'), ('20%', '40%'),
-               ('40%', '60%'), ('60%', '80%'), ('80%', '100%'), ('90%', '100%'),
-               ('95%', '100%')],
+    identifiers=[
+        Identifier(f"{name}", gte=f"{gte}%", lte=f"{lte}%")
+        for (gte, lte) in [
+            (0, 5),
+            (0, 10),
+            (0, 20),
+            (20, 40),
+            (40, 60),
+            (60, 80),
+            (80, 100),
+            (90, 100),
+            (95, 100),
+        ]
+    ],
+    intervals=[
+        ("0%", "5%"),
+        ("0%", "10%"),
+        ("0%", "20%"),
+        ("20%", "40%"),
+        ("40%", "60%"),
+        ("60%", "80%"),
+        ("80%", "100%"),
+        ("90%", "100%"),
+        ("95%", "100%"),
+    ],
     score_fn=score_fn,
 )
 
 IntervalSubpopulation = lambda name, intervals, score_fn: ScoreSubpopulation(
-    identifiers=[Identifier(f'{name}', gte=f'{gte}', lte=f'{lte}')
-                 for (gte, lte) in intervals],
+    identifiers=[
+        Identifier(f"{name}", gte=f"{gte}", lte=f"{lte}") for (gte, lte) in intervals
+    ],
     intervals=intervals,
     score_fn=score_fn,
 )
