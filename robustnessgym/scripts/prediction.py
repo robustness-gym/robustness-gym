@@ -18,21 +18,56 @@ from mosaic.columns.prediction_column import ClassificationOutputColumn
 from robustnessgym.core.model import Model
 from robustnessgym.tasks.task import BinaryNaturalLanguageInference
 
+# EXAMPLE_DATASETS = [
+#     ("boolq", "validation"),
+#     ("snli", "validation"),
+#     (("glue", "mnli"), "validation_matched"),
+# ]
+
 EXAMPLE_DATASETS = [
-    ("boolq", "validation"),
-    ("snli", "validation"),
-    (("glue", "mnli"), "validation_matched"),
-]  # validation_matched
+    ("hans", ["train", "validation"]),
+    ("snli", ["train", "validation", "test"]),
+    ("anli",
+     ["train_r1", "dev_r1", "test_r1",
+      "train_r2", "dev_r2", "test_r2",
+      "train_r3", "dev_r3", "test_r3"
+      ]),
+    (("glue", "mnli"),
+     ["train",
+      "validation_matched", "validation_mismatched",
+      "test_matched", "test_mismatched"
+      ]),
+]
+EXAMPLE_DATASETS_TO_SPLITS = {x[0]: x[1] for x in EXAMPLE_DATASETS}
 
 EXAMPLE_MODELS = [
     "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
+    "ynie/albert-xxlarge-v2-snli_mnli_fever_anli_R1_R2_R3-nli",
+    "ynie/bart-large-snli_mnli_fever_anli_R1_R2_R3-nli",
+    "ynie/xlnet-large-cased-snli_mnli_fever_anli_R1_R2_R3-nli",
+
     "textattack/bert-base-uncased-snli",
-    "facebook/bart-large-mnli",
+    "textattack/distilbert-base-cased-snli",
     "textattack/bert-base-uncased-MNLI",
+    "textattack/albert-base-v2-snli",
+
+    "facebook/bart-large-mnli",
+    "roberta-large-mnli",
+
+    "microsoft/deberta-large-mnli",
+    "microsoft/deberta-v2-xxlarge-mnli",
+
+    "typeform/mobilebert-uncased-mnli",
+
     "huggingface/distilbert-base-uncased-finetuned-mnli",
+
     "prajjwal1/albert-base-v1-mnli",
+    "prajjwal1/bert-tiny-mnli",
+
     "cross-encoder/nli-deberta-base",
+
     "squeezebert/squeezebert-mnli",
+    "squeezebert/squeezebert-mnli-headless",
 ]
 
 
@@ -115,14 +150,17 @@ def parse_args():
             for x in EXAMPLE_DATASETS
         ],
         help="Dataset(s) to use",
+        required=True,
     )
     parser.add_argument(
-        "--model", nargs="+", type=str, choices=EXAMPLE_MODELS, help="Model(s) to use"
+        "--model", nargs="+", type=str, choices=EXAMPLE_MODELS, help="Model(s) to use",
+        required=True,
     )
     parser.add_argument(
         "--output-dir",
         type=str,
         help="Output directory to save predictions for easy loading",
+        default='./',
     )
     parser.add_argument("--debug", action="store_true", help="Run in debug mode")
     return parser.parse_args()
@@ -136,33 +174,33 @@ def main():
     output_dir = args.output_dir
     debug = args.debug
 
-    EXAMPLE_DATASETS_TO_SPLITS = {x[0]: x[1] for x in EXAMPLE_DATASETS}
-
     configs = list(itertools.product(datasets, all_models))
     outs = []
     for idx, (ds, model) in enumerate(configs):
-        print(f"***** ({idx}/{len(configs)}: Dataset: {ds} - Model: {model}) *****")
-        ds = (ds, EXAMPLE_DATASETS_TO_SPLITS[ds])
-        try:
-            run_nli(ds, model, debug=debug, output_dir=output_dir)
-            outs.append(
-                {
-                    "dataset": str(ds),
-                    "model": model,
-                    "status": "Success",
-                    "Reason": None,
-                }
-            )
-        except Exception as e:
-            print(e)
-            outs.append(
-                {
-                    "dataset": str(ds),
-                    "model": model,
-                    "status": "Failed",
-                    "Reason": str(e),
-                }
-            )
+        for split in EXAMPLE_DATASETS_TO_SPLITS[ds]:
+            print(f"***** ({idx}/{len(configs)}: "
+                  f"Dataset: {ds} - Split: {split} - Model: {model}) *****")
+            ds = (ds, split)
+            try:
+                run_nli(ds, model, debug=debug, output_dir=output_dir)
+                outs.append(
+                    {
+                        "dataset": str(ds),
+                        "model": model,
+                        "status": "Success",
+                        "Reason": None,
+                    }
+                )
+            except Exception as e:
+                print(e)
+                outs.append(
+                    {
+                        "dataset": str(ds),
+                        "model": model,
+                        "status": "Failed",
+                        "Reason": str(e),
+                    }
+                )
 
     if output_dir:
         run_status = pd.DataFrame(outs)
