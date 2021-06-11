@@ -255,7 +255,10 @@ class HuggingfaceModel(Model):
     def encode_batch(self, batch: Dict[str, List], columns: Collection[str], **kwargs):
         # TODO(karan): Automatically writing this encoder for a variety of tasks
         return self.tokenizer(
-            *[batch[key] for key in columns], truncation=True, padding=True, **kwargs
+            *[list(batch[key]) for key in columns],
+            truncation=True,
+            padding=True,
+            **kwargs,
         )
 
     def predict_batch(self, batch: Dict[str, List], input_columns: Collection[str]):
