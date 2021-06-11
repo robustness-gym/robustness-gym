@@ -1,13 +1,15 @@
 import inspect
-
+import robustnessgym as rg
 import numpy as np
 import pyarrow
 import streamlit as st
-
+import glob
+from pathlib import Path
+from mosaic.columns.prediction_column import ClassificationOutputColumn
 from robustnessgym import DataPanel
 
 
-@st.cache#(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
+# @st.cache(hash_funcs={pyarrow.lib.Buffer: lambda x: 0})
 def load_boolq():
     return DataPanel.load_huggingface(
         "boolq",
@@ -499,7 +501,7 @@ def custom_operation_example_2(dp):
 
 def subpopulation_example_1():
 
-    dp = display_dp(size="small")
+    dp = display_dp(size="all")
 
     col1, col2 = st.beta_columns(2)
 
@@ -560,6 +562,210 @@ def subpopulation_example_1():
                     sl.map(lambda x: length(x, ["passage"]), is_batched_fn=True).mean()
                 )
 
+EXAMPLE_DATASETS = [
+    ("snli", ["validation", #"test"
+              ]),
+    ("hans", ["validation"]),
+    # ("anli",
+    #  ["dev_r1", "test_r1",
+    #   "dev_r2", "test_r2",
+    #   "dev_r3", "test_r3"
+    #   ]),
+    ("glue/mnli",
+     ["validation_matched", #"validation_mismatched", "test_matched", "test_mismatched"
+      ]),
+]
+EXAMPLE_DATASETS_TO_SPLITS = {x[0]: x[1] for x in EXAMPLE_DATASETS}
+
+EXAMPLE_MODELS = [
+    "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
+    "ynie/albert-xxlarge-v2-snli_mnli_fever_anli_R1_R2_R3-nli",
+    "ynie/bart-large-snli_mnli_fever_anli_R1_R2_R3-nli",
+    "ynie/xlnet-large-cased-snli_mnli_fever_anli_R1_R2_R3-nli",
+
+    "textattack/bert-base-uncased-snli",
+    "textattack/distilbert-base-cased-snli",
+    "textattack/bert-base-uncased-MNLI",
+    "textattack/albert-base-v2-snli",
+
+    "facebook/bart-large-mnli",
+    "roberta-large-mnli",
+
+    "microsoft/deberta-large-mnli",
+    "microsoft/deberta-v2-xxlarge-mnli",
+
+    "typeform/mobilebert-uncased-mnli",
+
+    "huggingface/distilbert-base-uncased-finetuned-mnli",
+
+    "prajjwal1/albert-base-v1-mnli",
+    "prajjwal1/bert-tiny-mnli",
+
+    "cross-encoder/nli-deberta-base",
+
+    "squeezebert/squeezebert-mnli",
+    "squeezebert/squeezebert-mnli-headless",
+]
+
+
+def select_dataset():
+    with st.beta_container():
+        col1, col2 = st.beta_columns(2)
+        with col1:
+            dataset = st.radio(
+                'Dataset',
+                [t[0] for t in EXAMPLE_DATASETS],
+            )
+        with col2:
+            split = st.radio(
+                'Split',
+                EXAMPLE_DATASETS_TO_SPLITS[dataset],
+            )
+
+    return load_dataset(dataset, split)
+
+
+# @st.cache(allow_output_mutation=True)
+def load_dataset(dataset, split):
+    dp = DataPanel.load_huggingface(*dataset.split("/"), split=split)
+    return dataset.replace("/", "_"), split, dp
+
+
+# @st.cache(allow_output_mutation=True)
+def load_predictions(dataset, split, dp, dir='nli-preds'):
+    filepaths = [Path(path) for path in glob.glob(f'{dir}/*')]
+
+    filepaths = [
+        path for path in filepaths
+        if path.name.startswith(f'{dataset}-{split}')
+    ]
+
+    model_info = {
+        path.name.replace(f'{dataset}-{split}-', ""):
+            ClassificationOutputColumn.read(str(path)) for path in filepaths
+    }
+
+    # for model, preds in model_info.items():
+    #     dp.add_column(model, preds, overwrite=True)
+
+    for model, preds in model_info.items():
+        if model.startswith('huggingface') or model.startswith(
+                'textattack-bert-base') \
+                or model.startswith('prajjwal') or model.startswith(
+            'squeezebert-squeezebert') or model.startswith('facebook'):
+            preds = preds.preds().map(lambda x: {0: 2, 1: 0, 2: 1}[x.item()])
+        else:
+            preds = preds.preds().map(lambda x: {0: 0, 1: 1, 2: 2}[x.item()])
+        dp.add_column(model, preds, overwrite=True)
+
+    return model_info, filepaths, dp
+
+
+def run_demo():
+    # Pick a dataset
+    dataset, split, dp = select_dataset()
+
+    st.header(dataset)
+    st.subheader(split)
+    # st.write(dp.streamlit())
+
+    # Load predictions
+    model_info, filepaths, dp = load_predictions(dataset, split, dp)
+    # st.write(dp.streamlit())
+
+    # # Pick models
+    # models = st.multiselect("Model(s)",
+    #                         [model for model in EXAMPLE_MODELS
+    #                          if model.replace("/", "-") in model_info])
+
+    with st.beta_container():
+        col1, col2 = st.beta_columns(2)
+        with col1:
+            model_1 = st.selectbox("Model 1", [model for model in EXAMPLE_MODELS
+                                     if model.replace("/", "-") in model_info])
+        with col2:
+            model_2 = st.selectbox("Model 2", [model for model in EXAMPLE_MODELS
+                                               if model.replace("/", "-") in model_info],
+                                   index=1)
+
+    # if not models:
+    #     st.stop()
+    from functools import partial
+    def accuracy(x, model):
+        return (x[model] == x['label']).mean()
+
+    db = rg.DevBench()
+    db.add_aggregators({
+        model: {
+            'accuracy': partial(accuracy, model=model),
+        }
+        for model in model_info
+    })
+
+    # st.multiselect(
+    #     "Slice(s)",
+    #     [rg.LexicalOverlapSubpopulation([('0%', '10%'), ('90%', '100%')])]
+    # )
+
+    intervals = [('0%', '10%'), ('20%', '80%'), ('90%', '100%')]
+    sps = [
+        rg.HasNegation(),
+        rg.NumTokensSubpopulation(intervals=intervals),
+    ] + [
+        rg.HansAdverbs(),
+        rg.HansConjs(),
+        rg.HansAdjectives(),
+        rg.HansAdjectivesCompNonEnt(),
+        rg.HansAdjectivesCompEnt(),
+        rg.HansCalledObjects(),
+        rg.HansAdvsEntailed(),
+        rg.HansAdvsNonEntailed(),
+        rg.HasTemporalPreposition(),
+        rg.HasComparison(),
+        rg.HasQuantifier(),
+        rg.HasPosessivePreposition(),
+        rg.HansSingularNouns(),
+        rg.HasDefiniteArticle(),
+        rg.HasIndefiniteArticle(),
+    ]
+    # dual_sps = [
+    #     rg.LexicalOverlapSubpopulation(intervals),
+    # ]
+
+    slices = st.multiselect(
+        'Slice(s)',
+        sps,
+        format_func=lambda x: x.__class__.__name__
+    )
+
+    generate_report = True # st.button("Generate Report")
+
+    if generate_report:
+        db.add_slices(dp)
+
+        for sl in slices:
+            db(sl, dp, ['premise'])
+            db(sl, dp, ['hypothesis'])
+
+        db(
+            rg.LexicalOverlapSubpopulation(intervals),
+            dp,
+            ['premise', 'hypothesis'],
+        )
+        # st.write(db.create_report([model.replace("/", "-") for model in models]).figure())
+        # for model in models:
+
+        report = db.create_report([model_1.replace("/", "-")])
+        report.update_config(**dict(color_scheme=["#3499ec", "#ec34c1", "#9cec34"]))
+        st.write(report.figure())
+        st.write(db.create_report([model_2.replace("/", "-")]).figure())
+
+
+    # for model in models:
+    #     st.write(model_info[model.replace("/", "-")].preds().to_pandas())
+
+
+
 
 def transformation_example_1():
     col1, col2 = st.beta_columns(2)
@@ -589,7 +795,7 @@ $ pip install robustnessgym[text]
     st.sidebar.write("### Selection")
     section = st.sidebar.radio(
         "Section",
-        ["DataPanel", "Operation", "Subpopulation"],
+        ["DataPanel", "Operation", "Subpopulation", "Demo"],
     )
 
     if section == "DataPanel":
@@ -599,11 +805,14 @@ $ pip install robustnessgym[text]
         operation_page()
 
     elif section == "Subpopulation":
-        selection = st.sidebar.radio("Subpopulation Example", ["Subpopulation-1"])
-        if selection == "Subpopulation-1":
-            subpopulation_example_1()
+        # selection = st.sidebar.radio("Subpopulation Example", ["Subpopulation-1"])
+        # if selection == "Subpopulation-1":
+        subpopulation_example_1()
 
     elif section == "Transformation":
         selection = st.sidebar.selectbox("Transformation Example", ["Transformation-1"])
         if selection == "Transformation-1":
             transformation_example_1()
+
+    elif section == "Demo":
+        run_demo()

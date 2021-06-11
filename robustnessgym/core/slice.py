@@ -37,7 +37,10 @@ class SliceMixin:
     def _add_op_to_lineage(self):
         if self.node.last_parent is not None:
             opnode, indices = self.node.last_parent
-            fn = opnode.captured_args["function"]
+            try:
+                fn = opnode.captured_args["function"]
+            except KeyError:
+                return
 
             if opnode.ref().__name__ == "filter":
                 self.add_to_lineage(
