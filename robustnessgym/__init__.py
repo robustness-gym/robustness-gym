@@ -43,6 +43,7 @@ from robustnessgym.slicebuilders.subpopulations.constituency_overlap import (
     ConstituencySubtreeSubpopulation,
     FuzzyConstituencySubtreeSubpopulation,
 )
+
 # from robustnessgym.slicebuilders.subpopulations.entity_frequency
 # import EntityFrequency
 from robustnessgym.slicebuilders.subpopulations.hans import (
@@ -99,10 +100,10 @@ from robustnessgym.slicebuilders.subpopulations.phrase import (
     HasTemporalPreposition,
 )
 from robustnessgym.slicebuilders.subpopulations.score import (
-    ScoreSubpopulation,
     BinarySubpopulation,
     IntervalSubpopulation,
     PercentileSubpopulation,
+    ScoreSubpopulation,
 )
 from robustnessgym.slicebuilders.subpopulations.similarity import (
     Abstractiveness,

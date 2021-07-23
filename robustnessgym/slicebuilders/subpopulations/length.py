@@ -38,20 +38,20 @@ class NumTokensSubpopulation(ScoreSubpopulation):
         self.reduction_fn = reduction_fn
 
     def score(
-        self, batch: DataPanel, columns: List[str], *args, **kwargs,
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
 
         # Length of each example, for each column
         try:
             lengths = [
-                [len(doc) for doc in lookup(batch, SpacyOp, [col])]
-                for col in columns
+                [len(doc) for doc in lookup(batch, SpacyOp, [col])] for col in columns
             ]
         except AttributeError:
-            lengths = [
-                [len(text.split()) for text in batch[col]]
-                for col in columns
-            ]
+            lengths = [[len(text.split()) for text in batch[col]] for col in columns]
 
         # Reduction over column key axis
         return self.reduction_fn(np.array(lengths), axis=0)
@@ -84,14 +84,15 @@ class NumCharsSubpopulation(ScoreSubpopulation):
         self.reduction_fn = reduction_fn
 
     def score(
-        self, batch: DataPanel, columns: List[str], *args, **kwargs,
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
 
         # Length of each example, for each column
-        lengths = [
-            [len(text) for text in batch[col]]
-            for col in columns
-        ]
+        lengths = [[len(text) for text in batch[col]] for col in columns]
 
         # Reduction over column key axis
         return self.reduction_fn(np.array(lengths), axis=0)

@@ -23,6 +23,7 @@ from robustnessgym.core.tools import persistent_hash
 from robustnessgym.core.version import SemanticVersionerMixin
 from robustnessgym.report.report import NumericColumn, Report, ReportColumn, ScoreColumn
 from robustnessgym.slicebuilders.slicebuilder import SliceBuilder
+
 logger = logging.getLogger(__name__)
 
 

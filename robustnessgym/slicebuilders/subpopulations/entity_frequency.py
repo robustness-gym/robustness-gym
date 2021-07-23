@@ -7,7 +7,6 @@ import numpy as np
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
-from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 

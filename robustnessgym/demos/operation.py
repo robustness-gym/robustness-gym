@@ -1,11 +1,14 @@
+# flake8: noqa
+import glob
 import inspect
-import robustnessgym as rg
+from pathlib import Path
+
 import numpy as np
 import pyarrow
 import streamlit as st
-import glob
-from pathlib import Path
 from meerkat.columns.prediction_column import ClassificationOutputColumn
+
+import robustnessgym as rg
 from robustnessgym import DataPanel
 
 
@@ -562,18 +565,26 @@ def subpopulation_example_1():
                     sl.map(lambda x: length(x, ["passage"]), is_batched_fn=True).mean()
                 )
 
+
 EXAMPLE_DATASETS = [
-    ("snli", ["validation", #"test"
-              ]),
+    (
+        "snli",
+        [
+            "validation",  # "test"
+        ],
+    ),
     ("hans", ["validation"]),
     # ("anli",
     #  ["dev_r1", "test_r1",
     #   "dev_r2", "test_r2",
     #   "dev_r3", "test_r3"
     #   ]),
-    ("glue/mnli",
-     ["validation_matched", #"validation_mismatched", "test_matched", "test_mismatched"
-      ]),
+    (
+        "glue/mnli",
+        [
+            "validation_matched",  # "validation_mismatched", "test_matched", "test_mismatched"
+        ],
+    ),
 ]
 EXAMPLE_DATASETS_TO_SPLITS = {x[0]: x[1] for x in EXAMPLE_DATASETS}
 
@@ -582,27 +593,19 @@ EXAMPLE_MODELS = [
     "ynie/albert-xxlarge-v2-snli_mnli_fever_anli_R1_R2_R3-nli",
     "ynie/bart-large-snli_mnli_fever_anli_R1_R2_R3-nli",
     "ynie/xlnet-large-cased-snli_mnli_fever_anli_R1_R2_R3-nli",
-
     "textattack/bert-base-uncased-snli",
     "textattack/distilbert-base-cased-snli",
     "textattack/bert-base-uncased-MNLI",
     "textattack/albert-base-v2-snli",
-
     "facebook/bart-large-mnli",
     "roberta-large-mnli",
-
     "microsoft/deberta-large-mnli",
     "microsoft/deberta-v2-xxlarge-mnli",
-
     "typeform/mobilebert-uncased-mnli",
-
     "huggingface/distilbert-base-uncased-finetuned-mnli",
-
     "prajjwal1/albert-base-v1-mnli",
     "prajjwal1/bert-tiny-mnli",
-
     "cross-encoder/nli-deberta-base",
-
     "squeezebert/squeezebert-mnli",
     "squeezebert/squeezebert-mnli-headless",
 ]
@@ -613,12 +616,12 @@ def select_dataset():
         col1, col2 = st.beta_columns(2)
         with col1:
             dataset = st.radio(
-                'Dataset',
+                "Dataset",
                 [t[0] for t in EXAMPLE_DATASETS],
             )
         with col2:
             split = st.radio(
-                'Split',
+                "Split",
                 EXAMPLE_DATASETS_TO_SPLITS[dataset],
             )
 
@@ -632,27 +635,31 @@ def load_dataset(dataset, split):
 
 
 # @st.cache(allow_output_mutation=True)
-def load_predictions(dataset, split, dp, dir='nli-preds'):
-    filepaths = [Path(path) for path in glob.glob(f'{dir}/*')]
+def load_predictions(dataset, split, dp, dir="nli-preds"):
+    filepaths = [Path(path) for path in glob.glob(f"{dir}/*")]
 
     filepaths = [
-        path for path in filepaths
-        if path.name.startswith(f'{dataset}-{split}')
+        path for path in filepaths if path.name.startswith(f"{dataset}-{split}")
     ]
 
     model_info = {
-        path.name.replace(f'{dataset}-{split}-', ""):
-            ClassificationOutputColumn.read(str(path)) for path in filepaths
+        path.name.replace(f"{dataset}-{split}-", ""): ClassificationOutputColumn.read(
+            str(path)
+        )
+        for path in filepaths
     }
 
     # for model, preds in model_info.items():
     #     dp.add_column(model, preds, overwrite=True)
 
     for model, preds in model_info.items():
-        if model.startswith('huggingface') or model.startswith(
-                'textattack-bert-base') \
-                or model.startswith('prajjwal') or model.startswith(
-            'squeezebert-squeezebert') or model.startswith('facebook'):
+        if (
+            model.startswith("huggingface")
+            or model.startswith("textattack-bert-base")
+            or model.startswith("prajjwal")
+            or model.startswith("squeezebert-squeezebert")
+            or model.startswith("facebook")
+        ):
             preds = preds.preds().map(lambda x: {0: 2, 1: 0, 2: 1}[x.item()])
         else:
             preds = preds.preds().map(lambda x: {0: 0, 1: 1, 2: 2}[x.item()])
@@ -681,37 +688,49 @@ def run_demo():
     with st.beta_container():
         col1, col2 = st.beta_columns(2)
         with col1:
-            model_1 = st.selectbox("Model 1", [model for model in EXAMPLE_MODELS
-                                     if model.replace("/", "-") in model_info])
+            model_1 = st.selectbox(
+                "Model 1",
+                [
+                    model
+                    for model in EXAMPLE_MODELS
+                    if model.replace("/", "-") in model_info
+                ],
+            )
         with col2:
-            model_2 = st.selectbox("Model 2", [model for model in EXAMPLE_MODELS
-                                               if model.replace("/", "-") in model_info],
-                                   index=1)
+            model_2 = st.selectbox(
+                "Model 2",
+                [
+                    model
+                    for model in EXAMPLE_MODELS
+                    if model.replace("/", "-") in model_info
+                ],
+                index=1,
+            )
 
     # if not models:
     #     st.stop()
     from functools import partial
+
     def accuracy(x, model):
-        return (x[model] == x['label']).mean()
+        return (x[model] == x["label"]).mean()
 
     db = rg.DevBench()
-    db.add_aggregators({
-        model: {
-            'accuracy': partial(accuracy, model=model),
+    db.add_aggregators(
+        {
+            model: {
+                "accuracy": partial(accuracy, model=model),
+            }
+            for model in model_info
         }
-        for model in model_info
-    })
+    )
 
     # st.multiselect(
     #     "Slice(s)",
     #     [rg.LexicalOverlapSubpopulation([('0%', '10%'), ('90%', '100%')])]
     # )
 
-    intervals = [('0%', '10%'), ('20%', '80%'), ('90%', '100%')]
-    sps = [
-        rg.HasNegation(),
-        rg.NumTokensSubpopulation(intervals=intervals),
-    ] + [
+    intervals = [("0%", "10%"), ("20%", "80%"), ("90%", "100%")]
+    sps = [rg.HasNegation(), rg.NumTokensSubpopulation(intervals=intervals),] + [
         rg.HansAdverbs(),
         rg.HansConjs(),
         rg.HansAdjectives(),
@@ -732,25 +751,21 @@ def run_demo():
     #     rg.LexicalOverlapSubpopulation(intervals),
     # ]
 
-    slices = st.multiselect(
-        'Slice(s)',
-        sps,
-        format_func=lambda x: x.__class__.__name__
-    )
+    slices = st.multiselect("Slice(s)", sps, format_func=lambda x: x.__class__.__name__)
 
-    generate_report = True # st.button("Generate Report")
+    generate_report = True  # st.button("Generate Report")
 
     if generate_report:
         db.add_slices(dp)
 
         for sl in slices:
-            db(sl, dp, ['premise'])
-            db(sl, dp, ['hypothesis'])
+            db(sl, dp, ["premise"])
+            db(sl, dp, ["hypothesis"])
 
         db(
             rg.LexicalOverlapSubpopulation(intervals),
             dp,
-            ['premise', 'hypothesis'],
+            ["premise", "hypothesis"],
         )
         # st.write(db.create_report([model.replace("/", "-") for model in models]).figure())
         # for model in models:
@@ -760,11 +775,8 @@ def run_demo():
         st.write(report.figure())
         st.write(db.create_report([model_2.replace("/", "-")]).figure())
 
-
     # for model in models:
     #     st.write(model_info[model.replace("/", "-")].preds().to_pandas())
-
-
 
 
 def transformation_example_1():

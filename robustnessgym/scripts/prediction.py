@@ -27,15 +27,16 @@ from robustnessgym.tasks.task import BinaryNaturalLanguageInference
 EXAMPLE_DATASETS = [
     ("hans", ["validation"]),
     ("snli", ["validation", "test"]),
-    ("anli",
-     ["dev_r1", "test_r1",
-      "dev_r2", "test_r2",
-      "dev_r3", "test_r3"
-      ]),
-    (("glue", "mnli"),
-     ["validation_matched", "validation_mismatched",
-      "test_matched", "test_mismatched"
-      ]),
+    ("anli", ["dev_r1", "test_r1", "dev_r2", "test_r2", "dev_r3", "test_r3"]),
+    (
+        ("glue", "mnli"),
+        [
+            "validation_matched",
+            "validation_mismatched",
+            "test_matched",
+            "test_mismatched",
+        ],
+    ),
 ]
 EXAMPLE_DATASETS_TO_SPLITS = {x[0]: x[1] for x in EXAMPLE_DATASETS}
 
@@ -44,40 +45,31 @@ EXAMPLE_MODELS = [
     "ynie/albert-xxlarge-v2-snli_mnli_fever_anli_R1_R2_R3-nli",
     "ynie/bart-large-snli_mnli_fever_anli_R1_R2_R3-nli",
     "ynie/xlnet-large-cased-snli_mnli_fever_anli_R1_R2_R3-nli",
-
     "textattack/bert-base-uncased-snli",
     "textattack/distilbert-base-cased-snli",
     "textattack/bert-base-uncased-MNLI",
     "textattack/albert-base-v2-snli",
-
     "facebook/bart-large-mnli",
     "roberta-large-mnli",
-
     "microsoft/deberta-large-mnli",
     "microsoft/deberta-v2-xxlarge-mnli",
-
     "typeform/mobilebert-uncased-mnli",
-
     "huggingface/distilbert-base-uncased-finetuned-mnli",
-
     "prajjwal1/albert-base-v1-mnli",
     "prajjwal1/bert-tiny-mnli",
-
     "cross-encoder/nli-deberta-base",
-
     "squeezebert/squeezebert-mnli",
     "squeezebert/squeezebert-mnli-headless",
 ]
 
 
 def run_nli(
-        dataset_info,
-        model_name,
-        debug: bool = False,
-        output_dir: str = None,
+    dataset_info,
+    model_name,
+    debug: bool = False,
+    output_dir: str = None,
 ):
-    """
-    Compute and save logits for natural language inference tasks.
+    """Compute and save logits for natural language inference tasks.
 
     Args:
         dataset_info (Tuple[Union[str, Tuple[str]]]): Dataset name and split.
@@ -126,8 +118,9 @@ def run_nli(
 
     model_name = model_name.replace("/", "-")
     if output_dir:
-        dirname = f"{output_dir}/nli-preds/" \
-                  f"{'_'.join(dataset_name)}-{split}-{model_name}"
+        dirname = (
+            f"{output_dir}/nli-preds/" f"{'_'.join(dataset_name)}-{split}-{model_name}"
+        )
         out.write(dirname)
 
     # TO LOAD:
@@ -152,13 +145,17 @@ def parse_args():
         required=True,
     )
     parser.add_argument(
-        "--model", nargs="+", type=str, choices=EXAMPLE_MODELS, help="Model(s) to use",
+        "--model",
+        nargs="+",
+        type=str,
+        choices=EXAMPLE_MODELS,
+        help="Model(s) to use",
     )
     parser.add_argument(
         "--output-dir",
         type=str,
         help="Output directory to save predictions for easy loading",
-        default='./',
+        default="./",
     )
     parser.add_argument("--debug", action="store_true", help="Run in debug mode")
     return parser.parse_args()
@@ -179,8 +176,10 @@ def main():
     outs = []
     for idx, (ds, model) in enumerate(configs):
         for split in EXAMPLE_DATASETS_TO_SPLITS[ds]:
-            print(f"***** ({idx}/{len(configs)}: "
-                  f"Dataset: {ds} - Split: {split} - Model: {model}) *****")
+            print(
+                f"***** ({idx}/{len(configs)}: "
+                f"Dataset: {ds} - Split: {split} - Model: {model}) *****"
+            )
             ds = (ds, split)
             try:
                 run_nli(ds, model, debug=debug, output_dir=output_dir)

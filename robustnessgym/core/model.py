@@ -90,7 +90,7 @@ class Model:
             batch_size,
             coerce_fn,
             *args,
-            **kwargs
+            **kwargs,
         )
 
     @classmethod

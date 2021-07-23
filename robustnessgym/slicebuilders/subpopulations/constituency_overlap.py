@@ -16,7 +16,6 @@ nltk = LazyLoader("nltk")
 
 @prerequisites(AllenConstituencyParsingOp)
 class ConstituencyOverlapSubpopulation(ScoreSubpopulation):
-
     def score(
         self,
         batch: DataPanel,
@@ -29,8 +28,7 @@ class ConstituencyOverlapSubpopulation(ScoreSubpopulation):
 
         # Retrieve the trees
         trees = {
-            col: lookup(batch, AllenConstituencyParsingOp, [col])
-            for col in columns
+            col: lookup(batch, AllenConstituencyParsingOp, [col]) for col in columns
         }
         trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
@@ -53,7 +51,7 @@ class ConstituencySubtreeSubpopulation(ScoreSubpopulation):
             intervals=[(1, 1)],
             identifiers=[Identifier(_name=self.__class__.__name__)],
             *args,
-            **kwargs
+            **kwargs,
         )
 
     def score(
@@ -68,8 +66,7 @@ class ConstituencySubtreeSubpopulation(ScoreSubpopulation):
 
         # Retrieve the trees
         trees = {
-            col: lookup(batch, AllenConstituencyParsingOp, [col])
-            for col in columns
+            col: lookup(batch, AllenConstituencyParsingOp, [col]) for col in columns
         }
         trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
@@ -116,8 +113,7 @@ class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation):
 
         # Retrieve the trees
         trees = {
-            col: lookup(batch, AllenConstituencyParsingOp, [col])
-            for col in columns
+            col: lookup(batch, AllenConstituencyParsingOp, [col]) for col in columns
         }
         trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
