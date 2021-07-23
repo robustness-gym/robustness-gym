@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import cytoolz as tz
 import numpy as np
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.model import Model

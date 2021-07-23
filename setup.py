@@ -88,10 +88,10 @@ EXTRAS = {
         "allennlp-models",
     ],
     "jupyter": [
-        "mosaic[jupyter]",
+        "meerkat[jupyter]",
     ],
     "interactive": [
-        "mosaic[interactive]"
+        "meerkat[interactive]"
     ],
     "summarization": [
         "rouge-score>=0.0.4",
@@ -101,10 +101,10 @@ EXTRAS = {
         "tensorflow",
     ],
     "tabular": [
-        "mosaic[tabular]",
+        "meerkat[tabular]",
     ],
     "vision": [
-        "mosaic[vision]",
+        "meerkat[vision]",
     ],
 }
 EXTRAS["all"] = [e for l in EXTRAS.values() for e in l]

@@ -1,7 +1,7 @@
 """Transformations using nlpaug."""
 from typing import List
 
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation

@@ -3,8 +3,8 @@ from __future__ import annotations
 import subprocess
 from typing import Collection, List
 
-from mosaic import AbstractCell
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat import AbstractCell
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel

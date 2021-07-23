@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 from torch import cuda
 
 from robustnessgym.core.operation import Operation

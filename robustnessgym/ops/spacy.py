@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import List
 
 import torch
-from mosaic import SpacyCell
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat import SpacyCell
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel

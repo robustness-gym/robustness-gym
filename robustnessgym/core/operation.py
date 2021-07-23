@@ -7,9 +7,9 @@ from collections import defaultdict
 from functools import partial
 from typing import Callable, Dict, List, Optional, Union
 
-from mosaic import AbstractColumn
-from mosaic.mixins.identifier import IdentifierMixin
-from mosaic.tools.identifier import Identifier
+from meerkat import AbstractColumn
+from meerkat.mixins.identifier import IdentifierMixin
+from meerkat.tools.identifier import Identifier
 
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 

@@ -4,7 +4,7 @@ from typing import Callable, Sequence, Union
 
 import numpy as np
 import torch
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 from sklearn.metrics import accuracy_score, f1_score
 
 nltk = LazyLoader("nltk")

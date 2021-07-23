@@ -1,7 +1,7 @@
 from typing import Dict, List, Tuple
 
 import numpy as np
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.tools import transpose_batch

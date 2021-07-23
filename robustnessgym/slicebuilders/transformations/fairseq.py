@@ -2,7 +2,7 @@ from typing import List
 
 import cytoolz as tz
 import torch
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation

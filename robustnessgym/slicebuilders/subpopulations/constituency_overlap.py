@@ -2,7 +2,7 @@ from typing import List
 
 import fuzzywuzzy.fuzz as fuzz
 import numpy as np
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.decorators import prerequisites
 from robustnessgym.core.identifier import Identifier

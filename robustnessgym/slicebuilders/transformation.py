@@ -3,7 +3,6 @@ from typing import Callable, List, Optional, Tuple
 
 import cytoolz as tz
 import numpy as np
-from mosaic import DataPanel as MosaicDataPanel
 
 from robustnessgym.core.constants import TRANSFORMATION
 from robustnessgym.core.identifier import Identifier

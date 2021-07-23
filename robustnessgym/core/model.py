@@ -3,7 +3,7 @@ from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
 import torch
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 from transformers import (
     AutoModel,
     AutoModelForQuestionAnswering,

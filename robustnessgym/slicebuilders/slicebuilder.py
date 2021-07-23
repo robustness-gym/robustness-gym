@@ -7,9 +7,9 @@ from itertools import compress
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import cytoolz as tz
-import mosaic
+import meerkat
 import numpy as np
-from mosaic.provenance import capture_provenance
+from meerkat.provenance import capture_provenance
 
 from robustnessgym.core.constants import (
     ATTACK,
@@ -291,7 +291,7 @@ class SliceBuilder(StorageMixin):
         slice_membership = np.concatenate(all_slice_memberships, axis=0)
 
         # Create a single DataPanel for each slice
-        slices = [mosaic.concat(e, axis=0) for e in slices]
+        slices = [meerkat.concat(e, axis=0) for e in slices]
 
         # TODO(karan): DataPanel doesn't support this
         for i, sl in enumerate(slices):

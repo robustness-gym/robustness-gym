@@ -4,7 +4,7 @@ import tempfile
 from copy import deepcopy
 
 import torch
-from mosaic import ImageColumn, ImagePath
+from meerkat import ImageColumn, ImagePath
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.slice import SliceDataPanel as DataPanel

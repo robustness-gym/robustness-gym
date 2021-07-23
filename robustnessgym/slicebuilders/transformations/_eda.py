@@ -8,7 +8,7 @@ import random
 import re
 from random import shuffle
 
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 
 nltk_corpus = LazyLoader("nltk.corpus")
 

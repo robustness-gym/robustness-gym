@@ -5,7 +5,7 @@ import pyarrow
 import streamlit as st
 import glob
 from pathlib import Path
-from mosaic.columns.prediction_column import ClassificationOutputColumn
+from meerkat.columns.prediction_column import ClassificationOutputColumn
 from robustnessgym import DataPanel
 
 
@@ -49,7 +49,7 @@ def datapanel_page(dataset="boolq", size="small"):
     st.write(
         """
 Load data into Robustness Gym using the `DataPanel`. For detailed info about 
-the `DataPanel`, check out [Mosaic](https://github.com/robustness-gym/mosaic).
+the `DataPanel`, check out [Mosaic](https://github.com/robustness-gym/meerkat).
         """
     )
 

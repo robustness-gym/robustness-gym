@@ -10,8 +10,8 @@ import numpy as np
 import progressbar
 import torch
 import yaml
-from mosaic import ImagePath
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat import ImagePath
+from meerkat.tools.lazy_loader import LazyLoader
 
 PIL = LazyLoader("PIL")
 

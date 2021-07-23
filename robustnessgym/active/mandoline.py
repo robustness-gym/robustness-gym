@@ -2,7 +2,7 @@ from functools import partial
 from types import SimpleNamespace
 
 import numpy as np
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.tools.lazy_loader import LazyLoader
 
 scipy_optimize = LazyLoader("scipy.optimize")
 scipy_special = LazyLoader("scipy.special")

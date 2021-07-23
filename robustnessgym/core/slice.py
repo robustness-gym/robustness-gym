@@ -4,7 +4,7 @@ import json
 from json import JSONDecodeError
 from typing import Callable, Dict, List, Optional, Union
 
-from mosaic import AbstractColumn, DataPanel
+from meerkat import AbstractColumn, DataPanel
 
 from robustnessgym.core.constants import CURATION, GENERIC, SUBPOPULATION
 from robustnessgym.core.identifier import Id, Identifier

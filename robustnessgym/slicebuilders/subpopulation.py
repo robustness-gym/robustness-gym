@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 
 import cytoolz as tz
 import numpy as np
-from mosaic.provenance import capture_provenance
+from meerkat.provenance import capture_provenance
 
 from robustnessgym.core.constants import SUBPOPULATION
 from robustnessgym.core.identifier import Identifier

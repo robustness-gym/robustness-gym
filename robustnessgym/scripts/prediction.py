@@ -12,8 +12,8 @@ import itertools
 import os
 
 import pandas as pd
-from mosaic import DataPanel
-from mosaic.columns.prediction_column import ClassificationOutputColumn
+from meerkat import DataPanel
+from meerkat.columns.prediction_column import ClassificationOutputColumn
 
 from robustnessgym.core.model import Model
 from robustnessgym.tasks.task import BinaryNaturalLanguageInference

@@ -1,7 +1,7 @@
 from typing import List
 
-from mosaic.mixins.device import DeviceMixin
-from mosaic.tools.lazy_loader import LazyLoader
+from meerkat.mixins.device import DeviceMixin
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
