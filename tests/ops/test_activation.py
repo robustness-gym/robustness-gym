@@ -3,7 +3,8 @@ from unittest import TestCase
 import torch
 import torch.nn as nn
 
-from robustnessgym.ops.activation import ActivationCachedOp
+from robustnessgym.core.operation import lookup
+from robustnessgym.ops.activation import ActivationOp
 from tests.testbeds import MockVisionTestBed
 
 
@@ -27,12 +28,12 @@ class TestActivation(TestCase):
         self.dataset = MockVisionTestBed(wrap_dataset=True).dataset
 
     def test_apply(self):
-        cached_op = ActivationCachedOp(model=self.model, target_module="hidden")
+        op = ActivationOp(model=self.model, target_module="hidden")
 
-        dataset = cached_op(self.dataset, columns=["i"])
+        dataset = op(self.dataset, columns=["i"])
 
         # Make sure things match up
-        acts = cached_op.retrieve(dataset[:], ["i"])
+        acts = lookup(dataset, op, ["i"])
         self.assertEqual(type(acts), list)
 
         acts = torch.stack(acts)

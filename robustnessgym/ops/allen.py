@@ -9,7 +9,7 @@ from robustnessgym.core.slice import SliceDataPanel as DataPanel
 predictors = LazyLoader("allennlp.predictors")
 
 
-class AllenPredictionOp(Operation, DeviceMixin):
+class AllenPredictionOp(DeviceMixin, Operation):
     def __init__(
         self,
         path: str,

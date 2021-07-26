@@ -5,16 +5,10 @@ from unittest import TestCase, skip
 
 import torch
 
-from robustnessgym import (
-    Dataset,
-    Identifier,
-    ScoreSubpopulation,
-    Slice,
-    Task,
-    TestBench,
-)
+from robustnessgym import DataPanel, Identifier, ScoreSubpopulation, Task, TestBench
+from robustnessgym.core.devbench import DevBench
 from robustnessgym.core.model import Model
-from robustnessgym.core.testbench import DevBench
+from robustnessgym.core.slice import SliceDataPanel
 from tests.testbeds import MockTestBedv0
 
 
@@ -23,7 +17,7 @@ class TestDevbench(TestCase):
         # Create the testbed
         self.testbed = MockTestBedv0()
         # Create the devbench
-        self.devbench = DevBench(self.testbed.dataset)
+        self.devbench = DevBench()
         # Create slices
         sp = ScoreSubpopulation(
             intervals=[("0%", "5%"), ("95%", "100%")],
@@ -36,10 +30,6 @@ class TestDevbench(TestCase):
         # Add slices
         self.devbench.add_slices(self.slices)
         self.assertEqual(len(self.devbench.slices), 3)
-
-    def test_from_dataset(self):
-        devbench = DevBench.from_dataset(self.testbed.dataset)
-        self.assertEqual(devbench.identifier, self.devbench.identifier)
 
     def test_add_aggregators(self):
         with self.assertRaises(AssertionError):
@@ -239,16 +229,18 @@ class TestTestbench(TestCase):
             identifier=testbench_identifier,
             task=task,
             slices=[
-                Slice(
-                    dataset=Dataset.load_dataset("snli", split="train[:128]"),
+                SliceDataPanel(
+                    dataset=DataPanel.from_huggingface("snli", split="train[:128]"),
                     identifier="snli_1",
                 ).filter(lambda example: example["label"] != -1),
-                Slice(
-                    dataset=Dataset.load_dataset("snli", split="validation[:128]"),
+                SliceDataPanel(
+                    dataset=DataPanel.from_huggingface(
+                        "snli", split="validation[:128]"
+                    ),
                     identifier="snli_2",
                 ).filter(lambda example: example["label"] != -1),
-                Slice(
-                    dataset=Dataset.load_dataset("snli", split="test[:128]"),
+                SliceDataPanel(
+                    dataset=DataPanel.from_huggingface("snli", split="test[:128]"),
                     identifier="snli_3",
                 ).filter(lambda example: example["label"] != -1),
             ],

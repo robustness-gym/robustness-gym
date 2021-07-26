@@ -1,7 +1,8 @@
 import unittest
 from unittest import TestCase
 
-from robustnessgym import Bootleg
+from robustnessgym.core.operation import lookup
+from robustnessgym.ops.bootleg import BootlegAnnotatorOp
 from tests.testbeds import MockTestBedv0
 
 
@@ -13,12 +14,12 @@ class TestBootleg(TestCase):
     @unittest.skip("Need sufficient disk/memory/GPU to run this test")
     def test_apply(self):
         # Create the Bootleg cached operation
-        bootleg = Bootleg(cache_dir=self.cache_dir)
+        bootleg = BootlegAnnotatorOp(cache_dir=self.cache_dir)
 
         dataset = bootleg(self.testbed.dataset, columns=["text"])
 
         # Make sure things match up
-        res = bootleg.retrieve(dataset[:], ["text"])
+        res = lookup(dataset, bootleg, ["text"])
         bootleg_keys = [
             "qids",
             "probs",
