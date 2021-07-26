@@ -2,9 +2,9 @@ name: CI
 
 on:
     push:
-        branches: [ main ]
+        branches: [ '*' ]
     pull_request:
-        branches: [ main ]
+        branches: [ '*' ]
     
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
@@ -15,7 +15,7 @@ jobs:
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                python-version: ['3.8']
+                python-version: ['3.7', '3.8']
         
         steps:
             -   uses: actions/checkout@v2
@@ -36,7 +36,6 @@ jobs:
 
             -   name: Lint with isort, black, docformatter, flake8
                 run: |
-                    make autoformat
                     make lint
     
     Documentation:
@@ -44,7 +43,7 @@ jobs:
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                python-version: ['3.8']
+                python-version: ['3.7', '3.8']
                 
         steps:
             -   uses: actions/checkout@v2
@@ -67,13 +66,13 @@ jobs:
                 run: |
                     make docs
 
-    Build:
+    Build-Basic:
         needs: Documentation
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
                 os: [ubuntu-latest] #, macos-latest]
-                python-version: ['3.8']
+                python-version: ['3.7', '3.8']
                 
         steps:
             -   uses: actions/checkout@v2
@@ -82,29 +81,51 @@ jobs:
                 uses: actions/setup-python@v2
                 with:
                     python-version: ${{ matrix.python-version }}
-    
-            -   name: Install Poetry
-                uses: snok/install-poetry@v1.1.2
+
+            -   uses: actions/cache@v2
                 with:
-                    version: 1.1.5
-                    virtualenvs-create: true
-                    virtualenvs-in-project: true
+                    path: ~/.cache/pip
+                    key: ${{ runner.os }}-pip
     
-            -   name: Set up Poetry cache for Python dependencies
-                id: cached-poetry-dependencies
-                uses: actions/cache@v2
+            -   name: Install Bare Dependencies
+                run: |
+                    pip install -e .
+                    
+            -   name: Test basic importing
+                run: |
+                    make test-basic
+
+    Build:
+        if:
+            contains('
+            refs/heads/main
+            ', github.event.pull_request.base.ref)
+        needs: Build-Basic
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                os: [ubuntu-latest] #, macos-latest]
+                python-version: ['3.7', '3.8']
+                
+        steps:
+            -   uses: actions/checkout@v2
+    
+            -   name: Set up Python ${{ matrix.python-version }}
+                uses: actions/setup-python@v2
                 with:
-                    path: .venv
-                    key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}-v2
+                    python-version: ${{ matrix.python-version }}
+
+            -   uses: actions/cache@v2
+                with:
+                    path: ~/.cache/pip
+                    key: ${{ runner.os }}-pip
     
             -   name: Install Dependencies
-                if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
                 run: |
-                    poetry install --no-interaction --extras "augmentation text adversarial summarization vision"
+                    pip install -e ".[all]"
                     
             -   name: Test with pytest
                 run: |
-                    source .venv/bin/activate
                     make test-cov
             
             -   name: Upload to codecov.io
@@ -115,10 +136,10 @@ jobs:
                     name: codecov-umbrella
                     fail_ci_if_error: true
                     
-            -   name: Publish distribution 📦 to PyPI
-                if: startsWith(github.event.ref, 'refs/tags')
-                env:
-                    PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-                run: |
-                    poetry config pypi-token.pypi $PYPI_TOKEN
-                    poetry publish --build
+#            -   name: Publish distribution 📦 to PyPI
+#                if: startsWith(github.event.ref, 'refs/tags')
+#                env:
+#                    PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+#                run: |
+#                    poetry config pypi-token.pypi $PYPI_TOKEN
+#                    poetry publish --build
