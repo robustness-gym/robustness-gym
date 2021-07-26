@@ -34,12 +34,12 @@ Robustness Gym is being developed to address challenges in evaluating machine
 learning models today, with tools to evaluate and visualize the quality of machine 
 learning models. 
 
-Along with [Mosaic](https://github.com/robustness-gym/mosaic), 
+Along with [Meerkat](https://github.com/robustness-gym/mosaic), 
 we make it easy for you to load in any kind of data 
 (text, images, videos, time-series) and quickly evaluate how well your models are 
 performing.
 
-#### Load data into a Mosaic `DataPanel`
+#### Load data into a Meerkat `DataPanel`
 ```python
 from robustnessgym import DataPanel
 
@@ -53,8 +53,8 @@ dp = DataPanel.from_jsonl(...)
 dp = DataPanel.from_feather(...)
 
 # Coming soon: any WILDS dataset
-# from mosaic.contrib.wilds import get_wilds_datapane
-# dp = get_wilds_datapane("fmow", root_dir="/datasets/", split="test")
+# from meerkat.contrib.wilds import get_wilds_datapanel
+# dp = get_wilds_datapanel("fmow", root_dir="/datasets/", split="test")
 ```
 
 ### Run common workflows
