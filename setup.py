@@ -20,9 +20,7 @@ with open(ver_path) as ver_file:
 
 # Package meta-data.
 NAME = "robustnessgym"
-DESCRIPTION = (
-    "Robustness Gym is an evaluation toolkit for machine learning."
-)
+DESCRIPTION = "Robustness Gym is an evaluation toolkit for machine learning."
 URL = "https://github.com/robustness-gym/robustness-gym"
 EMAIL = "kgoel@cs.stanford.edu"
 AUTHOR = "The Robustness Gym Team"
@@ -33,6 +31,7 @@ VERSION = main_ns["__version__"]
 REQUIRED = [
     "dataclasses>=0.6",
     "pandas",
+    "meerkat",
     "dill>=0.3.3",
     "numpy>=1.18.0",
     "cytoolz",
@@ -90,9 +89,7 @@ EXTRAS = {
     "jupyter": [
         "meerkat[jupyter]",
     ],
-    "interactive": [
-        "meerkat[interactive]"
-    ],
+    "interactive": ["meerkat[interactive]"],
     "summarization": [
         "rouge-score>=0.0.4",
     ],
