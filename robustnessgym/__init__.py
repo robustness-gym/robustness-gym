@@ -14,6 +14,7 @@ set_provenance()
 
 from robustnessgym.core.devbench import DevBench
 from robustnessgym.core.identifier import Id, Identifier
+from robustnessgym.core.model import HuggingfaceModel, LudwigModel, Model
 from robustnessgym.core.operation import Operation, lookup
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.testbench import TestBench
