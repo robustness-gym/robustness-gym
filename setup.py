@@ -31,7 +31,7 @@ VERSION = main_ns["__version__"]
 REQUIRED = [
     "dataclasses>=0.6",
     "pandas",
-    "meerkat",
+    "meerkat-ml",
     "dill>=0.3.3",
     "numpy>=1.18.0",
     "cytoolz",
@@ -87,9 +87,9 @@ EXTRAS = {
         "allennlp-models",
     ],
     "jupyter": [
-        "meerkat[jupyter]",
+        "meerkat-ml[jupyter]",
     ],
-    "interactive": ["meerkat[interactive]"],
+    "interactive": ["meerkat-ml[interactive]"],
     "summarization": [
         "rouge-score>=0.0.4",
     ],
@@ -98,10 +98,10 @@ EXTRAS = {
         "tensorflow",
     ],
     "tabular": [
-        "meerkat[tabular]",
+        "meerkat-ml[tabular]",
     ],
     "vision": [
-        "meerkat[vision]",
+        "meerkat-ml[vision]",
     ],
 }
 EXTRAS["all"] = [e for l in EXTRAS.values() for e in l]
