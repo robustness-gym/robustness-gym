@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+from robustnessgym import lookup
 from robustnessgym.ops import SpacyOp
 from tests.testbeds import MockTestBedv0
 
@@ -17,10 +18,10 @@ class TestSpacy(TestCase):
         print(dataset.column_names)
 
         # Retrieve information to test
-        sentences = spacy.retrieve(dataset[:], ["text"], proc_fns=spacy.sentences)
-        tokens = spacy.retrieve(dataset[:], ["text"], proc_fns=spacy.tokens)
-        entities = spacy.retrieve(dataset[:], ["text"], proc_fns=spacy.entities)
-        num_tokens = spacy.retrieve(dataset[:], ["text"], proc_fns=spacy.num_tokens)
+        sentences = [doc.sents for doc in lookup(dataset, spacy, ["text"])]
+        tokens = [list(doc) for doc in lookup(dataset, spacy, ["text"])]
+        entities = [doc.ents for doc in lookup(dataset, spacy, ["text"])]
+        num_tokens = [len(list(doc)) for doc in lookup(dataset, spacy, ["text"])]
 
         self.assertEqual(
             sentences,

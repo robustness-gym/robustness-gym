@@ -95,46 +95,46 @@ jobs:
                 run: |
                     make test-basic
 
-    Build:
-        if:
-            contains('
-            refs/heads/main
-            ', github.event.pull_request.base.ref)
-        needs: Build-Basic
-        runs-on: ${{ matrix.os }}
-        strategy:
-            matrix:
-                os: [ubuntu-latest] #, macos-latest]
-                python-version: ['3.7', '3.8']
-                
-        steps:
-            -   uses: actions/checkout@v2
-    
-            -   name: Set up Python ${{ matrix.python-version }}
-                uses: actions/setup-python@v2
-                with:
-                    python-version: ${{ matrix.python-version }}
-
-            -   uses: actions/cache@v2
-                with:
-                    path: ~/.cache/pip
-                    key: ${{ runner.os }}-pip
-    
-            -   name: Install Dependencies
-                run: |
-                    pip install -e ".[all]"
-                    
-            -   name: Test with pytest
-                run: |
-                    make test-cov
-            
-            -   name: Upload to codecov.io
-                uses: codecov/codecov-action@v1
-                with:
-                    file: ./coverage.xml
-                    flags: unittests
-                    name: codecov-umbrella
-                    fail_ci_if_error: true
+#    Build:
+#        if:
+#            contains('
+#            refs/heads/main
+#            ', github.event.pull_request.base.ref)
+#        needs: Build-Basic
+#        runs-on: ${{ matrix.os }}
+#        strategy:
+#            matrix:
+#                os: [ubuntu-latest] #, macos-latest]
+#                python-version: ['3.7', '3.8']
+#
+#        steps:
+#            -   uses: actions/checkout@v2
+#
+#            -   name: Set up Python ${{ matrix.python-version }}
+#                uses: actions/setup-python@v2
+#                with:
+#                    python-version: ${{ matrix.python-version }}
+#
+#            -   uses: actions/cache@v2
+#                with:
+#                    path: ~/.cache/pip
+#                    key: ${{ runner.os }}-pip
+#
+#            -   name: Install Dependencies
+#                run: |
+#                    pip install -e ".[all]"
+#
+#            -   name: Test with pytest
+#                run: |
+#                    make test-cov
+#
+#            -   name: Upload to codecov.io
+#                uses: codecov/codecov-action@v1
+#                with:
+#                    file: ./coverage.xml
+#                    flags: unittests
+#                    name: codecov-umbrella
+#                    fail_ci_if_error: true
                     
 #            -   name: Publish distribution 📦 to PyPI
 #                if: startsWith(github.event.ref, 'refs/tags')
