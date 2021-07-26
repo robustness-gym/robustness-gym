@@ -1,32 +1,26 @@
 from typing import Dict, List, Tuple
 
 import numpy as np
+from meerkat.tools.lazy_loader import LazyLoader
 
-from robustnessgym.core.dataset import transpose_batch
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.tools import transpose_batch
 from robustnessgym.slicebuilders.attack import Attack
 
-try:
-    from morpheus import MorpheusHuggingfaceNLI, MorpheusHuggingfaceQA
-except ImportError:
-    _morpheus_available = False
-else:
-    _morpheus_available = True
+morpheus = LazyLoader("morpheus")
 
 
 class Morpheus(Attack):
-    def __init__(self, dataset: str, model: str, constrain_pos: bool = True, **kwargs):
-
-        if not _morpheus_available:
-            raise ImportError("Please install morpheus.")
-
+    def __init__(
+        self,
+        dataset: str,
+        model: str,
+        constrain_pos: bool = True,
+        **kwargs,
+    ):
         super().__init__(
             identifiers=[
-                Identifier(
-                    self.__class__.__name__,
-                    dataset=dataset,
-                    model=model,
-                )
+                Identifier(self.__class__.__name__, dataset=dataset, model=model)
             ],
         )
 
@@ -34,14 +28,14 @@ class Morpheus(Attack):
 
         self.dataset = dataset.lower()
         if self.dataset == "mnli":
-            self.attack = MorpheusHuggingfaceNLI(model)
+            self.attack = morpheus.MorpheusHuggingfaceNLI(model)
         elif "squad" in self.dataset:
             is_squad2 = "2" in self.dataset
-            self.attack = MorpheusHuggingfaceQA(model, squad2=is_squad2)
+            self.attack = morpheus.MorpheusHuggingfaceQA(model, squad2=is_squad2)
         elif self.dataset == "cnn_dailymail" or self.dataset == "xsum":
             rouge_type = kwargs.get("rouge_type", "rougeL")
             max_input_tokens = kwargs.get("max_input_tokens", 1024)
-            self.attack = MorpheusHuggingfaceQA(
+            self.attack = morpheus.MorpheusHuggingfaceQA(
                 model, rouge_type=rouge_type, max_input_tokens=max_input_tokens
             )
         else:
@@ -54,7 +48,7 @@ class Morpheus(Attack):
         batch: Dict[str, List],
         columns: List[str],
         *args,
-        **kwargs
+        **kwargs,
     ) -> Tuple[List[Dict[str, List]], np.ndarray]:
 
         for i, example in enumerate(transpose_batch(batch)):
@@ -102,16 +96,18 @@ class Morpheus(Attack):
                 raise NotImplementedError
         return skeleton_batches, slice_membership
 
-    # No type hint since the values can be ints or strings: Dict[str,]
     @classmethod
     def prepare_question_dict(cls, example, question_col):
-        question_dict = {"question": example[question_col]}
-        question_dict["answers"] = [
-            {"answer_start": i[0], "text": i[1]}
-            for i in zip(example["answers"]["answer_start"], example["answers"]["text"])
-        ]
-        question_dict["is_impossible"] = len(example["answers"]["text"]) == 0
-        return question_dict
+        return {
+            "question": example[question_col],
+            "answers": [
+                {"answer_start": i[0], "text": i[1]}
+                for i in zip(
+                    example["answers"]["answer_start"], example["answers"]["text"]
+                )
+            ],
+            "is_impossible": len(example["answers"]["text"]) == 0,
+        }
 
     def get_NLI_text_label(self, label: int) -> str:
         hf_labels = ["entailment", "neutral", "contradiction"]

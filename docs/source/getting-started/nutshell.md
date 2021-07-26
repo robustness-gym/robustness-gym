@@ -68,13 +68,13 @@ This can mean tagging data, adding additional information about examples from a
    `.map()` over your dataset, except it provides convenience functions to retrieve
     any information you cache.
     
-Robustness Gym ships with a few cached operations that you can use out-of-the-box. 
+Robustness Gym ships with a few cached operations that you can use out-of-the-box.
 
 ```python
-from robustnessgym import Spacy, Stanza, TextBlob
+from robustnessgym import SpacyOp, Stanza, TextBlob
 
 # Create the Spacy CachedOperation
-spacy_op = Spacy()
+spacy_op = SpacyOp()
 
 # Apply it on the "text" column of a dataset
 dataset = spacy_op(batch_or_dataset=dataset, columns=["text"])
@@ -82,10 +82,10 @@ dataset = spacy_op(batch_or_dataset=dataset, columns=["text"])
 # Easily retrieve whatever information you need, wherever you need it
 
 # Retrieve the tokens extracted by Spacy for the first 2 examples in the dataset
-tokens = Spacy.retrieve(batch=dataset[:2], columns=["text"], proc_fns=Spacy.tokens)
+tokens = SpacyOp.retrieve(batch=dataset[:2], columns=["text"], proc_fns=SpacyOp.tokens)
 
 # Retrieve everything Spacy cached for the first 2 examples, and process it yourself
-spacy_info = Spacy.retrieve(batch=dataset[:2], columns=["text"])
+spacy_info = SpacyOp.retrieve(batch=dataset[:2], columns=["text"])
 
 # ...do stuff with spacy_info
 ```
@@ -111,12 +111,14 @@ boolq_slice = Slice(Dataset.load_dataset('boolq'))
 ```
 
 #### 3.2 Subpopulations
+
 ```python
-from robustnessgym import LengthSubpopulation
+from robustnessgym import NumTokensSubpopulation
+
 # A simple subpopulation that splits the dataset into 3 slices
 # The intervals act as buckets: the first slice will bucket based on text with
 # length between 0 and 4 
-length_sp = LengthSubpopulation(intervals=[(0, 4), (8, 12), ("80%", "100%")])
+length_sp = NumTokensSubpopulation(intervals=[(0, 4), (8, 12), ("80%", "100%")])
 
 # Apply it
 dataset, slices, membership = length_sp(batch_or_dataset=dataset, columns=['text'])

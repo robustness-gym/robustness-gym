@@ -3,8 +3,8 @@ from typing import List, Union
 
 from datasets.features import ClassLabel, Sequence, Value
 
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.tasks.schema import Schema
 
 
@@ -74,32 +74,32 @@ class Task:
         else:
             raise NotImplementedError
 
-    def remap_schema(self, dataset: Dataset):
-        # Ground the schema to the dataset
+    def remap_schema(self, dp: DataPanel):
+        # Ground the schema to the dp
         input_grounding, reversed_input_grounding = self.input_schema.ground(
-            dataset.features
+            dp.features
         )
         output_grounding, reversed_output_grounding = self.output_schema.ground(
-            dataset.features
+            dp.features
         )
 
         for col in self.input_schema.columns:
             # Grab the column
-            values = dataset[input_grounding[col]]
-            # Remove it from the dataset
-            dataset.remove_column(input_grounding[col])
+            values = dp[input_grounding[col]]
+            # Remove it from the dp
+            dp.remove_column(input_grounding[col])
             # Add again with the right column name
-            dataset.add_column(col, values)
+            dp.add_column(col, values)
 
         for col in self.output_schema.columns:
             # Grab the column
-            values = dataset[output_grounding[col]]
-            # Remove it from the dataset
-            dataset.remove_column(output_grounding[col])
+            values = dp[output_grounding[col]]
+            # Remove it from the dp
+            dp.remove_column(output_grounding[col])
             # Add again with the right column name
-            dataset.add_column(col, values)
+            dp.add_column(col, values)
 
-        return dataset
+        return dp
 
         # # Construct a map_fn that remaps the dataset schema
         # def _map_fn(example):
@@ -370,49 +370,3 @@ class ExtractiveQuestionAnswering(Task):
             ],
             identifier=self.__class__.__name__,
         )
-
-
-# class ExtractiveQuestionAnswering(Task):
-#
-#     def __init__(self):
-#         super(ExtractiveQuestionAnswering, self).__init__(
-#             input_schema=Schema(
-#                 features=OrderedDict([
-#                     ('context', Value(dtype='string')),
-#                     ('question', Value(dtype='string')),
-#                 ]),
-#                 grounding_candidates={
-#                     'context': {'context'},
-#                     'question': {'question'},
-#                 },
-#             ),
-#             output_schema=Schema(
-#                 features=OrderedDict([
-#                     ('answer', Sequence(Value(dtype='string'), length=-1)),
-#                     ('start', Sequence(Value(dtype='int64'), length=-1)),
-#                     ('end', Sequence(Value(dtype='int64'), length=-1)),
-#                 ]),
-#                 grounding_candidates={
-#                     'answer': {
-#                         ('answers', 'text'),
-#                     },
-#                     'start': {
-#                         ('answers', 'answer_start')
-#                     },
-#                     'end': {
-#                         lambda answer, start: [idx + len(answer) for idx in start],
-#                     },
-#                 }
-#             ),
-#             metrics=[
-#                 'em',
-#                 'f1',
-#             ],
-#             identifier=self.__class__.__name__,
-#         )
-
-# Evaluation Hierarchy
-# --------------------
-# (generic task, model) ### QuestionAnswering/NLI
-# (narrow task, model) ### MultiHopQuestionAnswering/BinaryNLI
-# (dataset, model) ### Particular Dataset/QNLI

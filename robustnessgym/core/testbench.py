@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import json
 import logging
 import pathlib
@@ -19,444 +18,24 @@ from robustnessgym.core.constants import (
     GENERIC,
     SUBPOPULATION,
 )
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.core.metrics import compute_metric, get_metric
 from robustnessgym.core.model import Model
-from robustnessgym.core.report import (
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.core.tools import persistent_hash
+from robustnessgym.core.version import SemanticVersionerMixin
+from robustnessgym.report.report import (
     ClassDistributionColumn,
     NumericColumn,
     Report,
     ScoreColumn,
 )
-from robustnessgym.core.slice import Slice
-from robustnessgym.core.tools import persistent_hash
-from robustnessgym.core.version import SemanticVersionerMixin
 from robustnessgym.tasks.schema import Schema
 from robustnessgym.tasks.task import Task
 
 logger = logging.getLogger(__name__)
 
 
-class DevBench(SemanticVersionerMixin):
-    def __init__(
-        self,
-        dataset: Dataset,
-    ):
-        # Call the superclass
-        super(DevBench, self).__init__()
-
-        # An identifier for the DevBench
-        self.identifier = Identifier("DevBench", dataset=str(dataset.identifier))
-
-        # Dataset that the devbench operates on
-        self._dataset = dataset
-
-        # Create the collection of slices
-        self._slices = set()
-        self._slice_identifiers = set()
-        self._slice_table = {}
-
-        # The devbench has aggregators
-        self.aggregators = {}
-
-        # The devbench internally tracks metrics
-        self.metrics = {}
-
-        # Add slices if any
-        self.add_slices(dataset)
-
-    @property
-    def dataset(self):
-        """Dataset for the devbench."""
-        return self._dataset
-
-    @property
-    def slices(self):
-        """Slices in the devbench."""
-        return self._slices
-
-    @property
-    def models(self):
-        """Models in the devbench."""
-        return list(self.aggregators.keys())
-
-    def __repr__(self):
-        return f"{self.identifier}(slices={len(self.slices)})"
-
-    def _digest(self) -> str:
-        return json.dumps([str(sl) for sl in self.slices])
-
-    def add_slices(
-        self,
-        slices: Union[Dataset, Slice, Collection[Union[Dataset, Slice]]],
-    ) -> None:
-        """Add slices to the development bench.
-
-        Args:
-            slices: collection of Slice objects
-        """
-        if isinstance(slices, Slice) or isinstance(slices, Dataset):
-            slices = [slices]
-
-        # Add slices
-        for sl in slices:
-            if not isinstance(sl, Slice) and isinstance(sl, Dataset):
-                # Convert `Dataset` to `Slice`
-                sl = Slice(sl)
-
-            if isinstance(sl, Slice):
-                if (
-                    sl.identifier not in self._slice_identifiers
-                    and len(sl) > 0
-                    and sl.lineage[0][1] == self.dataset.identifier
-                ):
-                    # Add slices that aren't present, have non-zero length and
-                    # originate from the dataset
-                    self._slices.add(sl)
-                    self._slice_identifiers.add(sl.identifier)
-                    self._slice_table[sl.identifier] = sl
-
-        # Calculate all metrics
-        self.calculate()
-
-    def add_aggregators(
-        self,
-        aggregators: Dict[str, Dict[str, Callable]],
-    ) -> None:
-        """Add functions for aggregation, with a dictionary that maps a model
-        name to aggregation functions."""
-
-        # For each model
-        for model, aggs in aggregators.items():
-            # Iterate over the aggregation functions
-            for agg_name, agg in aggs.items():
-                assert isinstance(agg, Callable), "Aggregators must be functions."
-                arguments = inspect.getfullargspec(agg).args
-                assert len(arguments) == 1, "Aggregators must be single argument."
-                assert arguments[0] == "dataset", (
-                    "Aggregator argument name must be `dataset`, "
-                    f"not `{arguments[0]}`."
-                )
-
-                # Store the aggregator
-                if model not in self.aggregators:
-                    self.aggregators[model] = {}
-                self.aggregators[model][agg_name] = agg
-
-        # Calculate all metrics
-        self.calculate()
-
-    def calculate(self):
-        """Calculate all metrics that haven't been calculated yet."""
-        # Iterate over all models
-        for model in self.aggregators:
-
-            # Add the model to the metrics dict
-            if model not in self.metrics:
-                self.metrics[model] = {}
-
-            # Iterate over all slices
-            for sl in self.slices:
-                # Add the slice to the model's metrics dict
-                if str(sl.identifier) not in self.metrics[model]:
-                    self.metrics[model][str(sl.identifier)] = {}
-
-                # Iterate over all aggregation functions
-                for agg_name, aggregator in self.aggregators[model].items():
-                    if agg_name not in self.metrics[model][str(sl.identifier)]:
-                        # Aggregate
-                        self.metrics[model][str(sl.identifier)][agg_name] = aggregator(
-                            sl
-                        )
-
-    @classmethod
-    def from_dataset(
-        cls,
-        dataset: Dataset,
-    ) -> DevBench:
-        """Create a DevBench from a dataset."""
-        # Create the devbench
-        devbench = DevBench(
-            dataset=dataset,
-        )
-
-        return devbench
-
-    def _human_readable_identifiers(self):
-        # Temporary function to generate human readable names
-        groups = {}
-        for ident in self._slice_identifiers:
-            if "->" in str(ident):
-                builder_ident = str(ident).split(" -> ")[-1]
-                builder_ident, cols = builder_ident.split(" @ ")
-                name = builder_ident.split("(")[0]
-                if name not in groups:
-                    groups[name] = set()
-                groups[name].add((builder_ident, cols))
-
-        group_info = {}
-        for key, group in groups.items():
-            if len(group) == 1:
-                group_info[key] = "name"
-            else:
-                only_single_column = len(set([t[1] for t in group])) == 1
-                if only_single_column:
-                    group_info[key] = "builder_ident"
-                else:
-                    group_info[key] = "full"
-
-        ident_mapping = {}
-        for ident in self._slice_identifiers:
-            if "->" in str(ident):
-                builder_ident = str(ident).split(" -> ")[-1]
-                builder_ident, cols = builder_ident.split(" @ ")
-                name = builder_ident.split("(")[0]
-
-                if group_info[name] == "name":
-                    new_ident = name
-                elif group_info[name] == "builder_ident":
-                    new_ident = builder_ident
-                elif group_info[name] == "full":
-                    new_ident = str(ident).split(" -> ")[-1]
-
-                if new_ident.startswith("NlpAugTransformation"):
-                    new_ident = new_ident.split("NlpAugTransformation(pipeline=[")[
-                        1
-                    ].split("])")[0]
-
-            else:
-                new_ident = str(ident).split("(")[0]
-
-            ident_mapping[ident] = new_ident
-
-        self.ident_mapping = ident_mapping
-
-    def _common_aggregators(self, models: List[str]):
-
-        common_aggregators = []
-        # Iterate over all the models
-        for model in models:
-            assert model in self.metrics, f"Model {model} does not exist."
-            common_aggregators.append(set([agg for agg in self.aggregators[model]]))
-
-        # Find the common aggregators by taking an intersection
-        return set.intersection(*[set(e) for e in common_aggregators])
-
-    def create_report(
-        self,
-        models: List[str] = None,
-    ) -> Report:
-        """Generate report from cached metrics for a model
-        Args:
-            models: List of models.
-        Returns:
-            report
-        """
-
-        if len(self.slices) == 0:
-            raise ValueError("Cannot create report for empty testbench")
-
-        if models is not None:
-            for model in models:
-                assert model in self.metrics, f"Model {model} does not exist."
-        else:
-            # Use all the models that are available
-            models = list(self.metrics.keys())
-
-        # Set identifiers to be human readable
-        self._human_readable_identifiers()
-
-        # Get a list of aggregators that are common to `models`
-        common_aggregators = list(self._common_aggregators(models))
-
-        # Populate columns
-        columns = []
-        for model in models:
-            for aggregator in common_aggregators:
-                columns.append(
-                    ScoreColumn(
-                        f"{model}-{aggregator}",
-                        min_val=0,
-                        max_val=1,
-                        is_0_to_1=True,
-                    )
-                )
-        columns.append(NumericColumn("Size"))
-
-        category_names = {
-            GENERIC: "Slice",
-            SUBPOPULATION: "SubPop",
-            ATTACK: "Attack",
-            AUGMENTATION: "Augment",
-            CURATION: "Eval",
-        }
-
-        # Populate data
-        data = []
-        for sl in self.slices:
-            slice_name = self.ident_mapping[sl.identifier]
-            slice_size = len(sl)
-            slice_category = category_names.get(sl.category, sl.category.capitalize())
-
-            row = [slice_category, slice_name]
-
-            for model in models:
-                model_metrics = self.metrics[model]
-                if sl.identifier not in model_metrics:
-                    continue
-                slice_metrics = model_metrics[sl.identifier]
-                for agg in common_aggregators:
-                    row.append(slice_metrics[agg])
-
-            row.append(slice_size)
-            data.append(row)
-
-        df = pd.DataFrame(data)
-
-        report = Report(
-            data=df,
-            columns=columns,
-            dataset_name=str(self.dataset.identifier),
-        )
-        report.sort(
-            category_order=dict(
-                (cat, i)
-                for i, cat in enumerate(
-                    [SUBPOPULATION, AUGMENTATION, CURATION, ATTACK, GENERIC]
-                )
-            )
-        )
-        return report
-
-    def search(self, keyword: str, limit: int = 3):
-        """Fuzzy search over the slices in the DevBench."""
-        return [
-            self._slice_table[t[0]]
-            for t in process.extract(keyword, self._slice_identifiers, limit=limit)
-        ]
-
-    def save(self, path: str) -> None:
-        """Save the current devbench to disk. This will save all slices in the
-        devbench to disk, as well as metrics and other metadata associated with
-        this devbench.
-
-        Args:
-            path: string path to the save directory
-
-        Returns: None
-        """
-
-        # Path to the save directory
-        savedir = pathlib.Path(path) / f"{self.identifier}"
-
-        # Create a directory inside savedir for the slices
-        (savedir / "slices").mkdir(parents=True, exist_ok=True)
-
-        # Save all the slices
-        self._dataset.save_to_disk(str(savedir / "dataset"))
-        pbar = tqdm(self.slices)
-        for sl in pbar:
-            pbar.set_description(f"Saving slice {str(sl.identifier)[:100]}...")
-            sl.save_to_disk(
-                str(savedir / "slices" / str(persistent_hash(str(sl.identifier))))
-            )
-
-        # Save metrics
-        dill.dump(self.metrics, open(str(savedir / "metrics.dill"), "wb"))
-
-        # Save aggregators
-        dill.dump(self.aggregators, open(str(savedir / "aggregators.dill"), "wb"))
-
-        # Save metadata
-        dill.dump(
-            {
-                "identifier": self.identifier,
-            },
-            open(str(savedir / "metadata.dill"), "wb"),
-        )
-
-        # Save version info
-        with open(str(savedir / "version.dill"), "wb") as f:
-            f.write(self._dumps_version())
-
-    @classmethod
-    def available(cls, path: str) -> List[str]:
-        """Check the list of available devbenches in a directory.
-
-        Args:
-            path: string path to a directory. The devbenches available inside this
-            directory will be returned.
-
-        Returns: list of available devbenches
-        """
-
-        # Path to the save directory
-        savedir = pathlib.Path(path)
-
-        # Loop over the folders
-        devbench_identifiers = []
-        for maybe_devbench in savedir.glob("*"):
-            if maybe_devbench.is_dir() and (maybe_devbench / "metadata.dill").exists():
-                devbench_identifiers.append(maybe_devbench.name)
-
-        return devbench_identifiers
-
-    @classmethod
-    def load(cls, path: str) -> DevBench:
-        """Load a devbench from disk.
-
-        Args:
-            path: string path to the devbench directory
-
-        Returns:
-        """
-
-        # Path to the save directory
-        savedir = pathlib.Path(path)
-
-        # Load all the slices
-        slices = []
-        for sl_path in tqdm(list((savedir / "slices").glob("*"))):
-            try:
-                slices.append(Slice.load_from_disk(str(sl_path)))
-            except FileNotFoundError:
-                continue
-
-        # Load dataset
-        dataset = Dataset.load_from_disk(str(savedir / "dataset"))
-
-        # Load metrics
-        metrics = dill.load(open(str(savedir / "metrics.dill"), "rb"))
-
-        # Load metrics
-        aggregators = dill.load(open(str(savedir / "aggregators.dill"), "rb"))
-
-        # Load metadata
-        _ = dill.load(open(str(savedir / "metadata.dill"), "rb"))
-
-        # Create the devbench
-        devbench = cls(
-            dataset=dataset,
-        )
-
-        # Set previously stored metrics
-        devbench.metrics = metrics
-
-        # Set previously stored aggregators
-        devbench.aggregators = aggregators
-
-        # Set the slices
-        devbench.add_slices(slices)
-
-        # Load version info
-        with open(str(savedir / "version.dill"), "rb") as f:
-            devbench._loads_version(f.read())
-
-        return devbench
-
-
-# TODO(karan): make the TestBench hashable
 class TestBench(SemanticVersionerMixin):
     """Class for test benches in Robustness Gym."""
 
@@ -464,7 +43,7 @@ class TestBench(SemanticVersionerMixin):
         self,
         identifier: Union[str, Identifier],
         task: Task = None,
-        slices: Collection[Union[Slice, Dataset]] = None,
+        slices: Collection[DataPanel] = None,
         version: str = "0.0.1",
         dataset_id: str = None,
         class_names: Collection[str] = None,
@@ -518,26 +97,26 @@ class TestBench(SemanticVersionerMixin):
     @classmethod
     def from_dataset(
         cls,
-        dataset: Dataset,
+        dp: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
         # prediction_columns: List[str],
         # metrics: List[str],
     ) -> TestBench:
-        """Create a TestBench from a dataset."""
+        """Create a TestBench from a dp."""
         # Define the task
         task = Task(
             # Identifier
-            Identifier("Task", dataset=str(dataset.identifier)),
+            Identifier("Task", dp=str(dp.identifier)),
             # Input and output schemas
-            *Schema.for_dataset(dataset, input_columns, output_columns),
+            *Schema.for_dataset(dp, input_columns, output_columns),
         )
 
         # Create the testbench
         testbench = TestBench(
-            identifier=Identifier("TestBench", dataset=str(dataset.identifier)),
+            identifier=Identifier("TestBench", dp=str(dp.identifier)),
             task=task,
-            slices=[dataset],
+            slices=[dp],
         )
 
         # testbench.set_single_dataset_mode()
@@ -602,7 +181,7 @@ class TestBench(SemanticVersionerMixin):
             # Check that the inferred task matches the task argument
             if task is not None and task != inferred_task:
                 raise AssertionError(
-                    f"Dataset {dataset} is only compatible with {inferred_task}, "
+                    f"DataPanel {dataset} is only compatible with {inferred_task}, "
                     f"not {task}."
                 )
 
@@ -674,22 +253,22 @@ class TestBench(SemanticVersionerMixin):
 
         self.ident_mapping = ident_mapping
 
-    def add_slices(self, slices: Collection[Union[Dataset, Slice]]) -> None:
+    def add_slices(self, slices: Collection[DataPanel]) -> None:
         """Add slices to the testbench.
 
         Args:
             slices: collection of Slice objects
         """
-        if isinstance(slices, Slice) or isinstance(slices, Dataset):
+        if isinstance(slices, DataPanel):
             slices = [slices]
 
         # Add slices
         for sl in slices:
-            if not isinstance(sl, Slice) and isinstance(sl, Dataset):
-                # The slice is a Dataset
-                sl = Slice(sl)
+            if not isinstance(sl, DataPanel) and isinstance(sl, DataPanel):
+                # The slice is a DataPanel
+                sl = DataPanel(sl)
 
-            if isinstance(sl, Slice):
+            if isinstance(sl, DataPanel):
                 if sl.identifier not in self.slice_identifiers and len(sl) > 0:
                     # Add slices that aren't already present in the testbench and have
                     # non-zero length
@@ -734,7 +313,7 @@ class TestBench(SemanticVersionerMixin):
         #  model(..) returns
         # # Grab 2 examples from the first slice, run it through the model and check
         # that the output is a dictionary
-        # output = model(dataset=Dataset.from_batch(self.slices[0][:2]),
+        # output = model(dataset=DataPanel.from_batch(self.slices[0][:2]),
         #                input_keys=self.task.input_schema.keys(),
         #                output_keys=self.task.output_schema.keys(),
         #                batch_size=2,
@@ -751,7 +330,7 @@ class TestBench(SemanticVersionerMixin):
         # Run the model on all the slices
         # TODO(karan): For slices that are subpopulations, the same example can be in
         #  multiple slices
-        #  and will be run through the model multiple times. Create a UnionSlice?
+        #  and will be run through the model multiple times. Create a UnionDataPanel?
         for sl in tqdm(self.slices):
             if sl.identifier not in self.metrics[model.identifier]:
                 # Evaluate on the slice
@@ -774,7 +353,8 @@ class TestBench(SemanticVersionerMixin):
         num_classes=None,
         metrics: List[str] = None,
     ) -> Dict:
-        """Compute and cache metrics for pre-computed model predictions
+        """Compute and cache metrics for pre-computed model predictions.
+
         Args:
             model: Model or model id
             predictions: Map from slice id to sequence or torch Tensor of predictions
@@ -784,7 +364,9 @@ class TestBench(SemanticVersionerMixin):
             does not have associated task.
             num_classes (optional): number of classes. Required if testbench does not
             have associated task.
-        Returns: computed metrics
+
+        Returns:
+            computed metrics
         """
 
         if self.task is None:
@@ -844,7 +426,8 @@ class TestBench(SemanticVersionerMixin):
         return evaluation_dict
 
     def add_metrics(self, model: Union[Model, str], metrics: Dict[str, float]):
-        """Cache pre-computed metrics for model
+        """Cache pre-computed metrics for model.
+
         Args:
             model: Model or model id.
             metrics: map from metric name to value
@@ -858,12 +441,14 @@ class TestBench(SemanticVersionerMixin):
         model: Union[Model, str],
         metric_ids: List[str] = None,
     ) -> Report:
-        """Generate report from cached metrics for a model
+        """Generate report from cached metrics for a model.
+
         Args:
             model: Model or model id. Metrics must have already been computed for
             this model.
             metric_ids (optional): list of metric ids to include in desired order.
             If None, take metrics from sample slice.
+
         Returns:
             report
         """
@@ -923,7 +508,7 @@ class TestBench(SemanticVersionerMixin):
         columns.append(NumericColumn("Size"))
 
         category_names = {
-            GENERIC: "Slice",
+            GENERIC: "DataPanel",
             SUBPOPULATION: "SubPop",
             ATTACK: "Attack",
             AUGMENTATION: "Augment",
@@ -1098,7 +683,7 @@ class TestBench(SemanticVersionerMixin):
         slices = []
         for sl_path in tqdm(list((savedir / "slices").glob("*"))):
             try:
-                slices.append(Slice.load_from_disk(str(sl_path)))
+                slices.append(DataPanel.load_from_disk(str(sl_path)))
             except FileNotFoundError:
                 continue
 
@@ -1123,15 +708,3 @@ class TestBench(SemanticVersionerMixin):
             testbench._loads_version(f.read())
 
         return testbench
-
-    def make(self, identifier: str):
-        # Resolve the location of the TestBench
-
-        # Pull the TestBench
-        return self.pull(identifier)
-
-    def pull(self, identifier: str):
-        pass
-
-    def publish(self):
-        pass

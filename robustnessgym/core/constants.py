@@ -1,4 +1,5 @@
 CACHEDOPS = "cachedoperations"
+OPS = "operations"
 SLICEBUILDERS = "slicebuilders"
 
 GENERIC = "slicebuilder"

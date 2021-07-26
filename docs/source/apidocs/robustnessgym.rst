@@ -1,21 +1,15 @@
-robustnessgym package
+API Reference
 =====================
 
-Subpackages
------------
-
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
-   robustnessgym.cachedops
+   robustnessgym.active
    robustnessgym.core
+   robustnessgym.demos
+   robustnessgym.logging
+   robustnessgym.nlp
+   robustnessgym.ops
+   robustnessgym.report
    robustnessgym.slicebuilders
    robustnessgym.tasks
-
-Module contents
----------------
-
-.. automodule:: robustnessgym
-   :members:
-   :undoc-members:
-   :show-inheritance:

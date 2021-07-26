@@ -1,35 +1,23 @@
 import itertools
-import re
 from typing import Callable, Collection, Dict, List, Optional
 
 import cytoolz as tz
-
-try:
-    from ludwig.api import LudwigModel as ludwigmodel
-except ImportError:
-    _ludwig_available = False
-    ludwig = None
-else:
-    _ludwig_available = True
-
-try:
-    import nltk
-except ImportError:
-    _nltk_available = False
-    nltk = None
-else:
-    _nltk_available = True
 import torch
+from meerkat.tools.lazy_loader import LazyLoader
 from transformers import (
     AutoModel,
+    AutoModelForQuestionAnswering,
     AutoModelForSeq2SeqLM,
     AutoModelForSequenceClassification,
     AutoTokenizer,
 )
 
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.metrics import compute_metric
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.tasks.task import Task
+
+ludwig_api = LazyLoader("ludwig.api")
+nltk = LazyLoader("nltk")
 
 
 class Model:
@@ -86,7 +74,7 @@ class Model:
 
     def __call__(
         self,
-        dataset: Dataset,
+        dataset: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
         batch_size: int = 32,
@@ -102,7 +90,7 @@ class Model:
             batch_size,
             coerce_fn,
             *args,
-            **kwargs
+            **kwargs,
         )
 
     @classmethod
@@ -145,7 +133,7 @@ class Model:
 
     def evaluate(
         self,
-        dataset: Dataset,
+        dataset: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
         batch_size: int = 32,
@@ -210,6 +198,10 @@ class HuggingfaceModel(Model):
                 self.model = AutoModelForSequenceClassification.from_pretrained(
                     self.identifier
                 )
+            elif self.task.identifier == "ExtractiveQuestionAnswering":
+                self.model = AutoModelForQuestionAnswering.from_pretrained(
+                    self.identifier
+                )
             else:
                 self.model = AutoModelForSeq2SeqLM.from_pretrained(self.identifier)
 
@@ -263,7 +255,10 @@ class HuggingfaceModel(Model):
     def encode_batch(self, batch: Dict[str, List], columns: Collection[str], **kwargs):
         # TODO(karan): Automatically writing this encoder for a variety of tasks
         return self.tokenizer(
-            *[batch[key] for key in columns], truncation=True, padding=True, **kwargs
+            *[list(batch[key]) for key in columns],
+            truncation=True,
+            padding=True,
+            **kwargs,
         )
 
     def predict_batch(self, batch: Dict[str, List], input_columns: Collection[str]):
@@ -281,7 +276,7 @@ class HuggingfaceModel(Model):
 
     def evaluate(
         self,
-        dataset: Dataset,
+        dataset: DataPanel,
         input_columns: List[str],
         output_columns: List[str],
         batch_size: int = 32,
@@ -295,7 +290,7 @@ class HuggingfaceModel(Model):
         dataset.reset_format()
         dataset.set_format(columns=input_columns + output_columns)
 
-        # TODO(karan): check that the Dataset conforms to the task definition
+        # TODO(karan): check that the DataPanel conforms to the task definition
         # TODO(karan): figure out how the output_columns will be used by the metrics
         pass
 
@@ -377,38 +372,26 @@ class HuggingfaceModel(Model):
 
         return evaluation_dict
 
-class LudwigModel(Model):
-    def __init__(
-        self,
-    ):
-        if not _ludwig_available:
-            raise ImportError("Please `pip install ludwig`.")
 
+class LudwigModel(Model):
     def load(
         self,
         model_dir: str,
     ):
-        self.ludwig_model = ludwigmodel.load(model_dir)
+        self.ludwig_model = ludwig_api.LudwigModel.load(model_dir)
 
     def evaluate(
         self,
-        dataset: Dataset,
-        batch_size: int=128,
-        collect_overall_stats: bool=True,
-        collect_predictions: bool=True,
-
+        dataset: DataPanel,
+        batch_size: int = 128,
+        collect_overall_stats: bool = True,
+        collect_predictions: bool = True,
     ):
         eval_stats, predictions, _ = self.ludwig_model.evaluate(
-                dataset=dataset[:],
-                batch_size=batch_size,
-                collect_overall_stats=collect_overall_stats,
-                collect_predictions=collect_predictions
+            dataset=dataset[:],
+            batch_size=batch_size,
+            collect_overall_stats=collect_overall_stats,
+            collect_predictions=collect_predictions,
         )
 
-        return (eval_stats, predictions)
-
-
-def format_summary(x: str) -> str:
-    """Format summary text for computing rouge."""
-    re.sub("<n>", "", x)  # remove pegasus newline char
-    return "\n".join(nltk.sent_tokenize(x))
+        return eval_stats, predictions

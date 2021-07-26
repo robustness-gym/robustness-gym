@@ -14,12 +14,12 @@ import os
 import sys
 from pathlib import Path
 
-import toml
 
-# https://github.com/python-poetry/poetry/issues/144#issuecomment-559793020
-metadata = toml.load(Path(__file__).parent.parent.parent / "pyproject.toml")["tool"][
-    "poetry"
-]
+version_path = Path(__file__).parent.parent.parent / 'robustnessgym' / "version.py"
+metadata = {}
+with open(str(version_path)) as ver_file:
+    exec(ver_file.read(), metadata)
+
 
 sys.path.insert(0, os.path.abspath(""))
 sys.path.insert(0, os.path.abspath(".."))
@@ -34,7 +34,7 @@ author = "Robustness Gym"
 
 # The full version, including alpha/beta/rc tags
 # release = "0.0.0dev"
-version = release = metadata["version"]
+version = release = metadata["__version__"]
 
 # -- General configuration ---------------------------------------------------
 
@@ -46,11 +46,14 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    'sphinx.ext.autodoc.typehints',
+    'sphinx.ext.autosummary',
     "sphinx_rtd_theme",
     "nbsphinx",
     "recommonmark",
-]
 
+]
+autodoc_typehints = "description"
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
@@ -68,13 +71,39 @@ exclude_patterns = []
 html_theme = "sphinx_rtd_theme"
 # html_theme = 'pytorch_sphinx_theme'
 # html_theme_path = ["../../../pytorch_sphinx_theme"]
+
+# html_theme = 'pt_lightning_sphinx_theme'
+# import pt_lightning_sphinx_theme
+# html_theme_path = [pt_lightning_sphinx_theme.get_html_theme_path()]
+
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+# html_static_path = ["_static"]
+
+html_logo = '../logo.png'
+html_favicon = '../logo.png'
+
+html_theme_options = {
+    'pytorch_project': 'https://pytorchlightning.ai',
+    # 'canonical_url': about.__docs_url__,
+    'collapse_navigation': False,
+    'display_version': True,
+    'logo_only': False,
+}
+
 
 # Don't show module names in front of class names.
 add_module_names = False
 
 # Sort members by group
 autodoc_member_order = "groupwise"
+
+autodoc_default_options = {
+    'members': True,
+    'methods': True,
+    'special-members': '__call__',
+    'exclude-members': '_abc_impl',
+    'show-inheritance': True,
+}

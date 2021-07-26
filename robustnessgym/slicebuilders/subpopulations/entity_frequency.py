@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
 
-from robustnessgym.cachedops.spacy import Spacy
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
-# TODO(karan): Inherit from MultiScoreSubpopulation
-class EntityFrequency(Subpopulation, Spacy):
+class EntityFrequency(Subpopulation):
     def __init__(self, entity_thresholds: List[Tuple[str, List[int]]], *args, **kwargs):
 
         identifiers = []
@@ -58,18 +56,11 @@ class EntityFrequency(Subpopulation, Spacy):
         # associated frequency thresholds
         self.entity_thresholds = entity_thresholds
 
-    @classmethod
-    def from_dataset(
-        cls, dataset: Dataset, entity_percentiles: List[Tuple[str, List[float]]]
-    ) -> EntityFrequency:
-        """Determine thresholds from dataset and specific percentiles."""
-        raise NotImplementedError
-
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
         **kwargs,
     ) -> np.ndarray:

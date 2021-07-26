@@ -24,8 +24,8 @@ def sample_iso(
     alpha,
     d_set,
 ):
-    """
-    Weighted sampling of rows to label
+    """Weighted sampling of rows to label.
+
     Args:
         y_pred: predicted labels (k,)
         prob_pos: model scores (k,)
@@ -38,6 +38,7 @@ def sample_iso(
             alpha = 0.5 -> F1
         d_set: indicators of whether each datapoint has already been labeled (k,)
             set this to np.zeros((k)) if no datapoints have been labeled
+
     Returns:
         sampled rows (samples,)
         weights of sample d rows (samples,)
@@ -127,8 +128,8 @@ def get_fscore(y_pred, y_test, rows, weights):
 def ais_singleiter(
     y_pred, y_test, prob_pos, sample_budget, g, alpha, known_rows, filter_rows
 ):
-    """
-    Perform a single AIS iteration of calibration + sampling
+    """Perform a single AIS iteration of calibration + sampling.
+
     Args:
         y_pred: model predictions (k,)
         y_test: ground-truth labels for sampled rows (samples,)
@@ -140,12 +141,12 @@ def ais_singleiter(
             alpha = 1   -> precision
             alpha = 0.5 -> F1
         known_rows: sampled rows (samples,)
-        filtered_rows: indicator array allowing us to restrict sampling to a
-        subset of rows (k,)
+        filter_rows: indicator array allowing us to restrict sampling to a
+            subset of rows (k,)
+
     Returns:
         score: estimated F-Score
         trialstd: estimated standard deviation of F-Score estimate
-        den:
     """
     if np.sum(known_rows) > 0:
         iso_reg = fit_isotonic(y_test, prob_pos[known_rows])

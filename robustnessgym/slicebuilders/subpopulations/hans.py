@@ -1,7 +1,7 @@
 """Taken from https://github.com/tommccoy1/hans/blob/master/templates.py."""
 
 from robustnessgym.core.identifier import Identifier
-from robustnessgym.slicebuilders.subpopulation import SubpopulationCollection
+from robustnessgym.slicebuilders.subpopulation_collection import SubpopulationCollection
 from robustnessgym.slicebuilders.subpopulations.phrase import HasAnyPhrase
 
 

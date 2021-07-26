@@ -1,16 +1,12 @@
 """Transformations using nlpaug."""
 from typing import List
 
-try:
-    from nlpaug.flow import Pipeline
-except ImportError:
-    _nlpaug_available = False
-    Pipeline = None
-else:
-    _nlpaug_available = True
+from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.identifier import Identifier
 from robustnessgym.slicebuilders.transformation import SingleColumnTransformation
+
+nlpaug_flow = LazyLoader("nlpaug.flow", error="Please `pip install nlpaug`.")
 
 
 class NlpAugTransformation(SingleColumnTransformation):
@@ -18,21 +14,18 @@ class NlpAugTransformation(SingleColumnTransformation):
 
     def __init__(
         self,
-        pipeline: Pipeline,
+        pipeline: "nlpaug_flow.Pipeline",
         num_transformed: int = 1,
         identifiers: List[Identifier] = None,
         *args,
         **kwargs
     ):
-        if not _nlpaug_available:
-            raise ImportError("Please `pip install nlpaug`.")
-        assert isinstance(pipeline, Pipeline), (
-            "`pipeline` must be an nlpaug Pipeline object. "
-            "Please use \nfrom nlpaug.flow import "
-            "Sequential\nrg.NlpAugTransformation(pipeline=Sequential(flow=[...]))."
+        assert isinstance(pipeline, nlpaug_flow.Pipeline), (
+            "`pipeline` must be an nlpaug Pipeline object. Please use \n"
+            "from nlpaug.flow import Sequential\n"
+            "rg.NlpAugTransformation(pipeline=Sequential(flow=[...]))."
         )
 
-        # Superclass call
         super(NlpAugTransformation, self).__init__(
             num_transformed=num_transformed,
             identifiers=Identifier.range(
@@ -57,11 +50,7 @@ class NlpAugTransformation(SingleColumnTransformation):
         )
 
         # Set the pipeline
-        self._pipeline = pipeline
-
-    @property
-    def pipeline(self):
-        return self._pipeline
+        self.pipeline = pipeline
 
     def single_column_apply(self, column_batch: List[str]) -> List[List[str]]:
         # Apply the nlpaug pipeline

@@ -6,8 +6,10 @@ import cytoolz as tz
 import numpy as np
 from ahocorasick import Automaton
 
-from robustnessgym.cachedops.spacy import Spacy
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.operation import lookup
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.subpopulation import Subpopulation
 
 
@@ -34,10 +36,7 @@ class AhoCorasick:
         return ahocorasick
 
 
-class HasPhrase(
-    Subpopulation,
-    # Spacy
-):
+class HasPhrase(Subpopulation):
     def __init__(
         self, phrases=None, identifiers: List[Identifier] = None, *args, **kwargs
     ):
@@ -51,7 +50,7 @@ class HasPhrase(
             if not identifiers
             else identifiers,
             *args,
-            **kwargs
+            **kwargs,
         )
 
         # This is the list of phrases that will be searched
@@ -88,29 +87,26 @@ class HasPhrase(
 
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
-
-        # Use the spacy cache to grab the tokens in each example (for each key)
-        tokenized_batch = Spacy.retrieve(
-            batch=batch,
-            columns=[[key] for key in columns],
-            proc_fns="tokens",
-        )
 
         # Search for words
         if len(self.word_ahocorasick.automaton) > 0:
-            for key, tokens_batch in tokenized_batch.items():
-                for i, tokens in enumerate(tokens_batch):
+            for col in columns:
+                try:
+                    docs = lookup(batch, SpacyOp, [col])
+                except AttributeError:
+                    docs = [text.split() for text in batch[col]]
+                for i, doc in enumerate(docs):
                     # Get the values (indices) of all the matched tokens
                     matched_indices = [
-                        self.word_ahocorasick.automaton.get(token)
-                        for token in tokens
-                        if self.word_ahocorasick.automaton.exists(token)
+                        self.word_ahocorasick.automaton.get(str(token))
+                        for token in doc
+                        if self.word_ahocorasick.automaton.exists(str(token))
                     ]
 
                     # Fill in the slice labels for slices that are present
@@ -118,8 +114,8 @@ class HasPhrase(
 
         # Search for phrases
         if len(self.phrase_ahocorasick.automaton) > 0:
-            for key in columns:
-                for i, example in enumerate(batch[key]):
+            for col in columns:
+                for i, example in enumerate(batch[col]):
                     # Get the values (indices) of all the matched phrases
                     matched_indices = [
                         index
@@ -132,37 +128,13 @@ class HasPhrase(
         return slice_membership
 
 
-# class HasAnyPhrase(Subpopulation):
-#
-#     def __init__(self,
-#                  phrases: List[str] = None,
-#                  identifier: Identifier = None,
-#                  *args,
-#                  **kwargs):
-#         # Take the union of the phrases
-#         subpopulation = Subpopulation.union(
-#             HasPhrase(phrases=phrases),
-#             identifier=Identifier(
-#                 _name=self.__class__.__name__,
-#                 phrases=set(phrases),
-#             ) if not identifier else identifier
-#         )
-#
-#         super(HasAnyPhrase, self).__init__(
-#             identifiers=subpopulation.identifiers,
-#             apply_fn=subpopulation.apply,
-#             *args,
-#             **kwargs
-#         )
-
-
 class HasAnyPhrase(Subpopulation):
     def __init__(
         self,
         phrase_groups: List[List[str]] = None,
         identifiers: List[Identifier] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         # Keep track of the phrase groups
@@ -196,16 +168,16 @@ class HasAnyPhrase(Subpopulation):
                 )
             ),
             *args,
-            **kwargs
+            **kwargs,
         )
 
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
 
         # Run all the subpopulations in sequence to update the slice membership matrix
@@ -215,7 +187,7 @@ class HasAnyPhrase(Subpopulation):
                 batch=batch,
                 columns=columns,
                 *args,
-                **kwargs
+                **kwargs,
             )
 
         return slice_membership
@@ -245,7 +217,7 @@ class HasAllPhrases(Subpopulation):
         phrase_groups: List[List[str]] = None,
         identifiers: List[Identifier] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
 
         # Keep track of the phrase groups
@@ -279,16 +251,16 @@ class HasAllPhrases(Subpopulation):
                 )
             ),
             *args,
-            **kwargs
+            **kwargs,
         )
 
     def apply(
         self,
-        slice_membership: np.ndarray,
-        batch: Dict[str, List],
+        batch: DataPanel,
         columns: List[str],
+        slice_membership: np.ndarray = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
 
         # Run all the subpopulations in sequence to update the slice membership matrix
@@ -298,7 +270,7 @@ class HasAllPhrases(Subpopulation):
                 batch=batch,
                 columns=columns,
                 *args,
-                **kwargs
+                **kwargs,
             )
 
         return slice_membership
@@ -320,30 +292,6 @@ class HasAllPhrases(Subpopulation):
                 ],
             )
         ]
-
-
-# class HasAllPhrases(Subpopulation):
-#
-#     def __init__(self,
-#                  phrases=None,
-#                  identifier: Identifier = None,
-#                  *args,
-#                  **kwargs):
-#         # Take the intersection of the phrases
-#         subpopulation = Subpopulation.intersection(
-#             HasPhrase(phrases=phrases),
-#             identifier=Identifier(
-#                 _name=self.__class__.__name__,
-#                 phrases=set(phrases),
-#             ) if not identifier else identifier,
-#         )
-#
-#         super(HasAllPhrases, self).__init__(
-#             identifiers=subpopulation.identifiers,
-#             apply_fn=subpopulation.apply,
-#             *args,
-#             **kwargs
-#         )
 
 
 class HasIndefiniteArticle(HasAnyPhrase):

@@ -54,10 +54,10 @@ class EasyDataAugmentation(Transformation):
 
     def apply(
         self,
-        skeleton_batches: List[Dict[str, List]],
-        slice_membership: np.ndarray,
         batch: Dict[str, List],
         columns: List[str],
+        skeleton_batches: List[Dict[str, List]],
+        slice_membership: np.ndarray,
         *args,
         **kwargs
     ) -> Tuple[List[Dict[str, List]], np.ndarray]:

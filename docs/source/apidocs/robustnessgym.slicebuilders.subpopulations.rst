@@ -52,14 +52,6 @@ robustnessgym.slicebuilders.subpopulations.phrase module
    :undoc-members:
    :show-inheritance:
 
-robustnessgym.slicebuilders.subpopulations.position module
-----------------------------------------------------------
-
-.. automodule:: robustnessgym.slicebuilders.subpopulations.position
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 robustnessgym.slicebuilders.subpopulations.score module
 -------------------------------------------------------
 

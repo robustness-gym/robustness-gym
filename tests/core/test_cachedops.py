@@ -1,9 +1,9 @@
-"""Unittests for CachedOperations."""
+"""Unittests for Operations."""
 
 from unittest import TestCase
 
-from robustnessgym.core.cachedops import CachedOperation
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.operation import Operation
 from tests.testbeds import MockTestBedv0
 
 
@@ -19,27 +19,26 @@ def a_multi_column_apply_fn(batch, columns):
     return [e[0] * 0.1 + e[1] * 0.3 for e in zip(batch[columns[0]], batch[columns[1]])]
 
 
-class TestCachedOperation(TestCase):
+class TestOperation(TestCase):
     def setUp(self):
-        # Arrange
-        self.cachedop = CachedOperation(
+        self.op = Operation(
             apply_fn=a_single_column_apply_fn,
-            identifier=Identifier(_name="TestCachedOperation"),
+            identifier=Identifier(_name="TestOperation"),
         )
 
         self.testbed = MockTestBedv0()
 
-        self.multicol_cachedop = CachedOperation(
+        self.multicol_op = Operation(
             apply_fn=a_multi_column_apply_fn,
-            identifier=Identifier(_name="TestCachedOperation", to="multiple"),
+            identifier=Identifier(_name="TestOperation", to="multiple"),
         )
 
     def test_repr(self):
-        self.assertEqual(str(self.cachedop), "TestCachedOperation")
+        self.assertEqual(str(self.op), "TestOperation")
 
     def test_endtoend(self):
         # Apply to the dataset
-        self.cachedop(self.testbed.dataset, columns=["label"])
+        self.op(self.testbed.dataset, columns=["label"])
 
         # Check that the dataset remains the same
         self.assertEqual(
@@ -47,7 +46,7 @@ class TestCachedOperation(TestCase):
         )
 
         # Apply and store
-        self.testbed.dataset = self.cachedop(self.testbed.dataset, columns=["label"])
+        self.testbed.dataset = self.op(self.testbed.dataset, columns=["label"])
 
         # The dataset should have changed
         self.assertNotEqual(
@@ -55,36 +54,36 @@ class TestCachedOperation(TestCase):
         )
 
         # The interaction tape should contain the history of this operation
-        self.assertTrue(
-            self.testbed.dataset.fetch_tape(path=["cachedoperations"]).history
-            == {(self.cachedop.identifier, "label"): 0}
-        )
+        # self.assertTrue(
+        #     self.testbed.dataset.fetch_tape(path=["cachedoperations"]).history
+        #     == {(self.op.identifier, "label"): 0}
+        # )
 
         # Retrieve the information that was stored using the instance
         self.assertEqual(
-            self.cachedop.retrieve(self.testbed.dataset[:], columns=["label"]),
+            self.op.retrieve(self.testbed.dataset[:], columns=["label"]),
             [3.14, 3.14, 10.14, 10.14, 3.14, 3.14],
         )
 
-        # Retrieve the information that was stored using the CachedOperation class,
+        # Retrieve the information that was stored using the Operation class,
         # and an identifier
         self.assertEqual(
-            CachedOperation.retrieve(
+            Operation.retrieve(
                 self.testbed.dataset[:],
                 columns=["label"],
-                identifier=self.cachedop.identifier,
+                identifier=self.op.identifier,
             ),
             [3.14, 3.14, 10.14, 10.14, 3.14, 3.14],
         )
 
-        # Retrieve the information that was stored using the CachedOperation class:
+        # Retrieve the information that was stored using the Operation class:
         # fails without the identifier
         with self.assertRaises(ValueError):
-            CachedOperation.retrieve(self.testbed.dataset[:], columns=["label"])
+            Operation.retrieve(self.testbed.dataset[:], columns=["label"])
 
         # Retrieve the information that was stored, and process it with a function
         self.assertEqual(
-            self.cachedop.retrieve(
+            self.op.retrieve(
                 self.testbed.dataset[:],
                 columns=["label"],
                 proc_fns=lambda decoded_batch: [x + 0.01 for x in decoded_batch],
@@ -96,14 +95,14 @@ class TestCachedOperation(TestCase):
         # Apply to multiple columns of the dataset directly: fails since the function
         # requires single column
         with self.assertRaises(AssertionError):
-            self.cachedop(self.testbed.dataset, columns=["label", "fast"])
+            self.op(self.testbed.dataset, columns=["label", "fast"])
 
         # Create an additional integer column in the dataset
         dataset = self.testbed.dataset.update(lambda x: {"otherlabel": x["label"] + 1})
 
         # Apply to multiple columns of the dataset in sequence
-        dataset_0_0 = self.cachedop(dataset, columns=["label"])
-        dataset_0_1 = self.cachedop(dataset_0_0, columns=["z"])
+        dataset_0_0 = self.op(dataset, columns=["label"])
+        dataset_0_1 = self.op(dataset_0_0, columns=["z"])
 
         # Check that the additional columns were added
         self.assertEqual(len(dataset.column_names) + 1, len(dataset_0_0.column_names))
@@ -112,8 +111,8 @@ class TestCachedOperation(TestCase):
         )
 
         # Apply to multiple columns of the dataset, in reverse order
-        dataset_1_0 = self.cachedop(dataset, columns=["z"])
-        dataset_1_1 = self.cachedop(dataset_1_0, columns=["label"])
+        dataset_1_0 = self.op(dataset, columns=["z"])
+        dataset_1_1 = self.op(dataset_1_0, columns=["label"])
 
         # Check that the cache is populated with the processed columns
         self.assertEqual(len(dataset.column_names) + 1, len(dataset_1_0.column_names))
@@ -124,12 +123,12 @@ class TestCachedOperation(TestCase):
         # Retrieving information fails if the columns are passed together in a single
         # list
         with self.assertRaises(KeyError) as context:
-            self.cachedop.retrieve(dataset_1_1[:], columns=["label", "z"])
+            self.op.retrieve(dataset_1_1[:], columns=["label", "z"])
         print("Fails:", str(context.exception))
 
         # Retrieving information succeeds when the columns are passed separately
         self.assertTrue(
-            self.cachedop.retrieve(dataset_1_1[:], columns=[["label"], ["z"]]),
+            self.op.retrieve(dataset_1_1[:], columns=[["label"], ["z"]]),
             {
                 "label": [3.14, 3.14, 10.14, 10.14, 3.14, 3.14],
                 "z": [10.14, 3.14, 10.14, 3.14, 10.14, 3.14],
@@ -137,29 +136,29 @@ class TestCachedOperation(TestCase):
         )
 
     def test_multicolumn(self):
-        # Apply the multi-column cached operation
-        dataset = self.multicol_cachedop(self.testbed.dataset, columns=["label", "z"])
+        # Apply the multi-column operation
+        dataset = self.multicol_op(self.testbed.dataset, columns=["label", "z"])
 
         # Check that caching happens and that the cached values are correct
         self.assertEqual(
-            self.multicol_cachedop.retrieve(dataset[:], columns=["label", "z"]),
+            self.multicol_op.retrieve(dataset[:], columns=["label", "z"]),
             {("label", "z"): [0.3, 0.0, 0.4, 0.1, 0.3, 0.0]},
         )
 
-        # Apply the single-column cached operation
-        dataset = self.cachedop(dataset, columns=["label"])
-        dataset = self.cachedop(dataset, columns=["z"])
+        # Apply the single-column operation
+        dataset = self.op(dataset, columns=["label"])
+        dataset = self.op(dataset, columns=["z"])
 
         # Now recheck that everything can be retrieved correctly
         self.assertEqual(
-            self.multicol_cachedop.retrieve(dataset[:], columns=["label", "z"]),
+            self.multicol_op.retrieve(dataset[:], columns=["label", "z"]),
             {("label", "z"): [0.3, 0.0, 0.4, 0.1, 0.3, 0.0]},
         )
         self.assertEqual(
-            self.cachedop.retrieve(dataset[:], columns=["label"]),
+            self.op.retrieve(dataset[:], columns=["label"]),
             [3.14, 3.14, 10.14, 10.14, 3.14, 3.14],
         )
         self.assertEqual(
-            self.cachedop.retrieve(dataset[:], columns=["z"]),
+            self.op.retrieve(dataset[:], columns=["z"]),
             [10.14, 3.14, 10.14, 3.14, 10.14, 3.14],
         )

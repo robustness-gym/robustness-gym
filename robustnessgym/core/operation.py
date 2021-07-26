@@ -1,264 +1,366 @@
 """Implementation of the Operation abstract base class."""
-import json
-from abc import ABC, abstractmethod
-from typing import Callable, List
+from __future__ import annotations
 
-from robustnessgym.core.identifier import Identifier
-from robustnessgym.core.tools import persistent_hash
+import pathlib
+from abc import ABC
+from collections import defaultdict
+from functools import partial
+from typing import Callable, Dict, List, Optional, Union
+
+from meerkat import AbstractColumn
+from meerkat.mixins.identifier import IdentifierMixin
+from meerkat.tools.identifier import Identifier
+
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 
 
-class Operation(ABC):
+def tuple_to_dict(keys: List[str]):
+    def _tuple_to_dict(fn: callable):
+        def _wrapper(*args, **kwargs):
+            # Assume that if the output isn't a tuple,
+            # it can be converted to a tuple of length 1
+            output = fn(*args, **kwargs)
+            if not isinstance(output, tuple):
+                output = (output,)
+            return dict(zip(keys, output))
+
+        return _wrapper
+
+    return _tuple_to_dict
+
+
+def stow(
+    dp: DataPanel,
+    ops: Dict[Operation, List[List[str]]],
+):
+    """Apply Operations in sequence.
+
+    Args:
+        dp (DataPanel): DataPanel
+        ops (Dict[Operation, List[List[str]]]):
+
+    Returns:
+        Updated DataPanel.
+    """
+
+    # Remove Operations whose outputs are already in the DataPanel
+    for op, list_of_columns in list(ops.items()):
+        indices_to_remove = []
+        for i, columns in enumerate(list(list_of_columns)):
+            if op.exists(dp):
+                # Remove the columns at index i
+                indices_to_remove.append(i)
+
+        # Remove input columns for which the Operation was previously executed
+        for index in sorted(indices_to_remove, reverse=True):
+            columns = ops[op].pop(index)
+            print(f"skipped: {op.identifier} -> {columns}", flush=True)
+
+        # Remove the op entirely if list_of_columns is now empty
+        if not ops[op]:
+            ops.pop(op)
+
+    # Run the remaining Operations
+    for op, list_of_columns in ops.items():
+        for columns in list_of_columns:
+            dp = op(dp, columns=columns)
+
+    return dp
+
+
+def lookup(
+    dp: DataPanel,
+    op: Union[type, Operation],
+    columns: List[str],
+    output_name: str = None,
+) -> AbstractColumn:
+    """Retrieve the outputs of an Operation from a DataPanel.
+
+    Args:
+        dp (DataPanel): DataPanel
+        op (Union[type, Operation]): subclass of Operation, or Operation object
+        columns (List[str]): list of input columns that Operation was applied to
+        output_name (Optional[str]): for an Operation with `num_outputs` > 1,
+            the name of the output column to lookup
+
+    Returns:
+        Output columns of the Operation from the DataPanel.
+    """
+    # Operation identifier that should be retrieved
+    if isinstance(op, Operation):
+        op_name = str(op.identifier.name)
+    else:
+        op_name = str(Identifier(op.__name__))
+
+    # Identifiers for all columns in the DataPanel, grouped without input columns
+    # for Operation identifiers.
+    column_identifiers = defaultdict(list)
+    for col in dp.columns:
+        identifier = Identifier.parse(col)
+        column_identifiers[identifier.without("columns")].append(identifier)
+
+    # Search for the column group that best matches the Operation identifier
+    best_match, best_distance = None, 100000000
+    for identifier in column_identifiers:
+        # The prefix to match
+        prefix = str(identifier)
+
+        # Pick the key that best matches the cls name or instance identifier
+        if (
+            prefix.startswith(op_name)
+            and len(
+                prefix.replace(op_name, "").replace(
+                    "" if output_name is None else output_name, ""
+                )
+            )
+            < best_distance
+        ):
+            best_match = identifier
+            best_distance = len(
+                prefix.replace(op_name, "").replace(
+                    "" if output_name is None else output_name, ""
+                )
+            )
+
+    # Get the best matched column group
+    identifier = best_match
+
+    if identifier is None:
+        raise AttributeError("Lookup failed.")
+
+    return dp[str(identifier(columns=columns))]
+
+
+class Operation(ABC, IdentifierMixin):
     """Abstract base class for operations in Robustness Gym."""
+
+    # Path to a log directory
+    logdir: pathlib.Path = pathlib.Path.home() / "robustnessgym/operations/"
+
+    # Create a directory
+    logdir.mkdir(parents=True, exist_ok=True)
 
     def __init__(
         self,
-        apply_fn: Callable = None,
-        identifiers: List[Identifier] = None,
-        num_outputs: int = None,
-        *args,
-        **kwargs
+        identifier: Identifier = None,
+        output_names: List[str] = None,
+        process_batch_fn: Callable = None,
+        prepare_batch_fn: Callable = None,
+        **kwargs,
     ):
-
-        if not identifiers:
-            assert (
-                num_outputs
-            ), "Must pass in num_outputs if no identifiers are specified."
-
-        # Set the identifiers for the outputs of the Operation
-        self._identifiers = (
-            Identifier.range(n=num_outputs, _name=self.__class__.__name__, **kwargs)
-            if not identifiers
-            else identifiers
+        super(Operation, self).__init__(
+            identifier=identifier
+            if identifier
+            else Identifier(_name=self.__class__.__name__, **kwargs),
         )
 
-        # Assign the apply_fn
-        if apply_fn:
-            self.apply = apply_fn
+        self._output_names = output_names
 
-        # # Find the batch and dataset processors
-        # self._batch_processors = {method.__name__ for method in
-        #                           methods_with_decorator(self.__class__,
-        #                           batch_processing)}
-        # self._dataset_processors = {method.__name__ for method in
-        #                             methods_with_decorator(self.__class__,
-        #                             dataset_processing)}
+        if process_batch_fn:
+            self.process_batch = process_batch_fn
+
+        if prepare_batch_fn:
+            self.prepare_batch = prepare_batch_fn
+
+    def __repr__(self):
+        return str(self.identifier)
 
     @property
-    def identifiers(self):
-        return self._identifiers
+    def num_outputs(self) -> int:
+        """Number of output columns created by the Operation."""
+        return len(self.output_names) if self.output_names else 1
 
-    # @property
-    # @abstractmethod
-    # def processors(self):
-    #     raise NotImplementedError("Must specify the order in which processors are
-    #     applied.")
-    #
-    # @property
-    # def batch_processors(self):
-    #     return self._batch_processors
-    #
-    # @property
-    # def dataset_processors(self):
-    #     return self._dataset_processors
+    @property
+    def output_names(self) -> Optional[List[str]]:
+        """Name of output columns created by the Operation."""
+        return self._output_names
 
-    def __hash__(self):
-        """Compute a hash value for the cached operation object."""
-        val = 0
-        for identifier in self.identifiers:
-            val ^= persistent_hash(str(identifier))
-        return val
+    @property
+    def output_identifiers(self) -> List[Identifier]:
+        if self.output_names:
+            return [self.identifier(output=name) for name in self.output_names]
+        return [self.identifier]
 
-    # def get_cache_hash(self,
-    #                    columns: List[str],
-    #                    processor: str = None):
-    #     """
-    #     Construct a hash that will be used to identify the application of a
-    #     Operation to the columns of a dataset.
-    #     """
-    #
-    #     # Hash the Operation
-    #     val = hash(self)
-    #
-    #     # Combine with the hash for each column
-    #     for column in columns:
-    #         val ^= persistent_hash(column)
-    #
-    #     # Combine with the hash for the processor
-    #     if processor:
-    #         val ^= persistent_hash(processor)
-    #
-    #     return val
-    #
-    # def get_cache_file_name(self,
-    #                         columns: List[str],
-    #                         processor: str = None) -> str:
-    #     """
-    #     Construct a file name for caching.
-    #     """
-    #     return 'cache-' + str(abs(self.get_cache_hash(columns=columns,
-    #     processor=processor))) + '.arrow'
+    @property
+    def output_columns(self) -> List[str]:
+        return [str(identifier) for identifier in self.output_identifiers]
 
-    # # FIXME: temporary
-    # def __call__(self,
-    #              batch_or_dataset: BatchOrDataset,
-    #              columns: List[str],
-    #              mask: List[int] = None,
-    #              *args,
-    #              **kwargs) -> BatchOrDataset:
-    #
-    #     if isinstance(batch_or_dataset, Dataset):
-    #         # Check the Dataset's InteractionTape to see if the Operation was
-    #         previously applied
-    #         if not mask:
-    #             # This infers a mask that specifies which outputs of the Operation
-    #             are not required
-    #             mask = batch_or_dataset.check_tape(
-    #                 path=[self.__class__.__name__],
-    #                 identifiers=self.identifiers,
-    #                 columns=columns
-    #             )
-    #
-    #         # If all outputs of the Operation were previously present in the
-    #         Dataset, simply return
-    #         if all(mask):
-    #             return batch_or_dataset
-    #
-    #         # Apply the CachedOperation to the dataset
-    #         dataset = self.process_dataset(
-    #             dataset=batch_or_dataset,
-    #             columns=columns,
-    #         )
-    #
-    #         # Update the InteractionTape with the applied CachedOperation
-    #         dataset.update_tape(
-    #             path=[CACHED_OPS],
-    #             identifiers=self.identifiers,
-    #             columns=columns,
-    #         )
-    #
-    #         return dataset
-    #
-    #     elif isinstance(batch_or_dataset, Dict):
-    #
-    #         assert len(self.dataset_processors) == 0, \
-    #             f"Cannot apply {self.__class__.__name__} to a batch, " \
-    #             f"since it has dataset processors: {self.dataset_processors}. " \
-    #             f"Use Dataset.from_batch(batch) before calling {
-    #             self.__class__.__name__}."
-    #
-    #         # Apply the Operation
-    #         return self.process_batch(
-    #             batch=batch_or_dataset,
-    #             columns=columns
-    #         )
-    #     else:
-    #         raise NotImplementedError
-    #
-    # def wrap_batch_processor(self,
-    #                          batch_processor: Callable) -> Callable:
-    #
-    #     def _wrap_batch_processor(batch: Batch,
-    #                               columns: List[str],
-    #                               **kwargs):
-    #
-    #         return batch_processor(batch=batch, columns=columns, **kwargs)
-    #
-    #     return _wrap_batch_processor
-    #
-    # def process_dataset(self,
-    #                     dataset: Dataset,
-    #                     columns: List[str],
-    #                     batch_size: int = 32) -> Dataset:
-    #     """
-    #     Apply the Operation to a dataset.
-    #     """
-    #
-    #     # Apply them in order
-    #     for method in self.processors:
-    #
-    #         # Apply batch processors by .map(..) over the dataset
-    #         if method.__name__ in self.batch_processors:
-    #             dataset = dataset.map(
-    #                 partial(method, columns=columns),
-    #                 batched=True,
-    #                 batch_size=batch_size,
-    #                 cache_file_name=self.get_cache_file_name(columns=columns,
-    #                 processor=method)
-    #             )
-    #         # Apply dataset processors directly
-    #         elif method.__name__ in self.dataset_processors:
-    #             dataset = method(
-    #                 dataset=dataset,
-    #                 columns=columns,
-    #             )
-    #         else:
-    #             raise RuntimeError(f"{method} is not a processor. "
-    #                                f"Please remove {method} from the `processors`
-    #                                property or decorate it.")
-    #
-    #     return dataset
-    #
-    # def process_batch(self,
-    #                   batch: Batch,
-    #                   columns: List[str]) -> Batch:
-    #     """
-    #     Apply the cached operation to a batch.
-    #     """
-    #     assert len(set(columns) - set(batch.keys())) == 0, "Any column in 'columns'
-    #     must be present in 'batch'."
-    #
-    #     # Run the cached operation, and encode outputs (defaults to json.dumps)
-    #     encoded_outputs = [
-    #         self.encode(example_output)
-    #         for example_output in self.apply(batch=batch, columns=columns)
-    #     ]
-    #
-    #     # Construct updates
-    #     updates = self.construct_updates(
-    #         encoded_outputs=encoded_outputs,
-    #         columns=columns
-    #     )
-    #
-    #     # Update the cache and return the updated batch
-    #     return self.store(batch=batch, updates=updates)
+    @property
+    def identifier(self) -> Identifier:
+        """Name of the Operation."""
+        return self._identifier
 
     @classmethod
-    def identify(cls, **kwargs):
-        return Identifier(_name=cls.__name__, **kwargs)
-
-    @classmethod
-    def encode(cls, obj) -> str:
-        """
+    def exists(cls, dp: DataPanel) -> bool:
+        """Check if the outputs of the Operation are in `dp`.
 
         Args:
-            obj:
+            dp: DataPanel
 
         Returns:
-
+            bool: True if `dp` contains a column produced by `Operation`,
+                False otherwise
         """
-        return json.dumps(obj)
+        # TODO: update this to use `Operation.outputs`
+        return any([key.startswith(cls.__name__) for key in dp.keys()])
 
-    @classmethod
-    def decode(cls, s: str):
-        """
+    def prepare_batch(
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
+    ) -> None:
+        """Preparation applied to the DataPanel `dp`.
+
+        This is provided as a convenience function that can be called by
+        `self.prepare`.
 
         Args:
-            s:
-
-        Returns:
-
+            dp (DataPanel): DataPanel
+            columns (list): list of columns
+            *args: optional positional arguments
+            **kwargs: optional keyword arguments
         """
-        return json.loads(s)
+        raise NotImplementedError("Implement `prepare_batch`.")
 
-    @abstractmethod
-    def apply(self, *args, **kwargs):
-        """
+    def prepare(
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        batch_size: int = 32,
+        *args,
+        **kwargs,
+    ) -> None:
+        """Preparation that is applied before the Operation is applied.
+
+        Many Operations require a full pass over the DataPanel to precompute some
+        variables before the core operation can actually be applied e.g. to create a
+        Bag-of-Words representation, constructing a vocabulary to keep only
+        tokens that are frequently seen across the DataPanel.
 
         Args:
-            *args:
-            **kwargs:
+            dp (DataPanel): DataPanel
+            columns (list): list of columns
+            batch_size (int): batch size for `dp.map(...)`
+            *args: optional positional arguments
+            **kwargs: optional keyword arguments
+        """
+
+        try:
+            dp.map(
+                function=partial(self.prepare_batch, columns=columns, *args, **kwargs),
+                input_columns=columns,
+                is_batched_fn=True,
+                batch_size=batch_size,
+                *args,
+                **kwargs,
+            )
+        except NotImplementedError:
+            return
+
+    def process_batch(
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        **kwargs,
+    ) -> tuple:
+        """The core functionality of the Operation.
+
+        This is provided as a convenience function that can be called by
+        `self.process`.
+
+        Args:
+            dp (DataPanel): DataPanel
+            columns (list): list of columns
+            **kwargs: optional keyword arguments
 
         Returns:
-
+            Tuple of outputs, where each output is a a sequence of values. The expected
+                order of the outputs is the same as the order of identifiers in
+                `self.outputs`.
         """
-        pass
+        return NotImplemented
+
+    def process(
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        batch_size: int = 32,
+        *args,
+        **kwargs,
+    ) -> DataPanel:
+        """Apply the Operation to a DataPanel.
+
+        Args:
+            dp (DataPanel): DataPanel
+            columns (list): list of columns
+            batch_size (int): batch size for `dp.update(...)`
+            *args: optional positional arguments
+            **kwargs: optional keyword arguments
+        """
+
+        return dp.update(
+            tuple_to_dict(
+                keys=[str(ident(columns=columns)) for ident in self.output_identifiers]
+            )(partial(self.process_batch, columns=columns, *args, **kwargs)),
+            batch_size=batch_size,
+            is_batched_fn=True,
+            *args,
+            **kwargs,
+        )
+
+    def __call__(
+        self,
+        dp: DataPanel,
+        columns: List[str],
+        batch_size: int = 32,
+        **kwargs,
+    ) -> DataPanel:
+        """Apply the Operation to a DataPanel.
+
+        Args:
+            dp (DataPanel): DataPanel
+            columns (list): list of columns
+            batch_size (int):
+            **kwargs: optional keyword arguments
+
+        Returns:
+            An updated DataPanel, with additional output columns produced by
+              the Operation.
+        """
+
+        if isinstance(dp, DataPanel):
+            assert len(set(columns) - set(dp.column_names)) == 0, (
+                f"All `columns` ({columns}) must be present and visible in `dp` ("
+                f"{list(dp.column_names)})."
+            )
+
+            if self.exists(dp):
+                return dp
+
+            # Prepare to apply the Operation to the DataPanel
+            self.prepare(
+                dp=dp,
+                columns=columns,
+                batch_size=batch_size,
+                **kwargs,
+            )
+
+            # Apply the Operation to the DataPanel
+            dp = self.process(
+                dp=dp,
+                columns=columns,
+                batch_size=batch_size,
+                **kwargs,
+            )
+
+            return dp
+
+        else:
+            return self(
+                dp=DataPanel(dp),
+                columns=columns,
+                batch_size=batch_size,
+                **kwargs,
+            )

@@ -74,23 +74,27 @@ Follow these steps to start contributing:
 3. Create a new branch to hold your development changes:
 
    ```bash
+   $ git checkout dev
    $ git checkout -b a-descriptive-name-for-my-changes
    ```
 
-   **Do not** work on the `main` branch.
+   **Do not** work on the `main` or `dev` branches. The `main` branch is release-only,
+    while the `dev` branch is updated only with pull requests.  
 
-4. Robustness Gym manages dependencies using [`poetry`](https://python-poetry.org). 
-Set up a development environment with `poetry` by running the following command in
+4. Robustness Gym manages dependencies using setuptools. 
+Set up a development environment by running the following command in
  a virtual environment:
 
    ```bash
-   $ pip install poetry
-   $ poetry install
+   $ pip install -e ".[dev]"
    ```
    Note: in order to pass the full test suite (step 5), you'll need to install all extras using the following command: 
    ```bash
-      $ poetry install --extras "adversarial augmentation summarization text vision"
+   $ pip install -e ".[all]"
    ```
+   You can choose to only run the tests that you add, in which case you can install only the extras that you need. 
+   See `setup.py` for the list of available extras. 
+   
 5. Develop features on your branch.
 
    As you work on the features, you should make sure that the test suite
@@ -139,7 +143,7 @@ Set up a development environment with `poetry` by running the following command 
 
    ```bash
    $ git fetch upstream
-   $ git rebase upstream/main
+   $ git rebase upstream/dev
    ```
 
    Push the changes to your account using:
@@ -149,7 +153,7 @@ Set up a development environment with `poetry` by running the following command 
    ```
    
    You can use `pre-commit` to make sure you don't forget to format your code properly, 
-   the dependency should already be made available by `poetry`.
+   the dependency should already be available.
    
    Just install `pre-commit` for the `robustness-gym` directory,
    
@@ -165,9 +169,6 @@ Set up a development environment with `poetry` by running the following command 
    too! So everyone can see the changes in the Pull request, work in your local
    branch and push the changes to your fork. They will automatically appear in
    the pull request.
-   
-8. We follow a one-commit-per-PR policy. Before your PR can be merged, you will have to
- `git rebase` to squash your changes into a single commit.
 
 ### Checklist
 

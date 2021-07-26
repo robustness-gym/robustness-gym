@@ -4,26 +4,10 @@ robustnessgym.core package
 Submodules
 ----------
 
-robustnessgym.core.cachedops module
------------------------------------
-
-.. automodule:: robustnessgym.core.cachedops
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 robustnessgym.core.constants module
 -----------------------------------
 
 .. automodule:: robustnessgym.core.constants
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-robustnessgym.core.dataset module
----------------------------------
-
-.. automodule:: robustnessgym.core.dataset
    :members:
    :undoc-members:
    :show-inheritance:
@@ -44,10 +28,26 @@ robustnessgym.core.decorators module
    :undoc-members:
    :show-inheritance:
 
+robustnessgym.core.devbench module
+----------------------------------
+
+.. automodule:: robustnessgym.core.devbench
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 robustnessgym.core.identifier module
 ------------------------------------
 
 .. automodule:: robustnessgym.core.identifier
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+robustnessgym.core.metrics module
+---------------------------------
+
+.. automodule:: robustnessgym.core.metrics
    :members:
    :undoc-members:
    :show-inheritance:
@@ -64,14 +64,6 @@ robustnessgym.core.operation module
 -----------------------------------
 
 .. automodule:: robustnessgym.core.operation
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-robustnessgym.core.report module
---------------------------------
-
-.. automodule:: robustnessgym.core.report
    :members:
    :undoc-members:
    :show-inheritance:

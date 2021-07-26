@@ -8,13 +8,9 @@ import random
 import re
 from random import shuffle
 
-try:
-    from nltk.corpus import wordnet
-except ImportError:
-    _nltk_available = False
-    wordnet = None
-else:
-    _nltk_available = True
+from meerkat.tools.lazy_loader import LazyLoader
+
+nltk_corpus = LazyLoader("nltk.corpus")
 
 random.seed(1)
 
@@ -206,7 +202,7 @@ def synonym_replacement(words, n):
 
 def get_synonyms(word):
     synonyms = set()
-    for syn in wordnet.synsets(word):
+    for syn in nltk_corpus.wordnet.synsets(word):
         for l in syn.lemmas():
             synonym = l.name().replace("_", " ").replace("-", " ").lower()
             synonym = "".join(

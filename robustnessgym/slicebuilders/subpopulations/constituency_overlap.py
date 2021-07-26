@@ -1,34 +1,35 @@
-from typing import Dict, List
+from typing import List
 
 import fuzzywuzzy.fuzz as fuzz
 import numpy as np
+from meerkat.tools.lazy_loader import LazyLoader
 
-try:
-    from nltk import Tree
-except ImportError:
-    _nltk_available = False
-    Tree = None
-else:
-    _nltk_available = True
-
-from robustnessgym.cachedops.allen.constituency_parser import AllenConstituencyParser
 from robustnessgym.core.decorators import prerequisites
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.operation import lookup
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.ops.allen import AllenConstituencyParsingOp
 from robustnessgym.slicebuilders.subpopulations.score import ScoreSubpopulation
 
+nltk = LazyLoader("nltk")
 
-@prerequisites(AllenConstituencyParser)
+
+@prerequisites(AllenConstituencyParsingOp)
 class ConstituencyOverlapSubpopulation(ScoreSubpopulation):
     def score(
-        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
         # Require that the number of keys is exactly 2
         assert len(columns) == 2, "Must specify exactly 2 keys."
 
         # Retrieve the trees
-        trees = AllenConstituencyParser.retrieve(
-            batch=batch, columns=[[key] for key in columns]
-        )
+        trees = {
+            col: lookup(batch, AllenConstituencyParsingOp, [col]) for col in columns
+        }
         trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
         # Fuzzy match the trees and return the `scores`
@@ -43,30 +44,34 @@ class ConstituencyOverlapSubpopulation(ScoreSubpopulation):
         )
 
 
-@prerequisites(AllenConstituencyParser)
+@prerequisites(AllenConstituencyParsingOp)
 class ConstituencySubtreeSubpopulation(ScoreSubpopulation):
     def __init__(self, *args, **kwargs):
         super(ConstituencySubtreeSubpopulation, self).__init__(
             intervals=[(1, 1)],
             identifiers=[Identifier(_name=self.__class__.__name__)],
             *args,
-            **kwargs
+            **kwargs,
         )
 
     def score(
-        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
         # Require that the number of keys is exactly 2
         assert len(columns) == 2, "Must specify exactly 2 keys."
 
         # Retrieve the trees
-        trees = AllenConstituencyParser.retrieve(
-            batch=batch, columns=[[column] for column in columns]
-        )
+        trees = {
+            col: lookup(batch, AllenConstituencyParsingOp, [col]) for col in columns
+        }
         trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
         # Convert the trees corresponding to key 0 to NLTK trees
-        trees_0 = [Tree.fromstring(tree) for tree in trees_0]
+        trees_0 = [nltk.Tree.fromstring(tree) for tree in trees_0]
 
         # Find all subtrees of these trees
         all_subtrees_0 = [
@@ -94,22 +99,26 @@ class ConstituencySubtreeSubpopulation(ScoreSubpopulation):
         )
 
 
-@prerequisites(AllenConstituencyParser)
+@prerequisites(AllenConstituencyParsingOp)
 class FuzzyConstituencySubtreeSubpopulation(ScoreSubpopulation):
     def score(
-        self, batch: Dict[str, List], columns: List[str], *args, **kwargs
+        self,
+        batch: DataPanel,
+        columns: List[str],
+        *args,
+        **kwargs,
     ) -> np.ndarray:
         # Require that the number of keys is exactly 2
         assert len(columns) == 2, "Must specify exactly 2 keys."
 
         # Retrieve the trees
-        trees = AllenConstituencyParser.retrieve(
-            batch=batch, columns=[[column] for column in columns]
-        )
+        trees = {
+            col: lookup(batch, AllenConstituencyParsingOp, [col]) for col in columns
+        }
         trees_0, trees_1 = trees[columns[0]], trees[columns[1]]
 
         # Convert the trees corresponding to key 0 to NLTK trees
-        trees_0 = [Tree.fromstring(tree) for tree in trees_0]
+        trees_0 = [nltk.Tree.fromstring(tree) for tree in trees_0]
 
         # Find all subtrees of these trees
         all_subtrees_0 = [

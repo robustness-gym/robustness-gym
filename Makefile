@@ -11,6 +11,11 @@ lint:
 test:
 	pytest
 
+test-basic:
+	set -e
+	python -c "import robustnessgym as rg"
+	python -c "import robustnessgym.version"
+
 test-cov:
 	pytest --cov=./ --cov-report=xml
 

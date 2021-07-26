@@ -4,10 +4,11 @@ import tempfile
 from copy import deepcopy
 
 import torch
+from meerkat import ImageColumn, ImagePath
 
-from robustnessgym.core.dataformats.vision import RGImage, VisionDataset, save_image
-from robustnessgym.core.dataset import Dataset
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.core.tools import save_image
 
 
 class MockTestBedv0:
@@ -37,7 +38,7 @@ class MockTestBedv0:
             ],
         }
         # Create a fake dataset
-        self.dataset = Dataset.from_batch(
+        self.dataset = DataPanel.from_batch(
             self.batch,
             identifier=Identifier(_name="MockDataset", version="1.0"),
         )
@@ -46,12 +47,6 @@ class MockTestBedv0:
         self.original_dataset = deepcopy(self.dataset)
 
         assert len(self.dataset) == 6
-
-    def test_attributes(self):
-        # Both datasets use the same cache files for backing
-        print(self.dataset.cache_files)
-        print(self.original_dataset.cache_files)
-        print(self.dataset.identifier)
 
     def problems(self):
         # FIXME(karan): this shouldn't be happening: why is otherlabel disappearing here
@@ -67,7 +62,7 @@ class MockTestBedv1:
 
     def __init__(self):
         # Create a fake dataset
-        self.dataset = Dataset.from_batch(
+        self.dataset = DataPanel.from_batch(
             {
                 "text_a": [
                     "Before the actor slept, the senator ran.",
@@ -95,14 +90,7 @@ class MockTestBedv1:
 
 
 class MockVisionTestBed:
-    def __init__(self, wrap_dataset: bool = False):
-        """[summary]
-
-        Args:
-            wrap_dataset (bool, optional): If `True`, create a `robustnessgym.Dataset`,
-                otherwise create a `robustnessgym.core.dataformats.vision.VisionDataset`
-                Defaults to False.
-        """
+    def __init__(self):
         cache_dir = os.path.join(tempfile.gettempdir(), "RGVisionTests")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
@@ -114,15 +102,12 @@ class MockVisionTestBed:
             self.image_paths.append(os.path.join(cache_dir, "{}.png".format(i)))
             self.image_tensors.append(i * torch.ones((10, 10, 3)))
             save_image(self.image_tensors[-1], self.image_paths[-1])
-            self.images.append(RGImage(self.image_paths[-1]))
+            self.images.append(ImagePath(self.image_paths[-1]))
 
         self.batch = {
             "a": [{"e": 1}, {"e": 2}, {"e": 3}, {"e": 4}],
             "b": ["u", "v", "w", "x"],
-            "i": self.image_paths,
+            "i": ImageColumn.from_filepaths(self.image_paths),
         }
 
-        if wrap_dataset:
-            self.dataset = Dataset.load_image_dataset(self.batch, img_columns="i")
-        else:
-            self.dataset = VisionDataset(self.batch, img_columns="i")
+        self.dataset = DataPanel(self.batch)

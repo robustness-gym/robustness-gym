@@ -2,23 +2,13 @@ import re
 import statistics
 from typing import Callable, Sequence, Union
 
-try:
-    import nltk
-except ImportError:
-    _nltk_available = False
-else:
-    _nltk_available = True
 import numpy as np
 import torch
-
-try:
-    from rouge_score import rouge_scorer
-except ImportError:
-    _rouge_score_available = False
-    rouge_scorer = None
-else:
-    _rouge_score_available = True
+from meerkat.tools.lazy_loader import LazyLoader
 from sklearn.metrics import accuracy_score, f1_score
+
+nltk = LazyLoader("nltk")
+rouge_score = LazyLoader("rouge_score")
 
 
 def get_metric(name: str) -> Callable:
@@ -102,15 +92,19 @@ def compute_metric(
     predictions: Union[Sequence, torch.Tensor],
     labels: Union[Sequence, torch.Tensor],
     num_classes: int,
-):
-    """Compute metric given predictions and target labels
+) -> Union[float, np.ndarray, torch.Tensor]:
+    """Compute metric given predictions and target labels.
+
     Args:
-        metric: name of metric
-        predictions: A sequence of predictions (rouge metrics) or a torch Tensor
-        (other metrics) containing predictions
-        labels: A sequence of labels (rouge metrics) or a torch Tensor (other metrics)
-        containing target labels
-        num_classes: number of classes
+        metric (str): name of metric
+        predictions (Union[Sequence, torch.Tensor]): a sequence of predictions
+            (rouge metrics) or a torch Tensor (other metrics) containing predictions
+        labels (Union[Sequence, torch.Tensor]): a sequence of labels
+            (rouge metrics) or a torch Tensor (other metrics) containing target labels
+        num_classes (int): number of classes
+
+    Returns:
+        the calculate metric value
     """
     if isinstance(predictions, torch.Tensor):
         predictions = predictions.cpu()
@@ -126,7 +120,6 @@ def compute_metric(
         return f1_micro(predictions=predictions, labels=labels)
     elif metric == "f1_macro":
         return f1_macro(predictions=predictions, labels=labels)
-
     elif metric in ("Rouge-1", "Rouge-2", "Rouge-L"):
         # Calculate rouge scores
         if metric == "Rouge-1":
@@ -135,7 +128,7 @@ def compute_metric(
             metric_id = "rouge2"
         else:
             metric_id = "rougeLsum"
-        scorer = rouge_scorer.RougeScorer([metric_id], use_stemmer=True)
+        scorer = rouge_score.rouge_scorer.RougeScorer([metric_id], use_stemmer=True)
         # TODO Remove summarizaton-specific 'format_summary' call
         # TODO Don't call scorer.score separately for each metric
         score = statistics.mean(
@@ -144,7 +137,6 @@ def compute_metric(
             ].fmeasure
             for reference, pred in zip(labels, predictions)
         )
-
     elif metric == "class_dist":
         # Calculate class distribution
         score = class_distribution(labels=labels, num_classes=num_classes)

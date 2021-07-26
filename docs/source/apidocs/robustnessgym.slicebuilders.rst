@@ -22,14 +22,6 @@ robustnessgym.slicebuilders.attack module
    :undoc-members:
    :show-inheritance:
 
-robustnessgym.slicebuilders.curator module
-------------------------------------------
-
-.. automodule:: robustnessgym.slicebuilders.curator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 robustnessgym.slicebuilders.slicebuilder module
 -----------------------------------------------
 
@@ -38,10 +30,26 @@ robustnessgym.slicebuilders.slicebuilder module
    :undoc-members:
    :show-inheritance:
 
+robustnessgym.slicebuilders.slicebuilder\_collection module
+-----------------------------------------------------------
+
+.. automodule:: robustnessgym.slicebuilders.slicebuilder_collection
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 robustnessgym.slicebuilders.subpopulation module
 ------------------------------------------------
 
 .. automodule:: robustnessgym.slicebuilders.subpopulation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+robustnessgym.slicebuilders.subpopulation\_collection module
+------------------------------------------------------------
+
+.. automodule:: robustnessgym.slicebuilders.subpopulation_collection
    :members:
    :undoc-members:
    :show-inheritance:

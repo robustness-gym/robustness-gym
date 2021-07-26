@@ -3,11 +3,11 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
-from robustnessgym.cachedops.similarity import RougeMatrix
-from robustnessgym.cachedops.spacy import Spacy
-from robustnessgym.core.dataset import Batch
 from robustnessgym.core.identifier import Identifier
+from robustnessgym.core.slice import SliceDataPanel as DataPanel
 from robustnessgym.core.tools import strings_as_json
+from robustnessgym.ops.similarity import RougeMatrix
+from robustnessgym.ops.spacy import SpacyOp
 from robustnessgym.slicebuilders.transformation import Transformation
 
 
@@ -23,13 +23,13 @@ class RougeMatrixSentenceTransformation(Transformation):
 
     def apply(
         self,
-        skeleton_batches: List[Batch],
-        slice_membership: np.ndarray,
-        batch: Batch,
+        batch: DataPanel,
         columns: List[str],
+        skeleton_batches: List[DataPanel],
+        slice_membership: np.ndarray,
         *args,
-        **kwargs
-    ) -> Tuple[List[Batch], np.ndarray]:
+        **kwargs,
+    ) -> Tuple[List[DataPanel], np.ndarray]:
         assert len(columns) == 2
 
         # Retrieve the relevant Rouge matrices
@@ -46,10 +46,10 @@ class RougeMatrixSentenceTransformation(Transformation):
         ]
 
         # Fetch sentences for the first column
-        sentences = Spacy.retrieve(
+        sentences = SpacyOp.retrieve(
             batch=batch,
             columns=[columns[0]],
-            proc_fns=Spacy.sentences,
+            proc_fns=SpacyOp.sentences,
         )[columns[0]]
 
         # Delete sentences
