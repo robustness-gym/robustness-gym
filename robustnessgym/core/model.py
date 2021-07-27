@@ -68,6 +68,8 @@ class Model:
             if torch.cuda.is_available():
                 self.device = "cuda:0"
 
+        self.is_classifier = is_classifier
+
     def to(self, device: str):
         self.device = device
         return self.model.to(device)
@@ -207,6 +209,8 @@ class HuggingfaceModel(Model):
 
         self.task = task
 
+        self.is_classifier = is_classifier
+
         # Move the model to device
         self.to(self.device)
 
@@ -214,7 +218,7 @@ class HuggingfaceModel(Model):
         # Create the required outputs
         output_dict = {k: None for k in self.outputs}
 
-        if self.task.classification():
+        if self.is_classifier:
             # Run the model on the input_batch
             # TODO(karan): allow outputs to generically contain side information (
             #  embeddings, attention, etc.)
@@ -318,7 +322,7 @@ class HuggingfaceModel(Model):
 
             # TODO(karan): general version for non-classification problems
             # TODO(karan): move this to the right device
-            if self.task.classification():
+            if self.is_classifier:
                 target_dict = tz.valmap(lambda v: torch.tensor(v), target_dict)
 
             # TODO(karan): incremental metric computation here
@@ -327,7 +331,7 @@ class HuggingfaceModel(Model):
             targets.append(target_dict)
 
         # Consolidate the predictions and targets
-        if self.task.classification():
+        if self.is_classifier:
             # TODO(karan): Need to store predictions and outputs from the model
             predictions = tz.merge_with(lambda v: torch.cat(v).to("cpu"), *predictions)
             targets = tz.merge_with(lambda v: torch.cat(v).to("cpu"), *targets)
@@ -344,7 +348,7 @@ class HuggingfaceModel(Model):
 
         # Assumes classification, so the output_columns contains a single key for the
         # label
-        if self.task.classification():
+        if self.is_classifier:
             assert len(output_columns) == 1  # , "Only supports classification."
             num_classes = self.task.output_schema.features[
                 list(self.task.output_schema.columns)[0]
