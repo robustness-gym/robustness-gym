@@ -1,10 +1,10 @@
 from typing import List
 
-from meerkat.mixins.device import DeviceMixin
 from meerkat.tools.lazy_loader import LazyLoader
 
 from robustnessgym.core.operation import Operation
 from robustnessgym.core.slice import SliceDataPanel as DataPanel
+from robustnessgym.mixins.device import DeviceMixin
 
 predictors = LazyLoader("allennlp.predictors")
 
