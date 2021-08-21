@@ -39,152 +39,77 @@ we make it easy for you to load in any kind of data
 (text, images, videos, time-series) and quickly evaluate how well your models are 
 performing.
 
-#### Load data into a Meerkat `DataPanel`
+### Using Robustness Gym
 ```python
-from robustnessgym import DataPanel
+import robustnessgym as rg
 
-# Any Huggingface dataset
-dp = DataPanel.load_huggingface('boolq')
+# Load any dataset
+sst = rg.DataPanel.from_huggingface('sst', split='validation')
 
-# Custom datasets
-dp = DataPanel.from_csv(...)
-dp = DataPanel.from_pandas(...)
-dp = DataPanel.from_jsonl(...)
-dp = DataPanel.from_feather(...)
+# Load any model
+sst_model = rg.HuggingfaceModel('distilbert-base-uncased-finetuned-sst-2-english', is_classifier=True)
 
-# Coming soon: any WILDS dataset
-# from meerkat.contrib.wilds import get_wilds_datapanel
-# dp = get_wilds_datapanel("fmow", root_dir="/datasets/", split="test")
+# Generate predictions for first 2 examples in dataset using "sentence" column as input
+predictions = sst_model.predict_batch(sst[:2], ['sentence'])
+
+# Run inference on an entire dataset & store the predictions in the dataset
+sst = sst.update(lambda x: sst_model.predict_batch(x, ['sentence']), batch_size=4, is_batched_fn=True, pbar=True)
+
+# Create a DevBench, which will contain slices to evaluate
+sst_db = rg.DevBench()
+
+# Add slices of data; to begin with let's add the full dataset
+# Slices are just datasets that you can track performance on
+sst_db.add_slices([sst])
+
+# Let's add another slice by filtering examples containing negation words
+sst_db(rg.HasNegation(), sst, ['sentence'])
+
+# Add any metrics you like
+sst_db.add_aggregators({
+    # Map from model name to dictionary of metrics
+    'distilbert-base-uncased-finetuned-sst-2-english': {
+        # This function uses the predictions we stored earlier to calculate accuracy
+        'accuracy': lambda dp: (dp['label'].round() == dp['pred'].numpy()).mean()
+    }
+})
+
+# Create a report
+report = sst_db.create_report()
+
+# Visualize: requires installing plotly support in Jupyter, generally works better in Jupyter notebooks (rather than Jupyter Lab)
+report.figure()
+
+# Alternatively, save report to file
+report.figure().write_image('sst_db_report.png', engine='kaleido')
+
 ```
 
-### Run common workflows
-
-#### Spacy
+#### Applying Built-in Subpopulations
 ```python
-from robustnessgym import DataPanel, lookup
-from robustnessgym.ops import SpacyOp
 
-dp = DataPanel.load_huggingface('boolq')
+# Create a slicebuilder that creates subpopulations based on length, in this case the bottom and top 10 percentile.
+length_sb = rg.NumTokensSubpopulation(intervals=[("0%", "10%"), ("90%", "100%")])
 
-# Run the Spacy pipeline on the 'question' column of the dataset
-spacy = SpacyOp()
-dp = spacy(dp=dp, columns=['question'])
-# adds a new column that is auto-named
-# "SpacyOp(lang=en_core_web_sm, neuralcoref=False, columns=['passage'])"
-
-# Grab the Spacy column from the DataPanel using the lookup
-spacy_column = lookup(dp, spacy, ['question'])
-```
-
-#### Stanza
-```python
-from robustnessgym import DataPanel, lookup
-from robustnessgym.ops import StanzaOp
-
-dp = DataPanel.load_huggingface('boolq')
-
-# Run the Stanza pipeline on the 'question' column of the dataset
-stanza = StanzaOp()
-dp = stanza(dp=dp, columns=['question'])
-# adds a new column that is auto-named "StanzaOp(columns=['question'])"
-
-# Grab the Stanza column from the DataPanel using the lookup
-stanza_column = lookup(dp, stanza, ['question'])
-```
-
-#### Custom Operation (Single Output)
-```python
-# Or, create your own Operation
-from robustnessgym import DataPanel, Operation, Id, lookup
-
-dp = DataPanel.load_huggingface('boolq')
-
-# A function that capitalizes text
-def capitalize(batch: DataPanel, columns: list):
-    return [text.capitalize() for text in batch[columns[0]]]
-
-# Wrap in an Operation: `process_batch_fn` accepts functions that have
-# exactly 2 arguments: batch and columns, and returns a tuple of outputs
-op = Operation(
-    identifier=Id('CapitalizeOp'),
-    process_batch_fn=capitalize,
-)
-
-# Apply to a DataPanel
-dp = op(dp=dp, columns=['question'])
-
-# Look it up when you need it
-capitalized_text = lookup(dp, op, ['question'])
-```
-
-#### Custom Operation (Multiple Outputs)
-```python
-from robustnessgym import DataPanel, Operation, Id, lookup
-
-dp = DataPanel.load_huggingface('boolq')
-
-# A function that capitalizes and upper-cases text: this will
-# be used to add two columns to the DataPanel
-def capitalize_and_upper(batch: DataPanel, columns: list):
-    return [text.capitalize() for text in batch[columns[0]]], \
-           [text.upper() for text in batch[columns[0]]]
-
-# Wrap in an Operation: `process_batch_fn` accepts functions that have
-# exactly 2 arguments: batch and columns, and returns a tuple of outputs
-op = Operation(
-    identifier=Id('ProcessingOp'),
-    output_names=['capitalize', 'upper'],  # tell the Operation the name of the two outputs
-    process_batch_fn=capitalize_and_upper,
-)
-
-# Apply to a DataPanel
-dp = op(dp=dp, columns=['question'])
-
-# Look them up when you need them
-capitalized_text = lookup(dp, op, ['question'], 'capitalize')
-upper_text = lookup(dp, op, ['question'], 'upper')
-```
-
-
-### Create Evaluations
-
-
-#### Out-of-the-box Subpopulations
-```python
-from robustnessgym import DataPanel
-from robustnessgym import LexicalOverlapSubpopulation
-
-dp = DataPanel.load_huggingface('boolq')
-
-# Create a subpopulation that buckets examples based on length
-lexo_sp = LexicalOverlapSubpopulation(intervals=[(0., 0.1), (0.1, 0.2)])
-
-slices, membership = lexo_sp(dp=dp, columns=['question'])
+slices, membership = length_sb(dp=sst, columns=['sentence'])
 # `slices` is a list of 2 DataPanel objects
 # `membership` is a matrix of shape (n x 2)
+for sl in slices:
+    print(sl.identifier)
 ```
 
-#### Custom Subpopulation
+#### Creating Custom Subpopulations
 ```python
-from robustnessgym import DataPanel, ScoreSubpopulation, lookup
-from robustnessgym.ops import SpacyOp
 
-dp = DataPanel.load_huggingface('boolq')
-
-def length(batch: DataPanel, columns: list):
-    try:
-        # Take advantage of previously stored Spacy information
-        return [len(doc) for doc in lookup(batch, SpacyOp, columns)] 
-    except AttributeError:
-        # If unavailable, fall back to splitting text
-        return [len(text.split()) for text in batch[columns[0]]]
+def length(batch: rg.DataPanel, columns: list):
+    return [len(text.split()) for text in batch[columns[0]]]
     
 # Create a subpopulation that buckets examples based on length
-length_sp = ScoreSubpopulation(intervals=[(0, 10), (10, 20)], score_fn=length)
+length_sp = rg.ScoreSubpopulation(intervals=[(0, 10), (10, 20)], score_fn=length)
 
-slices, membership = length_sp(dp=dp, columns=['question'])
-# `slices` is a list of 2 DataPanel objects
-# `membership` is a matrix of shape (n x 2)
+slices, membership = length_sp(dp=sst, columns=['sentence'])
+for sl in slices:
+    print(sl.identifier)
 ```
 
 
