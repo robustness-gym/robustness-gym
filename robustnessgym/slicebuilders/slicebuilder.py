@@ -278,11 +278,9 @@ class SliceBuilder(StorageMixin):
                 **kwargs,
             )
 
-            print(sliced_batches, slice_memberships)
-
             # Incrementally build the slices
             for sl, sl_batch in zip(slices, sliced_batches):
-                sl.append(sl_batch)
+                sl.append(DataPanel(sl_batch))
 
             # Keep track of the slice memberships
             all_slice_memberships.append(slice_memberships)
@@ -291,7 +289,7 @@ class SliceBuilder(StorageMixin):
         slice_membership = np.concatenate(all_slice_memberships, axis=0)
 
         # Create a single DataPanel for each slice
-        slices = [meerkat.concat(e, axis=0) for e in slices]
+        slices = [meerkat.concat(e[1:], axis=0) if len(e) > 1 else e[0] for e in slices]
 
         # TODO(karan): DataPanel doesn't support this
         for i, sl in enumerate(slices):
